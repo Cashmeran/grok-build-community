@@ -44,13 +44,22 @@ Search backends:
 
 Backend is **auto-selected** based on the model's `api_backend` — no manual config needed.
 
-### Planned
+#### New Tools
 
-- [ ] Windows build fixes
-- [ ] Chinese system prompt support
-- [ ] xAI branding removal
-- [ ] Glob file matching tool
-- [ ] Desktop GUI (Caelum Tauri shell)
+| Tool | Description |
+|------|-------------|
+| `glob` | File pattern matching (`*`, `**`, `?`), sorted by modification time |
+| `calculator` | Math expressions, statistics (mean/median/stdev), multi-step variables |
+| `json_query` | JSON path navigation, filtering, aggregation (sum/avg/min/max) |
+| `csv_ops` | CSV/TSV schema inference, filtering, sorting, grouped aggregation |
+| `text` | Regex extract/replace/count with linear-time matching |
+| `codec` | Base64/hex/URL encode/decode, sha256/sha512/md5/crc32/blake3 |
+
+#### Prompt Optimizations
+
+The system prompt has been improved with additional guidance for communication style, accuracy, and execution discipline — reducing AI clichés and hallucinations.
+
+### Planned
 
 ## Build
 
