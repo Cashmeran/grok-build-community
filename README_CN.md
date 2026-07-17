@@ -50,9 +50,21 @@
 
 ## 安装
 
-预编译二进制发布在 [Releases](https://github.com/Cashmeran/grok-build-community/releases) 页面。
+### 一条命令安装
 
-**从源码构建:**
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.ps1 | iex
+```
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.sh | bash
+```
+
+预编译二进制也发布在 [Releases](https://github.com/Cashmeran/grok-build-community/releases) 页面。
+
+### 从源码构建
 ```bash
 cargo build -p xai-grok-pager-bin --release
 ```

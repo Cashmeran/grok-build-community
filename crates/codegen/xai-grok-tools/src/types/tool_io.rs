@@ -98,6 +98,38 @@ pub enum ToolInput {
     /// Dynamic input for runtime-registered tools (MCP, etc.)
     Dynamic(serde_json::Value),
 }
+
+// Community Edition tools — wrap input as Dynamic JSON.
+impl From<crate::implementations::grok_build::calculator::CalculatorInput> for ToolInput {
+    fn from(i: crate::implementations::grok_build::calculator::CalculatorInput) -> Self {
+        ToolInput::Dynamic(serde_json::to_value(i).unwrap_or_default())
+    }
+}
+impl From<crate::implementations::grok_build::codec::CodecInput> for ToolInput {
+    fn from(i: crate::implementations::grok_build::codec::CodecInput) -> Self {
+        ToolInput::Dynamic(serde_json::to_value(i).unwrap_or_default())
+    }
+}
+impl From<crate::implementations::grok_build::csv_ops::CsvOpsInput> for ToolInput {
+    fn from(i: crate::implementations::grok_build::csv_ops::CsvOpsInput) -> Self {
+        ToolInput::Dynamic(serde_json::to_value(i).unwrap_or_default())
+    }
+}
+impl From<crate::implementations::grok_build::glob::GlobInput> for ToolInput {
+    fn from(i: crate::implementations::grok_build::glob::GlobInput) -> Self {
+        ToolInput::Dynamic(serde_json::to_value(i).unwrap_or_default())
+    }
+}
+impl From<crate::implementations::grok_build::json_query::JsonQueryInput> for ToolInput {
+    fn from(i: crate::implementations::grok_build::json_query::JsonQueryInput) -> Self {
+        ToolInput::Dynamic(serde_json::to_value(i).unwrap_or_default())
+    }
+}
+impl From<crate::implementations::grok_build::text::TextInput> for ToolInput {
+    fn from(i: crate::implementations::grok_build::text::TextInput) -> Self {
+        ToolInput::Dynamic(serde_json::to_value(i).unwrap_or_default())
+    }
+}
 impl ToolInput {
     /// The real target tool for *meta-dispatch* tools whose wire `function.name`
     /// is only the wrapper (`use_tool`), or `None` for

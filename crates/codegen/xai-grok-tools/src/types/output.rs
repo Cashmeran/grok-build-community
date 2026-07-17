@@ -1269,6 +1269,40 @@ impl xai_tool_runtime::ToolOutput for EnterPlanModeOutput {}
 impl xai_tool_runtime::ToolOutput for ExitPlanModeOutput {}
 impl xai_tool_runtime::ToolOutput for AskUserQuestionOutput {}
 impl xai_tool_runtime::ToolOutput for MCPOutput {}
+
+// Community Edition tools — wrap as text output.
+impl From<crate::implementations::grok_build::calculator::CalculatorOutput> for ToolOutput {
+    fn from(o: crate::implementations::grok_build::calculator::CalculatorOutput) -> Self {
+        ToolOutput::Text(TextOutput::from(o.result))
+    }
+}
+impl From<crate::implementations::grok_build::codec::CodecOutput> for ToolOutput {
+    fn from(o: crate::implementations::grok_build::codec::CodecOutput) -> Self {
+        ToolOutput::Text(TextOutput::from(o.result))
+    }
+}
+impl From<crate::implementations::grok_build::csv_ops::CsvOpsOutput> for ToolOutput {
+    fn from(o: crate::implementations::grok_build::csv_ops::CsvOpsOutput) -> Self {
+        ToolOutput::Text(TextOutput::from(o.result))
+    }
+}
+impl From<crate::implementations::grok_build::glob::GlobOutput> for ToolOutput {
+    fn from(o: crate::implementations::grok_build::glob::GlobOutput) -> Self {
+        let text = o.files.iter().map(|f| f.path.clone()).collect::<Vec<_>>().join("\n");
+        ToolOutput::Text(TextOutput::from(text))
+    }
+}
+impl From<crate::implementations::grok_build::json_query::JsonQueryOutput> for ToolOutput {
+    fn from(o: crate::implementations::grok_build::json_query::JsonQueryOutput) -> Self {
+        ToolOutput::Text(TextOutput::from(o.result))
+    }
+}
+impl From<crate::implementations::grok_build::text::TextOutput> for ToolOutput {
+    fn from(o: crate::implementations::grok_build::text::TextOutput) -> Self {
+        ToolOutput::Text(TextOutput::from(o.result))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

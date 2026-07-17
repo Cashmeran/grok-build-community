@@ -50,9 +50,21 @@ Optimized system prompt with communication style, accuracy, and execution discip
 
 ## Install
 
-Prebuilt binaries for Windows, macOS, and Linux are published on the [Releases](https://github.com/Cashmeran/grok-build-community/releases) page.
+### One-command install
 
-**Build from source:**
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.ps1 | iex
+```
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.sh | bash
+```
+
+Prebuilt binaries are also published on the [Releases](https://github.com/Cashmeran/grok-build-community/releases) page.
+
+### Build from source
 ```bash
 cargo build -p xai-grok-pager-bin --release
 ```
