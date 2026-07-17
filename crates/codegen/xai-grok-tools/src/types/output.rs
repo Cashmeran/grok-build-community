@@ -1288,7 +1288,12 @@ impl From<crate::implementations::grok_build::csv_ops::CsvOpsOutput> for ToolOut
 }
 impl From<crate::implementations::grok_build::glob::GlobOutput> for ToolOutput {
     fn from(o: crate::implementations::grok_build::glob::GlobOutput) -> Self {
-        let text = o.files.iter().map(|f| f.path.clone()).collect::<Vec<_>>().join("\n");
+        let text = o
+            .files
+            .iter()
+            .map(|f| f.path.clone())
+            .collect::<Vec<_>>()
+            .join("\n");
         ToolOutput::Text(TextOutput::from(text))
     }
 }

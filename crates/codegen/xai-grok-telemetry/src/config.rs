@@ -97,6 +97,8 @@ pub struct TelemetryConfig {
     pub events_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub events_api_key: Option<String>,
+    // The following fields are no-ops in Community Edition.
+    // Kept for API compatibility with upstream crates that still reference them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mixpanel_token: Option<String>,
     #[serde(default)]
