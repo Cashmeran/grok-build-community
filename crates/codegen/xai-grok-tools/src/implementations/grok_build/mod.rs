@@ -16,12 +16,12 @@ pub mod csv_ops;
 #[path = "deploy_app_stub.rs"]
 pub mod deploy_app;
 pub mod enter_plan_mode;
-pub mod json_query;
 pub mod exit_plan_mode;
 pub mod glob;
 pub mod grep;
 pub mod image_edit;
 pub mod image_gen;
+pub mod json_query;
 pub mod kill_task;
 pub mod list_dir;
 pub mod lsp;
@@ -31,8 +31,8 @@ pub mod scheduler;
 pub mod search_replace;
 pub(crate) mod storage;
 pub mod task;
-pub mod text;
 pub mod task_output;
+pub mod text;
 pub mod todo;
 pub mod update_goal;
 pub mod video_gen;
@@ -44,7 +44,6 @@ pub use calculator::CalculatorTool;
 pub use codec::CodecTool;
 pub use csv_ops::CsvOpsTool;
 pub use deploy_app::{AppBuilderDeployerConfig, DEPLOY_APP_TOOL_NAME};
-pub use json_query::JsonQueryTool;
 pub use enter_plan_mode::EnterPlanModeTool;
 pub use exit_plan_mode::ExitPlanModeTool;
 pub use glob::GlobTool;
@@ -54,6 +53,7 @@ pub use image_gen::{
     IMAGE_GEN_TOOL_NAME, IMAGINE_COMMAND_NAME, ImageGenTool, imagine_instruction,
     imagine_usage_message,
 };
+pub use json_query::JsonQueryTool;
 pub use kill_task::{KillTaskTool, KillTerminalCommandTool};
 pub use list_dir::ListDirTool;
 pub use lsp::LspTool;
@@ -66,8 +66,8 @@ pub use scheduler::delete::{SCHEDULER_DELETE_TOOL_NAME, SchedulerDeleteTool};
 pub use scheduler::list::SchedulerListTool;
 pub use search_replace::SearchReplaceTool;
 pub use task::TaskTool;
-pub use text::TextTool;
 pub use task_output::{GetTerminalCommandOutputTool, TaskOutputTool, WaitTasksTool};
+pub use text::TextTool;
 pub use todo::TodoWriteTool;
 pub use update_goal::{UPDATE_GOAL_TOOL_NAME, UpdateGoalTool};
 pub use video_gen::{

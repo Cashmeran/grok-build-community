@@ -170,9 +170,14 @@ fn write_event<T: Serialize>(
 /// Product analytics event → local log. Community Edition: always writes locally,
 /// never uploads.
 pub fn log_event<T: TelemetryEvent>(data: T) {
-    let ctx = TELEMETRY_CTX.try_with(|c| {
-        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g).ok())
-    }).ok();
+    let ctx = TELEMETRY_CTX
+        .try_with(|c| {
+            (
+                c.session_id.clone(),
+                c.prompt_index.try_lock().map(|g| *g).ok(),
+            )
+        })
+        .ok();
     write_event(T::NAME, EmitterOrigin::Shell.event_prefix(), &data, ctx);
 }
 
@@ -183,26 +188,45 @@ pub fn log_event_dual<T: TelemetryEvent>(_internal_enabled: bool, data: T) {
 
 /// Session lifecycle event → local log.
 pub fn log_session_event<T: TelemetryEvent>(data: T) {
-    let ctx = TELEMETRY_CTX.try_with(|c| {
-        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g).ok())
-    }).ok();
+    let ctx = TELEMETRY_CTX
+        .try_with(|c| {
+            (
+                c.session_id.clone(),
+                c.prompt_index.try_lock().map(|g| *g).ok(),
+            )
+        })
+        .ok();
     write_event(T::NAME, EmitterOrigin::Shell.event_prefix(), &data, ctx);
 }
 
 /// Session lifecycle event with origin → local log.
 pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, data: T) {
-    let ctx = TELEMETRY_CTX.try_with(|c| {
-        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g).ok())
-    }).ok();
+    let ctx = TELEMETRY_CTX
+        .try_with(|c| {
+            (
+                c.session_id.clone(),
+                c.prompt_index.try_lock().map(|g| *g).ok(),
+            )
+        })
+        .ok();
     write_event(T::NAME, origin.event_prefix(), &data, ctx);
 }
 
 /// Emit an event with Shell prefix → local log.
 pub fn emit_event<T: Serialize + Send + 'static>(event_suffix: impl Into<String>, data: T) {
-    let event_name = format!("{}{}", EmitterOrigin::Shell.event_prefix(), event_suffix.into());
-    let ctx = TELEMETRY_CTX.try_with(|c| {
-        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g).ok())
-    }).ok();
+    let event_name = format!(
+        "{}{}",
+        EmitterOrigin::Shell.event_prefix(),
+        event_suffix.into()
+    );
+    let ctx = TELEMETRY_CTX
+        .try_with(|c| {
+            (
+                c.session_id.clone(),
+                c.prompt_index.try_lock().map(|g| *g).ok(),
+            )
+        })
+        .ok();
     write_event(&event_name, EmitterOrigin::Shell.event_prefix(), &data, ctx);
 }
 
@@ -213,9 +237,14 @@ pub fn emit_event_with_origin<T: Serialize + Send + 'static>(
     data: T,
 ) {
     let event_name = format!("{}{}", origin.event_prefix(), event_suffix.into());
-    let ctx = TELEMETRY_CTX.try_with(|c| {
-        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g).ok())
-    }).ok();
+    let ctx = TELEMETRY_CTX
+        .try_with(|c| {
+            (
+                c.session_id.clone(),
+                c.prompt_index.try_lock().map(|g| *g).ok(),
+            )
+        })
+        .ok();
     write_event(&event_name, origin.event_prefix(), &data, ctx);
 }
 

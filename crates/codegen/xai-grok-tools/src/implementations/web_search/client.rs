@@ -345,7 +345,8 @@ mod tests {
     }
     #[test]
     fn test_new_client_uses_configured_model() {
-        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+        let config = WebSearchConfig::Enabled {
+            api_backend: "responses".to_string(),
             api_key: "test-key".to_string(),
             base_url: "https://api.x.ai/v1".to_string(),
             model: "custom-enterprise-model".to_string(),
@@ -375,7 +376,8 @@ mod tests {
     fn record_401_attribution_passes_truncated_prefix_to_callback() {
         let cb = std::sync::Arc::new(CountingCallback::default());
         let cb_dyn: crate::attribution::SharedAttributionCallback = cb.clone();
-        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+        let config = WebSearchConfig::Enabled {
+            api_backend: "responses".to_string(),
             api_key: "ignored".to_string(),
             base_url: "https://api.x.ai/v1".to_string(),
             model: "test-model".to_string(),
@@ -399,7 +401,8 @@ mod tests {
     /// -- the BYOK / standalone case must not panic or allocate.
     #[test]
     fn record_401_attribution_is_noop_without_callback() {
-        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+        let config = WebSearchConfig::Enabled {
+            api_backend: "responses".to_string(),
             api_key: "test-key".to_string(),
             base_url: "https://api.x.ai/v1".to_string(),
             model: "test-model".to_string(),
@@ -521,7 +524,8 @@ mod tests {
             )))
             .mount(&server)
             .await;
-        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+        let config = WebSearchConfig::Enabled {
+            api_backend: "responses".to_string(),
             api_key: "static-key-from-config".to_string(),
             base_url: server.uri(),
             model: "test-model".to_string(),
@@ -561,7 +565,8 @@ mod tests {
             )))
             .mount(&server)
             .await;
-        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+        let config = WebSearchConfig::Enabled {
+            api_backend: "responses".to_string(),
             api_key: "stale-static-key".to_string(),
             base_url: server.uri(),
             model: "test-model".to_string(),

@@ -6,9 +6,15 @@ pub mod schema;
 /// Stub — truncation module was removed.
 pub(crate) mod truncate {
     pub const MAX_FILE_EXTENSION_LEN: usize = 0;
-    pub fn truncate_string(_s: &str, _max_bytes: usize) -> &str { "" }
-    pub fn truncate_json_value(_v: &serde_json::Value, _max_bytes: usize) -> serde_json::Value { serde_json::Value::Null }
-    pub fn reduce_tool_input(_v: &serde_json::Value) -> crate::external::schema::AttrValue { crate::external::schema::AttrValue::Bool(false) }
+    pub fn truncate_string(_s: &str, _max_bytes: usize) -> &str {
+        ""
+    }
+    pub fn truncate_json_value(_v: &serde_json::Value, _max_bytes: usize) -> serde_json::Value {
+        serde_json::Value::Null
+    }
+    pub fn reduce_tool_input(_v: &serde_json::Value) -> crate::external::schema::AttrValue {
+        crate::external::schema::AttrValue::Bool(false)
+    }
 }
 
 /// Stub — config module was removed.
@@ -31,11 +37,18 @@ pub struct IdentityAttrs {
 }
 
 impl Default for IdentityAttrs {
-    fn default() -> Self { Self::empty() }
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 impl IdentityAttrs {
     pub fn empty() -> Self {
-        Self { deployment_id: None, api_key_id: None, user_id: None, organization_id: None }
+        Self {
+            deployment_id: None,
+            api_key_id: None,
+            user_id: None,
+            organization_id: None,
+        }
     }
     pub fn from_snapshot(_snapshot: &xai_grok_auth::CredentialSnapshot) -> Self {
         Self::empty()
@@ -61,7 +74,11 @@ pub enum OtelProtocol {
 }
 impl OtelProtocol {
     pub fn as_protocol_str(&self) -> &str {
-        match self { OtelProtocol::HttpProtobuf => "http/protobuf", OtelProtocol::Grpc => "grpc", OtelProtocol::None => "none" }
+        match self {
+            OtelProtocol::HttpProtobuf => "http/protobuf",
+            OtelProtocol::Grpc => "grpc",
+            OtelProtocol::None => "none",
+        }
     }
 }
 pub struct ExternalOtelGates {
@@ -77,7 +94,10 @@ impl ExternalOtelConfig {
             client: config::ExternalClientInfo::default(),
             transport: OtelProtocol::None,
             logs_endpoint: None,
-            gates: ExternalOtelGates { log_user_prompts: false, log_tool_details: false },
+            gates: ExternalOtelGates {
+                log_user_prompts: false,
+                log_tool_details: false,
+            },
             internal_pipeline_consumed_otel_vars: false,
         })
     }
@@ -94,7 +114,9 @@ pub struct ExternalOtelFileConfig {
     pub log_tool_details: Option<bool>,
 }
 
-pub fn is_active() -> bool { false }
+pub fn is_active() -> bool {
+    false
+}
 pub fn init(_cfg: Option<ExternalOtelConfig>) {}
 pub fn emit<T: crate::events::TelemetryEvent>(_data: &T) {}
 pub fn set_identity(_attrs: IdentityAttrs) {}

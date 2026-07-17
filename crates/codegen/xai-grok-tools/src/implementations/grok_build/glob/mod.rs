@@ -21,11 +21,17 @@ pub struct GlobInput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
 
-    #[schemars(with = "crate::types::schema::GrokIntegerSchema", description = "Max results (default: 250, 0 = unlimited)")]
+    #[schemars(
+        with = "crate::types::schema::GrokIntegerSchema",
+        description = "Max results (default: 250, 0 = unlimited)"
+    )]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub head_limit: Option<usize>,
 
-    #[schemars(with = "crate::types::schema::GrokIntegerSchema", description = "Skip first N results for pagination")]
+    #[schemars(
+        with = "crate::types::schema::GrokIntegerSchema",
+        description = "Skip first N results for pagination"
+    )]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub offset: Option<usize>,
 }
@@ -135,7 +141,8 @@ impl xai_tool_runtime::Tool for GlobTool {
             Ok(paths) => {
                 let paths: Vec<std::path::PathBuf> = paths.filter_map(|r| r.ok()).collect();
                 let mut found = std::collections::HashSet::new();
-                paths.into_iter()
+                paths
+                    .into_iter()
                     .filter(|p| p.is_file())
                     .filter_map(|p| {
                         let rel = p.strip_prefix(&root_path).ok()?;
@@ -148,10 +155,7 @@ impl xai_tool_runtime::Tool for GlobTool {
                         }
                         let size = std::fs::metadata(&p).ok()?.len();
                         // Use creation or modification time for ordering
-                        let mtime = std::fs::metadata(&p)
-                            .ok()?
-                            .modified()
-                            .ok()?;
+                        let mtime = std::fs::metadata(&p).ok()?.modified().ok()?;
                         Some(((rel_str, size), mtime))
                     })
                     .collect::<Vec<_>>()
@@ -196,10 +200,7 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = GlobTool;
-        assert_eq!(
-            xai_tool_runtime::Tool::id(&tool).as_str(),
-            "glob"
-        );
+        assert_eq!(xai_tool_runtime::Tool::id(&tool).as_str(), "glob");
         assert!(
             crate::types::tool_metadata::ToolMetadata::description_template(&tool)
                 .contains("glob pattern")

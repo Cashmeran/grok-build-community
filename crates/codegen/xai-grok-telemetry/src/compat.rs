@@ -14,7 +14,8 @@ pub fn init(
     _version: String,
     _subscription_tier: Option<String>,
     _client: reqwest::Client,
-) {}
+) {
+}
 /// No-op.
 pub fn init_if_needed(
     _cfg: crate::config::TelemetryConfig,
@@ -26,17 +27,24 @@ pub fn init_if_needed(
     _version: String,
     _subscription_tier: Option<String>,
     _client: reqwest::Client,
-) {}
+) {
+}
 /// Always false — no upload, so never "enabled".
-pub fn is_enabled() -> bool { false }
+pub fn is_enabled() -> bool {
+    false
+}
 /// Always false.
-pub fn is_session_metrics_enabled() -> bool { false }
+pub fn is_session_metrics_enabled() -> bool {
+    false
+}
 
 // ── sentry stubs ──
 
 pub struct SentryConfig;
 /// No-op — sentry crash reporting is deleted.
-pub fn sentry_init(_config: SentryConfig) -> SentryGuard { SentryGuard }
+pub fn sentry_init(_config: SentryConfig) -> SentryGuard {
+    SentryGuard
+}
 pub struct SentryGuard;
 impl Drop for SentryGuard {
     fn drop(&mut self) {}

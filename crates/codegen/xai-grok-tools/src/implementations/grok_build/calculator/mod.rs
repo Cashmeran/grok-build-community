@@ -13,7 +13,9 @@ const MAX_LIST_ELEMS: usize = 100_000;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct CalculatorInput {
-    #[schemars(description = "The expression to evaluate. Supports: arithmetic, scientific functions (sin/cos/log/exp/sqrt), variables and multi-step (x=5; y=x*2; y+1), statistics (mean/median/stdev/mode/min/max/sum/percentile). Use '=' for equality checks.")]
+    #[schemars(
+        description = "The expression to evaluate. Supports: arithmetic, scientific functions (sin/cos/log/exp/sqrt), variables and multi-step (x=5; y=x*2; y+1), statistics (mean/median/stdev/mode/min/max/sum/percentile). Use '=' for equality checks."
+    )]
     pub expression: String,
 }
 
@@ -162,9 +164,12 @@ fn format_val(v: f64) -> String {
 /// Evaluate multi-step expressions separated by `;` or `\n`.
 /// Each step can be a variable binding (`x = 5`) or an expression (`x + 1`).
 fn eval_multistep(expr: &str) -> Result<CalculatorOutput, xai_tool_runtime::ToolError> {
-    let err = |s| xai_tool_runtime::ToolError::execution(
-        xai_tool_protocol::ToolId::new("calculator").expect("valid"), s,
-    );
+    let err = |s| {
+        xai_tool_runtime::ToolError::execution(
+            xai_tool_protocol::ToolId::new("calculator").expect("valid"),
+            s,
+        )
+    };
 
     let mut vars: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
     let steps: Vec<&str> = expr
@@ -223,7 +228,11 @@ fn eval_multistep(expr: &str) -> Result<CalculatorOutput, xai_tool_runtime::Tool
         } else {
             format_val(last_value)
         },
-        value: if last_type == "binding" { None } else { Some(last_value) },
+        value: if last_type == "binding" {
+            None
+        } else {
+            Some(last_value)
+        },
         type_name: last_type.into(),
         exact: false,
     })
@@ -259,12 +268,14 @@ fn try_stat(expression: &str) -> Option<CalculatorOutput> {
 
     let output = match stat_result {
         Ok(o) => o,
-        Err(e) => return Some(CalculatorOutput {
-            result: e.clone(),
-            value: None,
-            type_name: "error".into(),
-            exact: false,
-        }),
+        Err(e) => {
+            return Some(CalculatorOutput {
+                result: e.clone(),
+                value: None,
+                type_name: "error".into(),
+                exact: false,
+            });
+        }
     };
 
     // If trailing content (e.g. "= 3"), evaluate stat_result op trail
@@ -292,7 +303,9 @@ fn find_stat_paren_end(args: &str) -> Option<usize> {
         match c {
             '(' => depth += 1,
             ')' => {
-                if depth == 0 { return Some(i); }
+                if depth == 0 {
+                    return Some(i);
+                }
                 depth -= 1;
             }
             _ => {}
@@ -309,7 +322,9 @@ fn parse_list(input: &str) -> Result<Vec<f64>, String> {
     let mut nums = Vec::new();
     for part in s.split([',', ' ', '\t', '\n'].as_ref()) {
         let part = part.trim();
-        if part.is_empty() { continue; }
+        if part.is_empty() {
+            continue;
+        }
         match part.parse::<f64>() {
             Ok(n) => {
                 if nums.len() >= MAX_LIST_ELEMS {
@@ -351,7 +366,9 @@ fn stat_percentile(input: &str) -> Result<CalculatorOutput, String> {
     let list_str = &input[..=list_end];
     let p_str = input[list_end + 1..].trim().trim_start_matches(',').trim();
     let nums = parse_list(list_str)?;
-    let p: f64 = p_str.parse().map_err(|_| "percentile must be 0-100".to_string())?;
+    let p: f64 = p_str
+        .parse()
+        .map_err(|_| "percentile must be 0-100".to_string())?;
     if !(0.0..=100.0).contains(&p) {
         return Err("percentile must be 0-100".to_string());
     }
@@ -366,13 +383,19 @@ fn stat_percentile(input: &str) -> Result<CalculatorOutput, String> {
 
 // ── Stat functions ──
 
-fn mean(nums: &[f64]) -> f64 { nums.iter().sum::<f64>() / nums.len() as f64 }
+fn mean(nums: &[f64]) -> f64 {
+    nums.iter().sum::<f64>() / nums.len() as f64
+}
 
 fn median(nums: &[f64]) -> f64 {
     let mut sorted = nums.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let n = sorted.len();
-    if n.is_multiple_of(2) { (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0 } else { sorted[n / 2] }
+    if n.is_multiple_of(2) {
+        (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+    } else {
+        sorted[n / 2]
+    }
 }
 
 fn mode(nums: &[f64]) -> f64 {
@@ -383,7 +406,11 @@ fn mode(nums: &[f64]) -> f64 {
             *counts.entry(n as i64).or_insert(0) += 1;
         }
     }
-    counts.into_iter().max_by_key(|&(_, count)| count).map(|(val, _)| val as f64).unwrap_or(nums[0])
+    counts
+        .into_iter()
+        .max_by_key(|&(_, count)| count)
+        .map(|(val, _)| val as f64)
+        .unwrap_or(nums[0])
 }
 
 fn variance(nums: &[f64]) -> f64 {
@@ -391,22 +418,34 @@ fn variance(nums: &[f64]) -> f64 {
     nums.iter().map(|x| (x - m) * (x - m)).sum::<f64>() / (nums.len() - 1) as f64
 }
 
-fn stdev(nums: &[f64]) -> f64 { variance(nums).sqrt() }
+fn stdev(nums: &[f64]) -> f64 {
+    variance(nums).sqrt()
+}
 
-fn list_min(nums: &[f64]) -> f64 { nums.iter().cloned().fold(f64::INFINITY, f64::min) }
+fn list_min(nums: &[f64]) -> f64 {
+    nums.iter().cloned().fold(f64::INFINITY, f64::min)
+}
 
-fn list_max(nums: &[f64]) -> f64 { nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max) }
+fn list_max(nums: &[f64]) -> f64 {
+    nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+}
 
-fn list_sum(nums: &[f64]) -> f64 { nums.iter().sum() }
+fn list_sum(nums: &[f64]) -> f64 {
+    nums.iter().sum()
+}
 
 fn percentile(nums: &[f64], p: f64) -> f64 {
     let mut sorted = nums.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    if sorted.len() == 1 { return sorted[0]; }
+    if sorted.len() == 1 {
+        return sorted[0];
+    }
     let rank = p / 100.0 * (sorted.len() - 1) as f64;
     let lower = rank.floor() as usize;
     let upper = rank.ceil() as usize;
-    if lower == upper { return sorted[lower]; }
+    if lower == upper {
+        return sorted[lower];
+    }
     let frac = rank - lower as f64;
     sorted[lower] * (1.0 - frac) + sorted[upper] * frac
 }
@@ -425,8 +464,11 @@ mod tests {
         xai_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
-            CalculatorInput { expression: expr.to_string() },
-        ).await
+            CalculatorInput {
+                expression: expr.to_string(),
+            },
+        )
+        .await
     }
 
     #[tokio::test]
@@ -473,9 +515,18 @@ mod tests {
 
     #[tokio::test]
     async fn min_max_sum() {
-        assert_eq!(run("min([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(), 1.0);
-        assert_eq!(run("max([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(), 9.0);
-        assert_eq!(run("sum([1, 2, 3, 4, 5])").await.unwrap().value.unwrap(), 15.0);
+        assert_eq!(
+            run("min([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(),
+            1.0
+        );
+        assert_eq!(
+            run("max([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(),
+            9.0
+        );
+        assert_eq!(
+            run("sum([1, 2, 3, 4, 5])").await.unwrap().value.unwrap(),
+            15.0
+        );
     }
 
     #[tokio::test]
@@ -487,6 +538,9 @@ mod tests {
     fn tool_name_and_description() {
         let tool = CalculatorTool;
         assert_eq!(xai_tool_runtime::Tool::id(&tool).as_str(), "calculator");
-        assert!(crate::types::tool_metadata::ToolMetadata::description_template(&tool).contains("arithmetic"));
+        assert!(
+            crate::types::tool_metadata::ToolMetadata::description_template(&tool)
+                .contains("arithmetic")
+        );
     }
 }

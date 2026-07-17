@@ -29,7 +29,10 @@ struct DdgTopic {
 }
 
 /// Search DuckDuckGo and return formatted results.
-pub async fn search(query: &str, allowed_domains: Option<&[String]>) -> Result<WebSearchOutput, String> {
+pub async fn search(
+    query: &str,
+    allowed_domains: Option<&[String]>,
+) -> Result<WebSearchOutput, String> {
     let client = reqwest::Client::builder()
         .user_agent("GrokBuild-Community/0.1")
         .timeout(Duration::from_secs(10))
@@ -71,16 +74,16 @@ pub async fn search(query: &str, allowed_domains: Option<&[String]>) -> Result<W
         if let (Some(text), Some(url)) = (&topic.text, &topic.first_url)
             && let Some(filtered) = filter_domain(url, allowed_domains)
         {
-                let filtered_url = filtered.unwrap_or(url);
-                let (title, snippet) = text.split_once(" - ").unwrap_or((text, ""));
-                parts.push(format!(
-                    "- **{}**  \n  {}\n  {}",
-                    title.trim(),
-                    snippet.trim(),
-                    filtered_url
-                ));
-                citations.push(filtered_url.to_string());
-            }
+            let filtered_url = filtered.unwrap_or(url);
+            let (title, snippet) = text.split_once(" - ").unwrap_or((text, ""));
+            parts.push(format!(
+                "- **{}**  \n  {}\n  {}",
+                title.trim(),
+                snippet.trim(),
+                filtered_url
+            ));
+            citations.push(filtered_url.to_string());
+        }
     }
 
     if parts.is_empty() {
@@ -115,7 +118,10 @@ fn filter_domain<'a>(url: &'a str, allowed: Option<&[String]>) -> Option<Option<
         .or_else(|| url.strip_prefix("http://"))
         .and_then(|s| s.split('/').next())
         .unwrap_or("");
-    if allowed.iter().any(|d| host == d.as_str() || host.ends_with(&format!(".{d}"))) {
+    if allowed
+        .iter()
+        .any(|d| host == d.as_str() || host.ends_with(&format!(".{d}")))
+    {
         Some(None)
     } else {
         None

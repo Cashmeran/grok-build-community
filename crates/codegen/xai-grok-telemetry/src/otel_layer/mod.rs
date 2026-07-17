@@ -39,5 +39,7 @@ pub struct OtelGuard;
 impl Drop for OtelGuard {
     fn drop(&mut self) {}
 }
-pub fn otel_guard() -> OtelGuard { OtelGuard }
+pub fn otel_guard() -> OtelGuard {
+    OtelGuard
+}
 pub fn shutdown_otel() {}

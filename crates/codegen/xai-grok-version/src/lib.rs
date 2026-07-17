@@ -31,7 +31,10 @@ pub fn display_version(channel_label: &str) -> String {
 }
 
 pub fn display_version_with_commit(version_with_commit: &str, channel_label: &str) -> String {
-    format!("{}{}{}", version_with_commit, channel_label, COMMUNITY_SUFFIX)
+    format!(
+        "{}{}{}",
+        version_with_commit, channel_label, COMMUNITY_SUFFIX
+    )
 }
 
 #[cfg(test)]
