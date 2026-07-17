@@ -29,6 +29,7 @@ crc32fast = { workspace = true }
 ignore = { workspace = true }
 infer = { workspace = true }
 globset = { workspace = true }
+kalk = "2.3"
 image = { workspace = true, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff", "ico"] }
 pdf_oxide = { workspace = true }
 # PPTX text extraction (implementations/read_file/pptx.rs). Deliberately NOT

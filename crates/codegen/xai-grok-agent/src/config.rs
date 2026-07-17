@@ -280,6 +280,7 @@ fn default_grok_build_toolset() -> ToolServerConfig {
             (&grok_build::MonitorTool).into(),
             (&search_tool::SearchTool).into(),
             (&use_tool::UseTool).into(),
+            (&grok_build::CalculatorTool).into(),
             (&grok_build::UpdateGoalTool).into(),
         ],
         behavior_preset: None,
