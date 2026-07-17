@@ -49,30 +49,26 @@ pub async fn search(
                     pre_formatted: None,
                 })
         }
-        "messages" => super::messages::search(
-            base_url,
-            model,
-            api_key,
-            query,
-            allowed_domains.as_deref(),
-        )
-        .await
-        .map_err(|e| xai_tool_runtime::ToolError::execution(
-            xai_tool_protocol::ToolId::new("web_search").expect("valid"),
-            e,
-        )),
-        "chat_completions" => super::chat::search(
-            base_url,
-            model,
-            api_key,
-            query,
-            allowed_domains.as_deref(),
-        )
-        .await
-        .map_err(|e| xai_tool_runtime::ToolError::execution(
-            xai_tool_protocol::ToolId::new("web_search").expect("valid"),
-            e,
-        )),
+        "messages" => {
+            super::messages::search(base_url, model, api_key, query, allowed_domains.as_deref())
+                .await
+                .map_err(|e| {
+                    xai_tool_runtime::ToolError::execution(
+                        xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+                        e,
+                    )
+                })
+        }
+        "chat_completions" => {
+            super::chat::search(base_url, model, api_key, query, allowed_domains.as_deref())
+                .await
+                .map_err(|e| {
+                    xai_tool_runtime::ToolError::execution(
+                        xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+                        e,
+                    )
+                })
+        }
         _ => Err(xai_tool_runtime::ToolError::execution(
             xai_tool_protocol::ToolId::new("web_search").expect("valid"),
             format!("Unknown api_backend: {api_backend}"),
@@ -87,8 +83,10 @@ pub async fn search(
     // 3. Fall back to DuckDuckGo
     super::ddg::search(query, allowed_domains.as_deref())
         .await
-        .map_err(|e| xai_tool_runtime::ToolError::execution(
-            xai_tool_protocol::ToolId::new("web_search").expect("valid"),
-            format!("Native search failed, DDG fallback also failed: {e}"),
-        ))
+        .map_err(|e| {
+            xai_tool_runtime::ToolError::execution(
+                xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+                format!("Native search failed, DDG fallback also failed: {e}"),
+            )
+        })
 }

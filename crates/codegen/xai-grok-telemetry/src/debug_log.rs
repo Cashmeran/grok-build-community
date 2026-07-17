@@ -1,3 +1,4 @@
+#![allow(clippy::needless_borrow)]
 //! Reusable non-blocking file-logging tracing layers for the `--debug` firehose.
 //!
 //! Two install modes, chosen by env precedence (see `resolve_debug_target_inner`):
@@ -96,7 +97,7 @@ fn build_file_layer<S>(path: &Path, filter: EnvFilter) -> std::io::Result<impl L
 where
     S: Subscriber + for<'span> LookupSpan<'span>,
 {
-    let non_blocking = crate::appender::non_blocking_file_writer(path)?;
+    let non_blocking = crate::appender::non_blocking_file_writer_from_path(&path)?;
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
         .with_ansi(false)
@@ -286,7 +287,7 @@ impl RoutingLayer {
         }
         // First event for this session: open OUTSIDE the lock.
         let path = self.dir.join(format!("{key}.txt"));
-        let Ok(mut writer) = crate::appender::non_blocking_file_writer(&path) else {
+        let Ok(mut writer) = crate::appender::non_blocking_file_writer_from_path(&path) else {
             return;
         };
         update_latest_symlink(&self.dir, &path);
@@ -307,7 +308,7 @@ impl RoutingLayer {
             }
         }
         let path = self.dir.join(format!("{}-{}.txt", self.role, self.pid));
-        let Ok(mut writer) = crate::appender::non_blocking_file_writer(&path) else {
+        let Ok(mut writer) = crate::appender::non_blocking_file_writer_from_path(&path) else {
             return;
         };
         let _ = writer.write_all(line);

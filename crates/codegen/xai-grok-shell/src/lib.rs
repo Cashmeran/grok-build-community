@@ -1,4 +1,5 @@
 #![allow(
+    clippy::possible_missing_else,
     unused_imports,
     unused_variables,
     unused_mut,

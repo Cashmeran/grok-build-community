@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! External OTEL schema v1: event names, attribute keys, typed records, and
 //! the per-event mapping functions wired through the `telemetry_event!`
 //! macro's `external = …` arm.

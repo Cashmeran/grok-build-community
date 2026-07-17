@@ -129,10 +129,11 @@ fn init_tracing_simple(app_entrypoint: &'static str) {
         .with(xai_grok_telemetry::hooks_log::layer())
         .with(xai_grok_telemetry::otel_layer::build_otel_layer(
             xai_grok_telemetry::otel_layer::OtelClientInfo {
-                client_name: "grok-pager",
-                client_version: xai_grok_version::VERSION,
-                service_version: env!("VERSION_WITH_COMMIT"),
-                app_entrypoint,
+                client_name: "grok-pager".into(),
+                client_version: xai_grok_version::VERSION.into(),
+                service_version: env!("VERSION_WITH_COMMIT").into(),
+                app_entrypoint: app_entrypoint.into(),
+                ..Default::default()
             },
             xai_grok_shell::auth::credential_provider::build_default_otel_layer_config(),
         ));
@@ -143,6 +144,7 @@ fn init_tracing_simple(app_entrypoint: &'static str) {
                 service_version: env!("VERSION_WITH_COMMIT").to_owned(),
                 client_version: xai_grok_version::VERSION.to_owned(),
                 app_entrypoint: app_entrypoint.to_owned(),
+                ..Default::default()
             },
         ),
     );

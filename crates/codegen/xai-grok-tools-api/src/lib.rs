@@ -6,9 +6,11 @@
 
 #![allow(clippy::derive_partial_eq_without_eq)]
 
-/// Generated protobuf types.
+/// Generated protobuf types (pre-generated, checked in).
+/// To regenerate: run `cargo build` on Linux (requires protoc), then copy
+/// `target/debug/build/xai-grok-tools-api-*/out/xai.grok.tools.v1.rs` here.
 pub mod pb {
-    include!(concat!(env!("OUT_DIR"), "/xai.grok.tools.v1.rs"));
+    include!("generated.rs");
 }
 
 pub mod config_validation;

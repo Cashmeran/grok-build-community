@@ -394,6 +394,11 @@ pub async fn check_update_background(update_config: &UpdateConfig) -> Background
         return BackgroundUpdateCheck::none();
     }
 
+    // Community Edition: auto-update is permanently disabled
+    if xai_grok_version::IS_COMMUNITY_EDITION {
+        return BackgroundUpdateCheck::none();
+    }
+
     let current_config = config::load_config().await;
     if current_config.cli.auto_update == Some(false) {
         return BackgroundUpdateCheck::none();

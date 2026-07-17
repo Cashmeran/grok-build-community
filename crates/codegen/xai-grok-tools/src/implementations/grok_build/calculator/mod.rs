@@ -13,7 +13,9 @@ const MAX_LIST_ELEMS: usize = 100_000;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct CalculatorInput {
-    #[schemars(description = "The expression to evaluate. Supports: arithmetic, scientific functions (sin/cos/log/exp/sqrt), variables and multi-step (x=5; y=x*2; y+1), statistics (mean/median/stdev/mode/min/max/sum/percentile). Use '=' for equality checks.")]
+    #[schemars(
+        description = "The expression to evaluate. Supports: arithmetic, scientific functions (sin/cos/log/exp/sqrt), variables and multi-step (x=5; y=x*2; y+1), statistics (mean/median/stdev/mode/min/max/sum/percentile). Use '=' for equality checks."
+    )]
     pub expression: String,
 }
 
@@ -27,6 +29,7 @@ pub struct CalculatorOutput {
     pub type_name: String,
     pub exact: bool,
 }
+impl xai_tool_runtime::ToolOutput for CalculatorOutput {}
 
 #[derive(Debug, Default)]
 pub struct CalculatorTool;
@@ -98,60 +101,141 @@ impl xai_tool_runtime::Tool for CalculatorTool {
             return Ok(output);
         }
 
-        // Delegate to kalk
-        let mut ctx = kalk::parser::Context::new()
-            .set_timeout(Some(5000))
-            .set_max_recursion_depth(64);
+        // Handle multi-step expressions with variables (e.g. "x=5; y=x*2; y+1")
+        if expr.contains(';') || expr.contains('\n') {
+            return eval_multistep(&expr);
+        }
 
-        match kalk::parser::eval(&mut ctx, &expr) {
-            Ok(Some(result)) => {
-                let s = result.to_string_pretty().to_string();
-                let (num, type_name) = parse_kalk_result(&s);
+        // Handle equality check (e.g. "2+2 = 4")
+        if let Some((left, right)) = expr.split_once('=') {
+            let left = left.trim();
+            let right = right.trim();
+            if left.is_empty() || right.is_empty() {
+                return Err(xai_tool_runtime::ToolError::execution(
+                    xai_tool_protocol::ToolId::new("calculator").expect("valid"),
+                    "invalid equality expression".to_string(),
+                ));
+            }
+            return match (meval::eval_str(left), meval::eval_str(right)) {
+                (Ok(a), Ok(b)) => Ok(CalculatorOutput {
+                    result: format!("{}", (a - b).abs() < 1e-12),
+                    value: Some(if (a - b).abs() < 1e-12 { 1.0 } else { 0.0 }),
+                    type_name: "boolean".into(),
+                    exact: false,
+                }),
+                (Err(e), _) | (_, Err(e)) => Err(xai_tool_runtime::ToolError::execution(
+                    xai_tool_protocol::ToolId::new("calculator").expect("valid"),
+                    format!("{e}"),
+                )),
+            };
+        }
+
+        // Single expression
+        match meval::eval_str(&expr) {
+            Ok(value) => {
+                let result = format_val(value);
                 Ok(CalculatorOutput {
-                    result: s,
-                    value: num,
-                    type_name,
+                    result,
+                    value: Some(value),
+                    type_name: "number".into(),
                     exact: false,
                 })
             }
-            Ok(None) => Ok(CalculatorOutput {
-                result: "ok".to_string(),
-                value: None,
-                type_name: "binding".to_string(),
-                exact: false,
-            }),
             Err(e) => Err(xai_tool_runtime::ToolError::execution(
                 xai_tool_protocol::ToolId::new("calculator").expect("valid"),
-                format!("{:?}", e),
+                format!("{e}"),
             )),
         }
     }
 }
 
-// ── Kalk result parsing ──
+// ── Formatting ──
 
-/// Parse kalk's pretty output to extract a numeric value and type.
-fn parse_kalk_result(s: &str) -> (Option<f64>, String) {
-    let s = s.strip_prefix("= ").unwrap_or(s).trim();
-    if s == "true" {
-        return (Some(1.0), "boolean".into());
+/// Format an f64 nicely: integer if whole, otherwise trimmed decimal.
+fn format_val(v: f64) -> String {
+    if v == v.trunc() && v.abs() < 1e15 {
+        format!("{}", v as i64)
+    } else {
+        let s = format!("{:.10}", v);
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
     }
-    if s == "false" {
-        return (Some(0.0), "boolean".into());
+}
+
+/// Evaluate multi-step expressions separated by `;` or `\n`.
+/// Each step can be a variable binding (`x = 5`) or an expression (`x + 1`).
+fn eval_multistep(expr: &str) -> Result<CalculatorOutput, xai_tool_runtime::ToolError> {
+    let err = |s| {
+        xai_tool_runtime::ToolError::execution(
+            xai_tool_protocol::ToolId::new("calculator").expect("valid"),
+            s,
+        )
+    };
+
+    let mut vars: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    let steps: Vec<&str> = expr
+        .split([';', '\n'])
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if steps.is_empty() {
+        return Err(err("empty expression".to_string()));
     }
-    if s.contains("],[") || (s.starts_with("[[") && s.ends_with("]]")) {
-        return (None, "matrix".into());
-    }
-    if s.starts_with('[') && s.ends_with(']') {
-        return (None, "vector".into());
-    }
-    if let Some(first_word) = s.split_whitespace().next() {
-        if let Ok(n) = first_word.parse::<f64>() {
-            let has_unit = s.split_whitespace().count() > 1;
-            return (Some(n), if has_unit { "quantity".into() } else { "number".into() });
+
+    let mut last_value = 0.0f64;
+    let mut last_type = "binding";
+
+    for step in &steps {
+        // Substitute variables
+        let mut substituted = step.to_string();
+        for (k, v) in &vars {
+            substituted = substituted.replace(k, &v.to_string());
+        }
+
+        // Variable binding: "x = 5" or "x=5"
+        if let Some((name, val_expr)) = step.split_once('=') {
+            let name = name.trim();
+            let val_expr = val_expr.trim();
+            // Substitute any existing vars in the value expression
+            let mut subbed_val = val_expr.to_string();
+            for (k, v) in &vars {
+                subbed_val = subbed_val.replace(k, &v.to_string());
+            }
+            match meval::eval_str(&subbed_val) {
+                Ok(v) => {
+                    vars.insert(name.to_string(), v);
+                    last_value = v;
+                    last_type = "binding";
+                    continue;
+                }
+                Err(e) => return Err(err(format!("{e}"))),
+            }
+        }
+
+        // Regular expression
+        match meval::eval_str(&substituted) {
+            Ok(v) => {
+                last_value = v;
+                last_type = "number";
+            }
+            Err(e) => return Err(err(format!("{e}"))),
         }
     }
-    (None, "expression".into())
+
+    Ok(CalculatorOutput {
+        result: if last_type == "binding" {
+            "ok".into()
+        } else {
+            format_val(last_value)
+        },
+        value: if last_type == "binding" {
+            None
+        } else {
+            Some(last_value)
+        },
+        type_name: last_type.into(),
+        exact: false,
+    })
 }
 
 // ── Statistics ──
@@ -184,30 +268,30 @@ fn try_stat(expression: &str) -> Option<CalculatorOutput> {
 
     let output = match stat_result {
         Ok(o) => o,
-        Err(e) => return Some(CalculatorOutput {
-            result: e.clone(),
-            value: None,
-            type_name: "error".into(),
-            exact: false,
-        }),
+        Err(e) => {
+            return Some(CalculatorOutput {
+                result: e.clone(),
+                value: None,
+                type_name: "error".into(),
+                exact: false,
+            });
+        }
     };
 
-    // If trailing content (e.g. "= 3"), feed result + trail to kalk
-    if !trailing.is_empty() {
-        if let Some(val) = output.value {
-            let kalk_expr = format!("{} {}", val, trailing);
-            let mut ctx = kalk::parser::Context::new()
-                .set_timeout(Some(5000))
-                .set_max_recursion_depth(64);
-            return match kalk::parser::eval(&mut ctx, &kalk_expr) {
-                Ok(Some(result)) => {
-                    let s = result.to_string_pretty().to_string();
-                    let (num, type_name) = parse_kalk_result(&s);
-                    Some(CalculatorOutput { result: s, value: num, type_name, exact: false })
-                }
-                _ => Some(output),
-            };
-        }
+    // If trailing content (e.g. "= 3"), evaluate stat_result op trail
+    if !trailing.is_empty()
+        && let Some(val) = output.value
+    {
+        let trail_expr = format!("{} {}", val, trailing);
+        return match meval::eval_str(&trail_expr) {
+            Ok(v) => Some(CalculatorOutput {
+                result: format_val(v),
+                value: Some(v),
+                type_name: "number".into(),
+                exact: false,
+            }),
+            _ => Some(output),
+        };
     }
 
     Some(output)
@@ -219,7 +303,9 @@ fn find_stat_paren_end(args: &str) -> Option<usize> {
         match c {
             '(' => depth += 1,
             ')' => {
-                if depth == 0 { return Some(i); }
+                if depth == 0 {
+                    return Some(i);
+                }
                 depth -= 1;
             }
             _ => {}
@@ -236,7 +322,9 @@ fn parse_list(input: &str) -> Result<Vec<f64>, String> {
     let mut nums = Vec::new();
     for part in s.split([',', ' ', '\t', '\n'].as_ref()) {
         let part = part.trim();
-        if part.is_empty() { continue; }
+        if part.is_empty() {
+            continue;
+        }
         match part.parse::<f64>() {
             Ok(n) => {
                 if nums.len() >= MAX_LIST_ELEMS {
@@ -278,7 +366,9 @@ fn stat_percentile(input: &str) -> Result<CalculatorOutput, String> {
     let list_str = &input[..=list_end];
     let p_str = input[list_end + 1..].trim().trim_start_matches(',').trim();
     let nums = parse_list(list_str)?;
-    let p: f64 = p_str.parse().map_err(|_| "percentile must be 0-100".to_string())?;
+    let p: f64 = p_str
+        .parse()
+        .map_err(|_| "percentile must be 0-100".to_string())?;
     if !(0.0..=100.0).contains(&p) {
         return Err("percentile must be 0-100".to_string());
     }
@@ -293,13 +383,19 @@ fn stat_percentile(input: &str) -> Result<CalculatorOutput, String> {
 
 // ── Stat functions ──
 
-fn mean(nums: &[f64]) -> f64 { nums.iter().sum::<f64>() / nums.len() as f64 }
+fn mean(nums: &[f64]) -> f64 {
+    nums.iter().sum::<f64>() / nums.len() as f64
+}
 
 fn median(nums: &[f64]) -> f64 {
     let mut sorted = nums.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let n = sorted.len();
-    if n % 2 == 0 { (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0 } else { sorted[n / 2] }
+    if n.is_multiple_of(2) {
+        (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+    } else {
+        sorted[n / 2]
+    }
 }
 
 fn mode(nums: &[f64]) -> f64 {
@@ -310,7 +406,11 @@ fn mode(nums: &[f64]) -> f64 {
             *counts.entry(n as i64).or_insert(0) += 1;
         }
     }
-    counts.into_iter().max_by_key(|&(_, count)| count).map(|(val, _)| val as f64).unwrap_or(nums[0])
+    counts
+        .into_iter()
+        .max_by_key(|&(_, count)| count)
+        .map(|(val, _)| val as f64)
+        .unwrap_or(nums[0])
 }
 
 fn variance(nums: &[f64]) -> f64 {
@@ -318,22 +418,34 @@ fn variance(nums: &[f64]) -> f64 {
     nums.iter().map(|x| (x - m) * (x - m)).sum::<f64>() / (nums.len() - 1) as f64
 }
 
-fn stdev(nums: &[f64]) -> f64 { variance(nums).sqrt() }
+fn stdev(nums: &[f64]) -> f64 {
+    variance(nums).sqrt()
+}
 
-fn list_min(nums: &[f64]) -> f64 { nums.iter().cloned().fold(f64::INFINITY, f64::min) }
+fn list_min(nums: &[f64]) -> f64 {
+    nums.iter().cloned().fold(f64::INFINITY, f64::min)
+}
 
-fn list_max(nums: &[f64]) -> f64 { nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max) }
+fn list_max(nums: &[f64]) -> f64 {
+    nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+}
 
-fn list_sum(nums: &[f64]) -> f64 { nums.iter().sum() }
+fn list_sum(nums: &[f64]) -> f64 {
+    nums.iter().sum()
+}
 
 fn percentile(nums: &[f64], p: f64) -> f64 {
     let mut sorted = nums.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    if sorted.len() == 1 { return sorted[0]; }
+    if sorted.len() == 1 {
+        return sorted[0];
+    }
     let rank = p / 100.0 * (sorted.len() - 1) as f64;
     let lower = rank.floor() as usize;
     let upper = rank.ceil() as usize;
-    if lower == upper { return sorted[lower]; }
+    if lower == upper {
+        return sorted[lower];
+    }
     let frac = rank - lower as f64;
     sorted[lower] * (1.0 - frac) + sorted[upper] * frac
 }
@@ -352,8 +464,11 @@ mod tests {
         xai_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
-            CalculatorInput { expression: expr.to_string() },
-        ).await
+            CalculatorInput {
+                expression: expr.to_string(),
+            },
+        )
+        .await
     }
 
     #[tokio::test]
@@ -400,9 +515,18 @@ mod tests {
 
     #[tokio::test]
     async fn min_max_sum() {
-        assert_eq!(run("min([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(), 1.0);
-        assert_eq!(run("max([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(), 9.0);
-        assert_eq!(run("sum([1, 2, 3, 4, 5])").await.unwrap().value.unwrap(), 15.0);
+        assert_eq!(
+            run("min([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(),
+            1.0
+        );
+        assert_eq!(
+            run("max([5, 2, 9, 1, 7])").await.unwrap().value.unwrap(),
+            9.0
+        );
+        assert_eq!(
+            run("sum([1, 2, 3, 4, 5])").await.unwrap().value.unwrap(),
+            15.0
+        );
     }
 
     #[tokio::test]
@@ -414,6 +538,9 @@ mod tests {
     fn tool_name_and_description() {
         let tool = CalculatorTool;
         assert_eq!(xai_tool_runtime::Tool::id(&tool).as_str(), "calculator");
-        assert!(crate::types::tool_metadata::ToolMetadata::description_template(&tool).contains("arithmetic"));
+        assert!(
+            crate::types::tool_metadata::ToolMetadata::description_template(&tool)
+                .contains("arithmetic")
+        );
     }
 }

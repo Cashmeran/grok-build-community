@@ -46,9 +46,10 @@ pub async fn search(
         .await
         .map_err(|e| format!("request: {e}"))?;
 
-    if !response.status().is_success() {
+    let status = response.status();
+    if !status.is_success() {
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("API returned {}: {body}", response.status()));
+        return Err(format!("API returned {status}: {body}"));
     }
 
     let resp: ChatResponse = response
@@ -56,10 +57,7 @@ pub async fn search(
         .await
         .map_err(|e| format!("parse response: {e}"))?;
 
-    let choice = resp
-        .choices
-        .first()
-        .ok_or("no choices in response")?;
+    let choice = resp.choices.first().ok_or("no choices in response")?;
 
     let content = choice.message.content.clone().unwrap_or_default();
     if content.is_empty() {
@@ -137,6 +135,7 @@ struct UrlAnnotation {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct UrlCitation {
     url: String,
     #[serde(default)]

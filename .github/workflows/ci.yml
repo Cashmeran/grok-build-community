@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, community]
+
+jobs:
+  # ── Phase 1: 全平台校验 ──
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protoc (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install protoc (macOS)
+        if: runner.os == 'macOS'
+        run: brew install protobuf
+      - name: Install protoc (Windows)
+        if: runner.os == 'Windows'
+        run: choco install protoc --no-progress
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: cargo check
+        run: |
+          cargo check -p xai-grok-telemetry
+          cargo check -p xai-grok-tools
+          cargo check -p xai-grok-version
+          cargo check -p xai-grok-update
+
+      - name: cargo fmt
+        run: cargo fmt --check
+
+      - name: cargo clippy (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          cargo clippy -p xai-grok-telemetry -- -D warnings
+          cargo clippy -p xai-grok-tools -- -D warnings
+          cargo clippy -p xai-grok-version -- -D warnings
+          cargo clippy -p xai-grok-update -- -D warnings
+
+  # ── Phase 2: 发布构建（仅 tag 触发，依赖 check 全部通过）──
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: check
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: grok-ce-linux
+          - os: macos-latest
+            artifact: grok-ce-macos-arm64
+          - os: windows-latest
+            artifact: grok-ce-windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protoc (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install protoc (macOS)
+        if: runner.os == 'macOS'
+        run: brew install protobuf
+      - name: Install protoc (Windows)
+        if: runner.os == 'Windows'
+        run: choco install protoc --no-progress
+
+      - name: Build release
+        run: cargo build -p xai-grok-pager-bin --release
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cp target/release/xai-grok-pager.exe grok-ce.exe
+          7z a ${{ matrix.artifact }}.zip grok-ce.exe
+
+      - name: Package (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cp target/release/xai-grok-pager grok-ce
+          tar -czf ${{ matrix.artifact }}.tar.gz grok-ce
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}.*

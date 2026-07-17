@@ -7,6 +7,10 @@ pub const TEST_VERSION_ENV: &str = "GROK_TEST_VERSION";
 /// Community Edition brand suffix appended to all version output.
 pub const COMMUNITY_SUFFIX: &str = " [Community Edition]";
 
+/// Community Edition: always true. Used to disable auto-update and other
+/// vendor-controlled features.
+pub const IS_COMMUNITY_EDITION: bool = true;
+
 pub const VERSION: &str = match option_env!("GROK_VERSION") {
     Some(v) => v,
     None => env!("CARGO_PKG_VERSION"),
@@ -27,7 +31,10 @@ pub fn display_version(channel_label: &str) -> String {
 }
 
 pub fn display_version_with_commit(version_with_commit: &str, channel_label: &str) -> String {
-    format!("{}{}{}", version_with_commit, channel_label, COMMUNITY_SUFFIX)
+    format!(
+        "{}{}{}",
+        version_with_commit, channel_label, COMMUNITY_SUFFIX
+    )
 }
 
 #[cfg(test)]
