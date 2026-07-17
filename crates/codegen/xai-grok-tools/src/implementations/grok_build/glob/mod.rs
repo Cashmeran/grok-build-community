@@ -46,6 +46,7 @@ pub struct GlobOutput {
     pub total: usize,
     pub files: Vec<GlobEntry>,
 }
+impl xai_tool_runtime::ToolOutput for GlobOutput {}
 
 #[derive(Debug, Default)]
 pub struct GlobTool;
@@ -132,9 +133,9 @@ impl xai_tool_runtime::Tool for GlobTool {
 
         let mut entries: Vec<((String, u64), SystemTime)> = match glob::glob(&search_pattern) {
             Ok(paths) => {
+                let paths: Vec<std::path::PathBuf> = paths.filter_map(|r| r.ok()).collect();
                 let mut found = std::collections::HashSet::new();
-                paths
-                    .filter_map(|r| r.ok())
+                paths.into_iter()
                     .filter(|p| p.is_file())
                     .filter_map(|p| {
                         let rel = p.strip_prefix(&root_path).ok()?;

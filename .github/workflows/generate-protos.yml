@@ -1,0 +1,22 @@
+name: Generate Proto
+
+on: workflow_dispatch
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Build (generate protos)
+        run: cargo build -p xai-grok-tools-api 2>&1
+      - name: Find generated file
+        run: |
+          find target -name "grok.tools*.rs" -o -name "*.proto.rs" 2>/dev/null | head -20
+          find target -path "*/xai-grok-tools-api*/out/*" -type f 2>/dev/null | head -20
+      - name: Upload generated code
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-protos
+          path: target/**/out/*.rs

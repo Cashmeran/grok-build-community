@@ -45,9 +45,10 @@ pub async fn search(
         .await
         .map_err(|e| format!("request: {e}"))?;
 
-    if !response.status().is_success() {
+    let status = response.status();
+    if !status.is_success() {
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("API returned {}: {body}", response.status()));
+        return Err(format!("API returned {status}: {body}"));
     }
 
     let resp: AnthropicResponse = response
@@ -130,6 +131,7 @@ struct AnthropicResponse {
 
 #[derive(Deserialize)]
 #[serde(tag = "type")]
+#[allow(dead_code)]
 enum AnthropicResponseContent {
     #[serde(rename = "text")]
     Text { text: String },

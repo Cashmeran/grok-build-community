@@ -428,6 +428,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
                                 api_key: token,
                                 base_url: url.clone(),
                                 model: default_web_search_model(),
+                                api_backend: "responses".to_string(),
                                 extra_headers: headers,
                                 alpha_test_key: None,
                             },

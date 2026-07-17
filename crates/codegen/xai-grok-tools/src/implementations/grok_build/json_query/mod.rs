@@ -37,6 +37,7 @@ pub struct JsonQueryInput {
 pub struct JsonQueryOutput {
     pub result: String,
 }
+impl xai_tool_runtime::ToolOutput for JsonQueryOutput {}
 
 #[derive(Debug, Default)]
 pub struct JsonQueryTool;
@@ -178,7 +179,7 @@ fn filter_op(target: &Value, cond: &str) -> Result<String, xai_tool_runtime::Too
             if total > MAX_ITEMS { r.push_str(&format!("\n(truncated: {} of {})", MAX_ITEMS, total)); }
             Ok(r)
         }
-        _ => Err(err("filter requires an array")),
+        _ => Err(jq_err("filter requires an array")),
     }
 }
 
@@ -199,7 +200,7 @@ fn pick_op(target: &Value, fields: &str) -> Result<String, xai_tool_runtime::Too
             for f in &cols { if let Some(v) = obj.get(*f) { m.insert(f.to_string(), v.clone()); } }
             Ok(serde_json::to_string_pretty(&Value::Object(m)).unwrap_or_default())
         }
-        _ => Err(err("pick requires array or object")),
+        _ => Err(jq_err("pick requires array or object")),
     }
 }
 

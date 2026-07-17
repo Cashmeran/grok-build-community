@@ -425,10 +425,11 @@ pub fn init_tracing() -> TracingHandle {
         .with_writer(make_writer);
     let otel_layer = xai_grok_telemetry::otel_layer::build_otel_layer(
         xai_grok_telemetry::otel_layer::OtelClientInfo {
-            client_name: "grok-pager",
-            client_version: xai_grok_version::VERSION,
-            service_version: env!("VERSION_WITH_COMMIT"),
-            app_entrypoint: "tui",
+            client_name: "grok-pager".into(),
+            client_version: xai_grok_version::VERSION.into(),
+            service_version: env!("VERSION_WITH_COMMIT").into(),
+            app_entrypoint: "tui".into(),
+            ..Default::default()
         },
         xai_grok_shell::auth::credential_provider::build_default_otel_layer_config(),
     );
@@ -448,6 +449,7 @@ pub fn init_tracing() -> TracingHandle {
                 service_version: env!("VERSION_WITH_COMMIT").to_owned(),
                 client_version: xai_grok_version::VERSION.to_owned(),
                 app_entrypoint: "tui".to_owned(),
+                ..Default::default()
             },
         ),
     );

@@ -3093,6 +3093,7 @@ pub(crate) fn resolve_external_otel_config_with(
 pub fn apply_external_otel_remote_policy(settings: Option<&crate::util::config::RemoteSettings>) {
     let Some(settings) = settings else { return };
     let policy = xai_grok_telemetry::external::ExternalOtelRemotePolicy {
+        disabled: None,
         force_disable: settings.external_otel_disabled.unwrap_or(false),
         lock_content_gates: settings.external_otel_content_gates_locked.unwrap_or(false),
     };

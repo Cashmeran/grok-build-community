@@ -1,4 +1,4 @@
-use super::types::{WebSearchBackend, WebSearchConfig};
+use super::types::WebSearchConfig;
 use crate::attribution::{SharedAttributionCallback, ToolConsumer};
 use crate::types::SharedApiKeyProvider;
 use async_openai::types::responses as rs;

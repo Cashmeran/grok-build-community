@@ -3,8 +3,30 @@
 
 // ── client stubs ──
 
-/// No-op — upload client is deleted.
-pub fn init(_grok_home: &std::path::Path, _cfg: &crate::config::TelemetryConfig) {}
+/// No-op — upload client is deleted. Matches original 9-arg signature.
+pub fn init(
+    _cfg: crate::config::TelemetryConfig,
+    _mode: crate::config::TelemetryMode,
+    _user_id: Option<String>,
+    _team_id: Option<String>,
+    _deployment_key: Option<String>,
+    _origin_client: Option<impl std::any::Any + Send>,
+    _version: String,
+    _subscription_tier: Option<String>,
+    _client: reqwest::Client,
+) {}
+/// No-op.
+pub fn init_if_needed(
+    _cfg: crate::config::TelemetryConfig,
+    _mode: crate::config::TelemetryMode,
+    _user_id: Option<String>,
+    _team_id: Option<String>,
+    _deployment_key: Option<String>,
+    _origin_client: Option<impl std::any::Any + Send>,
+    _version: String,
+    _subscription_tier: Option<String>,
+    _client: reqwest::Client,
+) {}
 /// Always false — no upload, so never "enabled".
 pub fn is_enabled() -> bool { false }
 /// Always false.

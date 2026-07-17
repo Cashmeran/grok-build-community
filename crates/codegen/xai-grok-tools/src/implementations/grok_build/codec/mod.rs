@@ -20,6 +20,7 @@ pub struct CodecInput {
 pub struct CodecOutput {
     pub result: String,
 }
+impl xai_tool_runtime::ToolOutput for CodecOutput {}
 
 #[derive(Debug, Default)]
 pub struct CodecTool;
@@ -63,9 +64,9 @@ impl xai_tool_runtime::Tool for CodecTool {
             "hex_decode" => decode_hex(&input.input)?,
             "url_encode" => ok("url_encode", url_encode(&input.input)),
             "url_decode" => ok("url_decode", url_decode(&input.input)),
-            "sha256" => { use sha2::Digest; ok("sha256", format!("{:x}", sha2::Sha256::digest(input.input.as_bytes()))) }
-            "sha512" => { use sha2::Digest; ok("sha512", format!("{:x}", sha2::Sha512::digest(input.input.as_bytes()))) }
-            "md5" => { use md5::Digest; ok("md5", format!("{:x}", md5::Md5::digest(input.input.as_bytes()))) }
+            "sha256" => { { use sha2::Digest; ok("sha256", format!("{:x}", sha2::Sha256::digest(input.input.as_bytes()))) } }
+            "sha512" => { { use sha2::Digest; ok("sha512", format!("{:x}", sha2::Sha512::digest(input.input.as_bytes()))) } }
+            "md5" => { ok("md5", format!("{:x}", md5::compute(input.input.as_bytes()))) }
             "crc32" => ok("crc32", format!("{:08x}", crc32fast::hash(input.input.as_bytes()))),
             "blake3" => ok("blake3", blake3::hash(input.input.as_bytes()).to_hex().to_string()),
             _ => return Err(err(format!("unknown operation '{}'", input.operation))),

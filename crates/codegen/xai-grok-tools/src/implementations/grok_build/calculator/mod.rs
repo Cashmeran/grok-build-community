@@ -27,6 +27,7 @@ pub struct CalculatorOutput {
     pub type_name: String,
     pub exact: bool,
 }
+impl xai_tool_runtime::ToolOutput for CalculatorOutput {}
 
 #[derive(Debug, Default)]
 pub struct CalculatorTool;
@@ -98,60 +99,134 @@ impl xai_tool_runtime::Tool for CalculatorTool {
             return Ok(output);
         }
 
-        // Delegate to kalk
-        let mut ctx = kalk::parser::Context::new()
-            .set_timeout(Some(5000))
-            .set_max_recursion_depth(64);
+        // Handle multi-step expressions with variables (e.g. "x=5; y=x*2; y+1")
+        if expr.contains(';') || expr.contains('\n') {
+            return eval_multistep(&expr);
+        }
 
-        match kalk::parser::eval(&mut ctx, &expr) {
-            Ok(Some(result)) => {
-                let s = result.to_string_pretty().to_string();
-                let (num, type_name) = parse_kalk_result(&s);
+        // Handle equality check (e.g. "2+2 = 4")
+        if let Some((left, right)) = expr.split_once('=') {
+            let left = left.trim();
+            let right = right.trim();
+            if left.is_empty() || right.is_empty() {
+                return Err(xai_tool_runtime::ToolError::execution(
+                    xai_tool_protocol::ToolId::new("calculator").expect("valid"),
+                    "invalid equality expression".to_string(),
+                ));
+            }
+            return match (meval::eval_str(left), meval::eval_str(right)) {
+                (Ok(a), Ok(b)) => Ok(CalculatorOutput {
+                    result: format!("{}", (a - b).abs() < 1e-12),
+                    value: Some(if (a - b).abs() < 1e-12 { 1.0 } else { 0.0 }),
+                    type_name: "boolean".into(),
+                    exact: false,
+                }),
+                (Err(e), _) | (_, Err(e)) => Err(xai_tool_runtime::ToolError::execution(
+                    xai_tool_protocol::ToolId::new("calculator").expect("valid"),
+                    format!("{e}"),
+                )),
+            };
+        }
+
+        // Single expression
+        match meval::eval_str(&expr) {
+            Ok(value) => {
+                let result = format_val(value);
                 Ok(CalculatorOutput {
-                    result: s,
-                    value: num,
-                    type_name,
+                    result,
+                    value: Some(value),
+                    type_name: "number".into(),
                     exact: false,
                 })
             }
-            Ok(None) => Ok(CalculatorOutput {
-                result: "ok".to_string(),
-                value: None,
-                type_name: "binding".to_string(),
-                exact: false,
-            }),
             Err(e) => Err(xai_tool_runtime::ToolError::execution(
                 xai_tool_protocol::ToolId::new("calculator").expect("valid"),
-                format!("{:?}", e),
+                format!("{e}"),
             )),
         }
     }
 }
 
-// ── Kalk result parsing ──
+// ── Formatting ──
 
-/// Parse kalk's pretty output to extract a numeric value and type.
-fn parse_kalk_result(s: &str) -> (Option<f64>, String) {
-    let s = s.strip_prefix("= ").unwrap_or(s).trim();
-    if s == "true" {
-        return (Some(1.0), "boolean".into());
+/// Format an f64 nicely: integer if whole, otherwise trimmed decimal.
+fn format_val(v: f64) -> String {
+    if v == v.trunc() && v.abs() < 1e15 {
+        format!("{}", v as i64)
+    } else {
+        let s = format!("{:.10}", v);
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
     }
-    if s == "false" {
-        return (Some(0.0), "boolean".into());
+}
+
+/// Evaluate multi-step expressions separated by `;` or `\n`.
+/// Each step can be a variable binding (`x = 5`) or an expression (`x + 1`).
+fn eval_multistep(expr: &str) -> Result<CalculatorOutput, xai_tool_runtime::ToolError> {
+    let err = |s| xai_tool_runtime::ToolError::execution(
+        xai_tool_protocol::ToolId::new("calculator").expect("valid"), s,
+    );
+
+    let mut vars: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    let steps: Vec<&str> = expr
+        .split([';', '\n'])
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if steps.is_empty() {
+        return Err(err("empty expression".to_string()));
     }
-    if s.contains("],[") || (s.starts_with("[[") && s.ends_with("]]")) {
-        return (None, "matrix".into());
-    }
-    if s.starts_with('[') && s.ends_with(']') {
-        return (None, "vector".into());
-    }
-    if let Some(first_word) = s.split_whitespace().next() {
-        if let Ok(n) = first_word.parse::<f64>() {
-            let has_unit = s.split_whitespace().count() > 1;
-            return (Some(n), if has_unit { "quantity".into() } else { "number".into() });
+
+    let mut last_value = 0.0f64;
+    let mut last_type = "binding";
+
+    for step in &steps {
+        // Substitute variables
+        let mut substituted = step.to_string();
+        for (k, v) in &vars {
+            substituted = substituted.replace(k, &v.to_string());
+        }
+
+        // Variable binding: "x = 5" or "x=5"
+        if let Some((name, val_expr)) = step.split_once('=') {
+            let name = name.trim();
+            let val_expr = val_expr.trim();
+            // Substitute any existing vars in the value expression
+            let mut subbed_val = val_expr.to_string();
+            for (k, v) in &vars {
+                subbed_val = subbed_val.replace(k, &v.to_string());
+            }
+            match meval::eval_str(&subbed_val) {
+                Ok(v) => {
+                    vars.insert(name.to_string(), v);
+                    last_value = v;
+                    last_type = "binding";
+                    continue;
+                }
+                Err(e) => return Err(err(format!("{e}"))),
+            }
+        }
+
+        // Regular expression
+        match meval::eval_str(&substituted) {
+            Ok(v) => {
+                last_value = v;
+                last_type = "number";
+            }
+            Err(e) => return Err(err(format!("{e}"))),
         }
     }
-    (None, "expression".into())
+
+    Ok(CalculatorOutput {
+        result: if last_type == "binding" {
+            "ok".into()
+        } else {
+            format_val(last_value)
+        },
+        value: if last_type == "binding" { None } else { Some(last_value) },
+        type_name: last_type.into(),
+        exact: false,
+    })
 }
 
 // ── Statistics ──
@@ -192,22 +267,20 @@ fn try_stat(expression: &str) -> Option<CalculatorOutput> {
         }),
     };
 
-    // If trailing content (e.g. "= 3"), feed result + trail to kalk
-    if !trailing.is_empty() {
-        if let Some(val) = output.value {
-            let kalk_expr = format!("{} {}", val, trailing);
-            let mut ctx = kalk::parser::Context::new()
-                .set_timeout(Some(5000))
-                .set_max_recursion_depth(64);
-            return match kalk::parser::eval(&mut ctx, &kalk_expr) {
-                Ok(Some(result)) => {
-                    let s = result.to_string_pretty().to_string();
-                    let (num, type_name) = parse_kalk_result(&s);
-                    Some(CalculatorOutput { result: s, value: num, type_name, exact: false })
-                }
-                _ => Some(output),
-            };
-        }
+    // If trailing content (e.g. "= 3"), evaluate stat_result op trail
+    if !trailing.is_empty()
+        && let Some(val) = output.value
+    {
+        let trail_expr = format!("{} {}", val, trailing);
+        return match meval::eval_str(&trail_expr) {
+            Ok(v) => Some(CalculatorOutput {
+                result: format_val(v),
+                value: Some(v),
+                type_name: "number".into(),
+                exact: false,
+            }),
+            _ => Some(output),
+        };
     }
 
     Some(output)
@@ -299,7 +372,7 @@ fn median(nums: &[f64]) -> f64 {
     let mut sorted = nums.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let n = sorted.len();
-    if n % 2 == 0 { (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0 } else { sorted[n / 2] }
+    if n.is_multiple_of(2) { (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0 } else { sorted[n / 2] }
 }
 
 fn mode(nums: &[f64]) -> f64 {

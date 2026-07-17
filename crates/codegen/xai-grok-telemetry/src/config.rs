@@ -88,7 +88,7 @@ pub fn env_telemetry_mode(name: &str) -> Option<TelemetryMode> {
     let value = std::env::var(name).ok()?;
     TelemetryMode::parse(&value)
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TelemetryConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -117,25 +117,6 @@ pub struct TelemetryConfig {
     pub otel_log_user_prompts: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_log_tool_details: Option<bool>,
-}
-impl Default for TelemetryConfig {
-    fn default() -> Self {
-        Self {
-            enabled: None,
-            events_url: None,
-            events_api_key: None,
-            mixpanel_token: None,
-            mixpanel_enabled: false,
-            trace_upload: None,
-            otel_enabled: None,
-            otel_metrics_exporter: None,
-            otel_logs_exporter: None,
-            otel_endpoint: None,
-            otel_protocol: None,
-            otel_log_user_prompts: None,
-            otel_log_tool_details: None,
-        }
-    }
 }
 impl TelemetryConfig {
     pub fn apply_env_overrides(&mut self) {

@@ -7,6 +7,10 @@ pub const TEST_VERSION_ENV: &str = "GROK_TEST_VERSION";
 /// Community Edition brand suffix appended to all version output.
 pub const COMMUNITY_SUFFIX: &str = " [Community Edition]";
 
+/// Community Edition: always true. Used to disable auto-update and other
+/// vendor-controlled features.
+pub const IS_COMMUNITY_EDITION: bool = true;
+
 pub const VERSION: &str = match option_env!("GROK_VERSION") {
     Some(v) => v,
     None => env!("CARGO_PKG_VERSION"),

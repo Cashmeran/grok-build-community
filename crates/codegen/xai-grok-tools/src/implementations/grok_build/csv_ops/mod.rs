@@ -55,6 +55,7 @@ fn default_true() -> bool { true }
 pub struct CsvOpsOutput {
     pub result: String,
 }
+impl xai_tool_runtime::ToolOutput for CsvOpsOutput {}
 
 #[derive(Debug, Default)]
 pub struct CsvOpsTool;
@@ -84,7 +85,6 @@ impl xai_tool_runtime::Tool for CsvOpsTool {
     }
 
     async fn run(&self, _: xai_tool_runtime::ToolCallContext, input: CsvOpsInput) -> Result<CsvOpsOutput, xai_tool_runtime::ToolError> {
-        let err = |s: &str| xai_tool_runtime::ToolError::execution(xai_tool_protocol::ToolId::new("csv_ops").expect("valid"), s.to_string());
         let delim = input.delimiter.as_deref().unwrap_or(",").chars().next().unwrap_or(',') as u8;
         let with_hdr = input.has_header;
 
@@ -92,7 +92,7 @@ impl xai_tool_runtime::Tool for CsvOpsTool {
             .from_reader(input.csv_text.as_bytes());
 
         let headers: Vec<String> = if with_hdr {
-            reader.headers().map_err(|e| csv_err(&format!("header: {e}")))?.iter().map(|s| s.to_string()).collect()
+            reader.headers().map_err(|e: csv::Error| csv_err(&format!("header: {e}")))?.iter().map(|s| s.to_string()).collect()
         } else {
             (0..).take(50).map(|i| format!("col_{i}")).collect()
         };
@@ -178,10 +178,9 @@ fn format_csv(hdrs: &[String], rows: &[csv::StringRecord], total: Option<usize>)
 // ── operations ──
 
 fn schema_op<R: std::io::Read>(reader: &mut csv::Reader<R>, headers: &[String]) -> Result<String, xai_tool_runtime::ToolError> {
-    let err = |s| xai_tool_runtime::ToolError::execution(xai_tool_protocol::ToolId::new("csv_ops").expect("valid"), s);
     let mut samples: Vec<Vec<String>> = vec![Vec::new(); headers.len()];
     for rec in reader.records().take(MAX_ROWS) {
-        let rec = rec.map_err(|e| csv_err(e.to_string()))?;
+        let rec = rec.map_err(|e: csv::Error| csv_err(&e.to_string()))?;
         for (i, f) in rec.iter().enumerate() {
             if i < samples.len() { samples[i].push(f.to_string()); }
         }
@@ -200,7 +199,7 @@ fn select_op<R: std::io::Read>(reader: &mut csv::Reader<R>, headers: &[String], 
     let mut rows = Vec::new();
     let mut total = 0;
     for rec in reader.records() {
-        let rec = rec.map_err(|e| csv_err(&e.to_string()))?;
+        let rec = rec.map_err(|e: csv::Error| csv_err(&e.to_string()))?;
         if row_matches(&rec, headers, &col, op, &val) {
             if rows.len() < MAX_ROWS { rows.push(rec); }
             total += 1;
@@ -219,7 +218,7 @@ fn columns_op<R: std::io::Read>(reader: &mut csv::Reader<R>, headers: &[String],
     out.push('\n');
     let mut n = 0;
     for rec in reader.records().take(MAX_ROWS) {
-        let rec = rec.map_err(|e| csv_err(&e.to_string()))?;
+        let rec = rec.map_err(|e: csv::Error| csv_err(&e.to_string()))?;
         let fields: Vec<String> = idxs.iter().map(|(i, _)| {
             let f = rec.get(*i).unwrap_or("");
             if f.contains(',') || f.contains('"') { format!("\"{}\"", f.replace('"', "\"\"")) } else { f.to_string() }
@@ -237,7 +236,7 @@ fn sort_op<R: std::io::Read>(reader: &mut csv::Reader<R>, headers: &[String], co
     let Some(idx) = headers.iter().position(|h| h == col) else { return Err(csv_err(&format!("column '{col}' not found"))); };
     let mut recs: Vec<csv::StringRecord> = Vec::new();
     for rec in reader.records().take(MAX_ROWS) {
-        recs.push(rec.map_err(|e| csv_err(&e.to_string()))?);
+        recs.push(rec.map_err(|e: csv::Error| csv_err(&e.to_string()))?);
     }
     recs.sort_by(|a, b| {
         let va = a.get(idx).unwrap_or("").trim().to_string();
@@ -255,7 +254,7 @@ fn aggregate_csv_op<R: std::io::Read>(reader: &mut csv::Reader<R>, headers: &[St
         let Some(agg_idx) = headers.iter().position(|h| h == agg_col) else { return Err(csv_err(&format!("column '{agg_col}' not found"))); };
         let mut sum = 0f64; let mut cnt = 0u64;
         for rec in reader.records() {
-            let rec = rec.map_err(|e| csv_err(&e.to_string()))?;
+            let rec = rec.map_err(|e: csv::Error| csv_err(&e.to_string()))?;
             if let Ok(v) = rec.get(agg_idx).unwrap_or("").trim().parse::<f64>() { sum += v; cnt += 1; }
         }
         return Ok(if op == "sum" { format!("{sum}") } else if cnt > 0 { format!("{:.4}", sum / cnt as f64) } else { "0".into() });
@@ -266,7 +265,7 @@ fn aggregate_csv_op<R: std::io::Read>(reader: &mut csv::Reader<R>, headers: &[St
     };
     let mut groups: BTreeMap<String, (f64, u64)> = BTreeMap::new();
     for rec in reader.records() {
-        let rec = rec.map_err(|e| csv_err(&e.to_string()))?;
+        let rec = rec.map_err(|e: csv::Error| csv_err(&e.to_string()))?;
         let key = rec.get(gb_idx).unwrap_or("").trim().to_string();
         let e = groups.entry(key).or_insert((0.0, 0));
         if op == "count" { e.1 += 1; }

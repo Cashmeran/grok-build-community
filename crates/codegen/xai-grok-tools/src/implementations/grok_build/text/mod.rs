@@ -39,6 +39,7 @@ fn default_unit() -> String { "chars".into() }
 pub struct TextOutput {
     pub result: String,
 }
+impl xai_tool_runtime::ToolOutput for TextOutput {}
 
 #[derive(Debug, Default)]
 pub struct TextTool;
@@ -78,11 +79,11 @@ impl xai_tool_runtime::Tool for TextTool {
 
         let result = match input.mode.as_str() {
             "extract" => {
-                if pattern.is_empty() { return Err(err("pattern required for extract")); }
+                if pattern.is_empty() { return Err(err("pattern required for extract".to_string())); }
                 do_extract(&input.input, pattern, flags)
             }
             "replace" => {
-                if pattern.is_empty() { return Err(err("pattern required for replace")); }
+                if pattern.is_empty() { return Err(err("pattern required for replace".to_string())); }
                 do_replace(&input.input, pattern, replacement, flags)
             }
             "count" => do_count(&input.input, &input.unit, pattern, flags),

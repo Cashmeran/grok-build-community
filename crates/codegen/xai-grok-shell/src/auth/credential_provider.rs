@@ -391,7 +391,7 @@ pub fn build_default_otel_layer_config() -> xai_grok_telemetry::otel_layer::Otel
     let provider = Arc::new(OtelAuthCredentialProvider::new(bootstrap));
     let _ = OTEL_PROVIDER.set(provider.clone());
     xai_grok_telemetry::otel_layer::OtelLayerConfig {
-        credentials: provider as Arc<dyn AuthCredentialProvider>,
+        credentials: (),
         token_header_value,
         alpha_test_key: None,
         exporter,

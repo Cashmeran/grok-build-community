@@ -54,22 +54,23 @@ pub async fn search(query: &str, allowed_domains: Option<&[String]>) -> Result<W
     let mut parts: Vec<String> = Vec::new();
 
     // Direct answer from DDG
-    if let Some(ref heading) = resp.heading {
-        if !heading.is_empty() {
-            let snippet = resp.abstract_text.as_deref().unwrap_or("");
-            let url = resp.abstract_url.as_deref().unwrap_or("");
-            if let Some(filtered) = filter_domain(url, allowed_domains) {
-                let filtered = filtered.unwrap_or(url);
-                parts.push(format!("## {heading}\n{snippet}\n{filtered}"));
-                citations.push(filtered.to_string());
-            }
+    if let Some(ref heading) = resp.heading
+        && !heading.is_empty()
+    {
+        let snippet = resp.abstract_text.as_deref().unwrap_or("");
+        let url = resp.abstract_url.as_deref().unwrap_or("");
+        if let Some(filtered) = filter_domain(url, allowed_domains) {
+            let filtered = filtered.unwrap_or(url);
+            parts.push(format!("## {heading}\n{snippet}\n{filtered}"));
+            citations.push(filtered.to_string());
         }
     }
 
     // Related topics
     for topic in &resp.related_topics {
-        if let (Some(text), Some(url)) = (&topic.text, &topic.first_url) {
-            if let Some(filtered) = filter_domain(url, allowed_domains) {
+        if let (Some(text), Some(url)) = (&topic.text, &topic.first_url)
+            && let Some(filtered) = filter_domain(url, allowed_domains)
+        {
                 let filtered_url = filtered.unwrap_or(url);
                 let (title, snippet) = text.split_once(" - ").unwrap_or((text, ""));
                 parts.push(format!(
@@ -80,7 +81,6 @@ pub async fn search(query: &str, allowed_domains: Option<&[String]>) -> Result<W
                 ));
                 citations.push(filtered_url.to_string());
             }
-        }
     }
 
     if parts.is_empty() {
