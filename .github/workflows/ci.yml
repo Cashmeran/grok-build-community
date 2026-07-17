@@ -13,7 +13,7 @@ jobs:
   check:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, macos-13, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -67,8 +67,6 @@ jobs:
             artifact: grok-ce-linux
           - os: macos-latest
             artifact: grok-ce-macos-arm64
-          - os: macos-13
-            artifact: grok-ce-macos-x64
           - os: windows-latest
             artifact: grok-ce-windows
     runs-on: ${{ matrix.os }}
