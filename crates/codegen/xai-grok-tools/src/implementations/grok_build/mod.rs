@@ -9,11 +9,13 @@
 //! the standard toolset. It inserts shared resources (`Terminal`,
 //! `AvailableSkills`, `BashParams`) and registers every built-in tool.
 pub mod ask_user_question;
-pub mod calculator;
 pub mod bash;
+pub mod calculator;
+pub mod csv_ops;
 #[path = "deploy_app_stub.rs"]
 pub mod deploy_app;
 pub mod enter_plan_mode;
+pub mod json_query;
 pub mod exit_plan_mode;
 pub mod glob;
 pub mod grep;
@@ -37,7 +39,9 @@ pub mod web_search;
 pub use ask_user_question::AskUserQuestionTool;
 pub use bash::BashTool;
 pub use calculator::CalculatorTool;
+pub use csv_ops::CsvOpsTool;
 pub use deploy_app::{AppBuilderDeployerConfig, DEPLOY_APP_TOOL_NAME};
+pub use json_query::JsonQueryTool;
 pub use enter_plan_mode::EnterPlanModeTool;
 pub use exit_plan_mode::ExitPlanModeTool;
 pub use glob::GlobTool;
