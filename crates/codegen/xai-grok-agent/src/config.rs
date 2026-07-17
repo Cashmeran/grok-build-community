@@ -267,6 +267,7 @@ fn default_grok_build_toolset() -> ToolServerConfig {
             (&grok_build::ReadFileTool).into(),
             (&grok_build::SearchReplaceTool).into(),
             (&grok_build::ListDirTool).into(),
+            (&grok_build::GlobTool).into(),
             (&grok_build::GrepTool).into(),
             kill_task_tool_config(),
             (&grok_build::TodoWriteTool).into(),
