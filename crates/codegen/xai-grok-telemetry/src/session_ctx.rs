@@ -1,15 +1,14 @@
-//! Ambient session context for telemetry — product events + Mixpanel via
-//! [`log_event`]. `session_id` and `turn_number` are injected from the
-//! task-local [`TelemetryCtx`] active for the duration of a session.
-//!
-//! Extracted from `xai-grok-shell::agent::telemetry`.
+//! Ambient session context for telemetry — Community Edition: all events
+//! are written to `~/.grok/logs/events.log` instead of being uploaded.
+//! `session_id` and `turn_number` are injected from the task-local
+//! [`TelemetryCtx`] active for the duration of a session.
 
+use std::io::Write;
 use std::sync::Arc;
 
 use serde::Serialize;
 use serde_json::json;
 
-use crate::client::{self, Metadata, UserContext};
 use crate::events::TelemetryEvent;
 
 /// Ambient session context for telemetry. Snapshotted synchronously by
@@ -130,113 +129,94 @@ impl EmitterOrigin {
 /// `client::event_value` can never silently stop stripping an origin's prefix.
 const _: () = assert!(EmitterOrigin::ALL.len() == <EmitterOrigin as strum::EnumCount>::COUNT);
 
-/// Product analytics event (type-safe). Only fires in `Enabled` mode.
-/// Unconditionally fans out to the external OTEL stream first ("one call
-/// site, two sinks, independent gates"): the external gate is
-/// `external::is_active()`, independent of `TelemetryMode`.
+/// Write a telemetry event to the local log file (`~/.grok/logs/events.log`).
+/// Community Edition: no network upload, no external fan-out.
+fn write_event<T: Serialize>(
+    event_name: &str,
+    origin: &str,
+    data: &T,
+    ctx_snapshot: Option<(String, Option<usize>)>,
+) {
+    let mut record = match serde_json::to_value(data) {
+        Ok(serde_json::Value::Object(map)) => map,
+        Ok(other) => {
+            let mut m = serde_json::Map::new();
+            m.insert("value".into(), other);
+            m
+        }
+        Err(_) => serde_json::Map::new(),
+    };
+
+    if let Some((session_id, turn_number)) = ctx_snapshot {
+        record.insert("session_id".into(), json!(session_id));
+        record.insert("turn_number".into(), json!(turn_number));
+    }
+    record.insert("event".into(), json!(event_name));
+    record.insert("origin".into(), json!(origin));
+    record.insert("ts".into(), json!(chrono::Utc::now().to_rfc3339()));
+
+    if let Some(log_dir) = crate::config::log_dir() {
+        let _ = std::fs::create_dir_all(&log_dir);
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_dir.join("events.log"))
+        {
+            let _ = writeln!(f, "{}", serde_json::to_string(&record).unwrap_or_default());
+        }
+    }
+}
+
+/// Product analytics event → local log. Community Edition: always writes locally,
+/// never uploads.
 pub fn log_event<T: TelemetryEvent>(data: T) {
-    crate::external::emit(&data);
-    if !client::is_enabled() {
-        return;
-    }
-    emit_event(T::NAME, data);
+    let ctx = TELEMETRY_CTX.try_with(|c| {
+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
+    }).ok();
+    write_event(T::NAME, EmitterOrigin::Shell.event_prefix(), &data, ctx);
 }
 
-/// Emit one event to the external stream always (no-op unless the stream is
-/// active) and to the product events/Mixpanel funnel only when `internal_enabled`.
-///
-/// Used by call sites whose internal sink is gated by a *stricter* predicate
-/// than [`log_event`]'s own `TelemetryMode::Enabled` check (the shell's
-/// `telemetry_enabled` = `Enabled && !ZDR`, or `!is_data_collection_disabled()`).
-/// Because [`log_event`] already fans out to the external sink before its
-/// internal gate, the two branches are **mutually exclusive**: routing through
-/// `log_event` when internal is enabled reaches both sinks, and calling
-/// [`crate::external::emit`] directly otherwise keeps `session.count` /
-/// `turn.count` exactly-once on every path while never sending an internal
-/// record under ZDR.
-pub fn log_event_dual<T: TelemetryEvent>(internal_enabled: bool, data: T) {
-    if internal_enabled {
-        log_event(data);
-    } else {
-        crate::external::emit(&data);
-    }
+/// Dual-path helper: always routes to local log (community edition).
+pub fn log_event_dual<T: TelemetryEvent>(_internal_enabled: bool, data: T) {
+    log_event(data);
 }
 
-/// Session lifecycle event (type-safe). Fires in both `Enabled` and
-/// `SessionMetrics` modes. Emits with the [`EmitterOrigin::Shell`] prefix;
-/// workspace-side callers use [`log_session_event_with_origin`].
-/// Unconditionally fans out to the external OTEL stream first (independent
-/// gate; see [`log_event`]).
+/// Session lifecycle event → local log.
 pub fn log_session_event<T: TelemetryEvent>(data: T) {
-    crate::external::emit(&data);
-    if !client::is_session_metrics_enabled() {
-        return;
-    }
-    emit_event_with_origin(EmitterOrigin::Shell, T::NAME, data);
+    let ctx = TELEMETRY_CTX.try_with(|c| {
+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
+    }).ok();
+    write_event(T::NAME, EmitterOrigin::Shell.event_prefix(), &data, ctx);
 }
 
-/// Session lifecycle event tagged with the emitting [`EmitterOrigin`]. Fires in
-/// both `Enabled` and `SessionMetrics` modes; the origin selects the analytics
-/// event-name prefix (`grok-shell-*` vs `grok-workspace-*`).
-///
-/// Deliberately **no external fan-out** here: workspace-side callers
-/// (`EmitterOrigin::Workspace` — remote sampler / workspace server, a
-/// different process and monitoring audience) invoke this directly, and the
-/// external stream is Shell-origin only. An `external = …` macro arm on a
-/// workspace-only event therefore has no effect (pinned by test in
-/// `external::tests`). If the external stream ever needs workspace events,
-/// the hook moves here behind an explicit `origin == Shell` filter.
+/// Session lifecycle event with origin → local log.
 pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, data: T) {
-    if !client::is_session_metrics_enabled() {
-        return;
-    }
-    emit_event_with_origin(origin, T::NAME, data);
+    let ctx = TELEMETRY_CTX.try_with(|c| {
+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
+    }).ok();
+    write_event(T::NAME, origin.event_prefix(), &data, ctx);
 }
 
-/// Emit an event with the default [`EmitterOrigin::Shell`] prefix.
+/// Emit an event with Shell prefix → local log.
 pub fn emit_event<T: Serialize + Send + 'static>(event_suffix: impl Into<String>, data: T) {
-    emit_event_with_origin(EmitterOrigin::Shell, event_suffix, data);
+    let event_name = format!("{}{}", EmitterOrigin::Shell.event_prefix(), event_suffix.into());
+    let ctx = TELEMETRY_CTX.try_with(|c| {
+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
+    }).ok();
+    write_event(&event_name, EmitterOrigin::Shell.event_prefix(), &data, ctx);
 }
 
-/// Emit an event whose analytics name is `{origin prefix}{event_suffix}`.
+/// Emit an event with origin → local log.
 pub fn emit_event_with_origin<T: Serialize + Send + 'static>(
     origin: EmitterOrigin,
     event_suffix: impl Into<String>,
     data: T,
 ) {
     let event_name = format!("{}{}", origin.event_prefix(), event_suffix.into());
-    let ctx_snapshot = TELEMETRY_CTX
-        .try_with(|c| {
-            (
-                c.session_id.clone(),
-                c.prompt_index.try_lock().map(|g| *g as u32).ok(),
-            )
-        })
-        .ok();
-
-    tokio::spawn(async move {
-        let user_ctx = UserContext::collect();
-        let request_id = format!("{}-{}", event_name, uuid::Uuid::new_v4());
-
-        let mut metadata = match serde_json::to_value(data) {
-            Ok(serde_json::Value::Object(map)) => map,
-            Ok(other) => {
-                let mut m = Metadata::new();
-                m.insert("value".into(), other);
-                m
-            }
-            Err(_) => Metadata::new(),
-        };
-
-        if let Some((session_id, turn_number)) = ctx_snapshot {
-            metadata.insert("session_id".into(), json!(session_id));
-            if let Some(turn) = turn_number {
-                metadata.insert("turn_number".into(), json!(turn));
-            }
-        }
-
-        client::track(&event_name, &request_id, &user_ctx, metadata).await;
-    });
+    let ctx = TELEMETRY_CTX.try_with(|c| {
+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
+    }).ok();
+    write_event(&event_name, origin.event_prefix(), &data, ctx);
 }
 
 #[cfg(test)]

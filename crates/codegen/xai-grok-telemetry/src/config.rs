@@ -91,58 +91,41 @@ pub fn env_telemetry_mode(name: &str) -> Option<TelemetryMode> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TelemetryConfig {
-    /// Declared for `serde_ignored`. Actual toggle is `[features] telemetry`.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub events_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub events_api_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mixpanel_token: Option<String>,
+    #[serde(default)]
     pub mixpanel_enabled: bool,
-    /// `None` = inherit from `[features] telemetry`. `Some(false)` = disable GCS uploads only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace_upload: Option<bool>,
-    /// External OTEL master switch (`= GROK_EXTERNAL_OTEL`, env wins).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_enabled: Option<bool>,
-    /// External OTEL metrics exporter: `otlp` | `console` | `none`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_metrics_exporter: Option<String>,
-    /// External OTEL logs/events exporter: `otlp` | `console` | `none`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_logs_exporter: Option<String>,
-    /// External OTLP base endpoint (`/v1/logs`, `/v1/metrics` appended for HTTP).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_endpoint: Option<String>,
-    /// External OTLP transport: `http/protobuf` | `grpc`.
-    #[serde(alias = "otel_transport")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_protocol: Option<String>,
-    /// External OTEL content gate (admins can pin to `false` via requirements).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_log_user_prompts: Option<bool>,
-    /// External OTEL content gate (admins can pin to `false` via requirements).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otel_log_tool_details: Option<bool>,
-}
-fn internal_defaults() -> (Option<String>, Option<String>, Option<String>, bool) {
-    (None, None, None, false)
-}
-fn build_env_default(value: Option<&'static str>) -> Option<String> {
-    value
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-        .map(str::to_owned)
 }
 impl Default for TelemetryConfig {
     fn default() -> Self {
-        let (baked_url, baked_key, baked_token, baked_enabled) = internal_defaults();
-        let build_url = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_URL"));
-        let build_key = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_API_KEY"));
-        let build_token = build_env_default(option_env!("GROK_TELEMETRY_BUILD_MIXPANEL_TOKEN"));
-        let mixpanel_enabled = baked_enabled || build_token.is_some();
-        let (events_url, events_api_key, mixpanel_token) = (
-            build_url.or(baked_url),
-            build_key.or(baked_key),
-            build_token.or(baked_token),
-        );
         Self {
             enabled: None,
-            events_url,
-            events_api_key,
-            mixpanel_token,
-            mixpanel_enabled,
+            events_url: None,
+            events_api_key: None,
+            mixpanel_token: None,
+            mixpanel_enabled: false,
             trace_upload: None,
             otel_enabled: None,
             otel_metrics_exporter: None,
@@ -213,25 +196,21 @@ fn env_bool(name: &str) -> Option<bool> {
 pub fn deployment_id_from_key(key: &str) -> String {
     uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, key.as_bytes()).to_string()
 }
+/// Community Edition: log directory for local telemetry storage.
+/// Defaults to `~/.grok/logs/`. Creates the directory if it doesn't exist.
+pub fn log_dir() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|h| h.join(".grok").join("logs"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn build_env_default_normalizes() {
-        assert_eq!(build_env_default(None), None);
-        assert_eq!(build_env_default(Some("")), None);
-        assert_eq!(build_env_default(Some(" \t ")), None);
-        assert_eq!(build_env_default(Some(" key ")), Some("key".to_owned()));
-    }
-    #[test]
-    fn default_is_build_env_layer_when_feature_off() {
+    fn telemetry_config_default_is_clean() {
         let cfg = TelemetryConfig::default();
-        let url = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_URL"));
-        let key = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_API_KEY"));
-        let token = build_env_default(option_env!("GROK_TELEMETRY_BUILD_MIXPANEL_TOKEN"));
-        assert_eq!(cfg.mixpanel_enabled, token.is_some());
-        assert_eq!(cfg.events_url, url);
-        assert_eq!(cfg.events_api_key, key);
-        assert_eq!(cfg.mixpanel_token, token);
+        assert!(!cfg.mixpanel_enabled);
+        assert!(cfg.mixpanel_token.is_none());
+        assert!(cfg.events_url.is_none());
+        assert!(cfg.events_api_key.is_none());
     }
 }
