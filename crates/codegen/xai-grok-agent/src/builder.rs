@@ -2170,7 +2170,7 @@ mod tests {
             ToolNotificationHandle::noop(),
         )
         .from_definition(definition)
-        .with_web_search_config(WebSearchConfig::Enabled {
+        .with_web_search_config(WebSearchConfig::Enabled { api_backend: "responses".to_string(),
             api_key: "test-key".into(),
             base_url: "https://api.x.ai/v1".into(),
             model: "test-web-search-model".into(),
@@ -2296,7 +2296,7 @@ mod tests {
         use xai_grok_tools::implementations::web_search::WebSearchConfig;
         use xai_grok_tools::notification::ToolNotificationHandle;
         let web_search_config = if web_search_enabled {
-            WebSearchConfig::Enabled {
+            WebSearchConfig::Enabled { api_backend: "responses".to_string(),
                 api_key: "test-key".into(),
                 base_url: "https://api.x.ai/v1".into(),
                 model: "test-web-search-model".into(),

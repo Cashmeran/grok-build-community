@@ -9,6 +9,15 @@ use crate::remote::DEFAULT_CONTEXT_WINDOW;
 /// `resolution::is_catchall_allow`) substitute for the blocked `--yolo`, so drop them when
 /// `policy_block` is set; keep everything else (and everything without a pin).
 /// Pure (no I/O) so the wiring is unit-testable; the caller surfaces `dropped`.
+/// Convert ApiBackend to config string for WebSearchConfig.
+fn api_backend_to_string(backend: xai_grok_sampling_types::ApiBackend) -> String {
+    match backend {
+        xai_grok_sampling_types::ApiBackend::ChatCompletions => "chat_completions".to_string(),
+        xai_grok_sampling_types::ApiBackend::Responses => "responses".to_string(),
+        xai_grok_sampling_types::ApiBackend::Messages => "messages".to_string(),
+    }
+}
+
 fn drop_cli_catchall_allows(
     rules: Vec<xai_grok_workspace::permission::types::PermissionRule>,
     policy_block: Option<&'static str>,
@@ -365,6 +374,7 @@ pub(crate) async fn spawn_session_actor(
                 api_key,
                 base_url: cfg.base_url,
                 model: cfg.model,
+                api_backend: api_backend_to_string(cfg.api_backend),
                 extra_headers: cfg.extra_headers,
                 alpha_test_key: credentials.alpha_test_key.clone(),
             }

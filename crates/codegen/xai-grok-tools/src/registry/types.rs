@@ -993,12 +993,8 @@ impl ToolRegistryBuilder {
         if let Some(auth_provider) = ctx.auth_provider.clone() {
             resources.insert(auth_provider);
         }
-        if let Ok(client) = crate::implementations::web_search::client::WebSearchClient::new(
-            &ctx.web_search_config,
-            ctx.api_key_provider.clone(),
-        ) {
-            let client = client.with_attribution_callback(ctx.attribution_callback.clone());
-            resources.insert(client);
+        if ctx.web_search_config.is_enabled() {
+            resources.insert(ctx.web_search_config.clone());
         }
         if let Some(lsp) = ctx.lsp {
             resources.insert(lsp);

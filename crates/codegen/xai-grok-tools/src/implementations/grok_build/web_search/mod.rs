@@ -1,10 +1,9 @@
-//! `web_search` tool — new architecture (`Tool` trait).
+//! `web_search` tool — Community Edition.
 //!
-//! Calls the Responses API with web search capability. Reads the
-//! pre-constructed `WebSearchClient` from Resources (inserted by
-//! `with_backend()` when the config is `Enabled`).
+//! Routes to the appropriate search backend based on model config:
+//! Responses / Messages / ChatCompletions / DuckDuckGo.
 
-use crate::implementations::web_search::client::WebSearchClient;
+use crate::implementations::web_search::WebSearchConfig;
 use crate::types::output::WebSearchOutput;
 use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::tool::{ToolKind, ToolNamespace};
@@ -81,29 +80,18 @@ impl xai_tool_runtime::Tool for WebSearchTool {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
-        let client;
+        let config;
         {
             let res = resources.lock().await;
-            client = res.require::<WebSearchClient>()?.clone();
+            config = res.require::<WebSearchConfig>()?.clone();
         }
 
-        let (content, citations) = client
-            .search(&input.query, input.allowed_domains.clone())
-            .await
-            .map_err(|e| {
-                xai_tool_runtime::ToolError::execution(
-                    xai_tool_protocol::ToolId::new("web_search").expect("valid"),
-                    e.to_string(),
-                )
-            })?;
-
-        Ok(WebSearchOutput {
-            query: input.query.clone(),
-            content,
-            citations,
-            allowed_domains: input.allowed_domains.clone(),
-            pre_formatted: None,
-        })
+        crate::implementations::web_search::router::search(
+            &config,
+            &input.query,
+            input.allowed_domains.clone(),
+        )
+        .await
     }
 }
 
@@ -128,7 +116,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn errors_when_client_not_in_resources() {
+    async fn errors_when_config_not_in_resources() {
         let resources = Resources::new();
         let tool = WebSearchTool;
         let result = xai_tool_runtime::Tool::run(
@@ -144,8 +132,9 @@ mod tests {
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(
-            err_msg.contains("missing required resource"),
-            "Expected 'missing required resource' error, got: {err_msg}"
+            err_msg.contains("missing required resource")
+                || err_msg.contains("Web search is disabled"),
+            "Expected error, got: {err_msg}"
         );
     }
 }

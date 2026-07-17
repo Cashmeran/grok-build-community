@@ -1,9 +1,19 @@
 use indexmap::IndexMap;
 
+/// Internal routing target for web search — determined from the model's api_backend,
+/// not user-configurable. DuckDuckGo is the fallback when native search is unavailable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WebSearchBackend {
+    Responses,
+    Messages,
+    ChatCompletions,
+    DuckDuckGo,
+}
+
 /// Configuration for the web search tool.
 ///
-/// Use `Disabled` when no API key is available or web search should be turned off.
-/// Use `Enabled { … }` to provide credentials and endpoint configuration.
+/// The search backend is automatically determined from the web search model's
+/// `api_backend`. DuckDuckGo is used as fallback when native search fails.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum WebSearchConfig {
@@ -13,6 +23,10 @@ pub enum WebSearchConfig {
         api_key: String,
         base_url: String,
         model: String,
+        /// The model's api_backend — auto-detects search protocol.
+        /// "chat_completions" | "responses" | "messages"
+        #[serde(default)]
+        api_backend: String,
         #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
         extra_headers: IndexMap<String, String>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -37,11 +51,13 @@ impl WebSearchConfig {
                 base_url,
                 model,
                 extra_headers,
+                api_backend,
                 ..
             } => Self::Enabled {
                 api_key: "***REDACTED***".to_string(),
                 base_url: base_url.clone(),
                 model: model.clone(),
+                api_backend: api_backend.clone(),
                 extra_headers: extra_headers.clone(),
                 alpha_test_key: None,
             },
@@ -65,6 +81,7 @@ mod tests {
             api_key: "test-key".to_string(),
             base_url: "https://api.x.ai/v1".to_string(),
             model: "test-web-search-model".to_string(),
+            api_backend: "responses".to_string(),
             extra_headers: IndexMap::new(),
             alpha_test_key: None,
         };
@@ -79,6 +96,7 @@ mod tests {
             api_key: "secret-key-12345".to_string(),
             base_url: "https://api.x.ai/v1".to_string(),
             model: "test-web-search-model".to_string(),
+            api_backend: "responses".to_string(),
             extra_headers: headers,
             alpha_test_key: Some("alpha-secret".to_string()),
         };
@@ -90,6 +108,7 @@ mod tests {
                 model,
                 extra_headers,
                 alpha_test_key,
+                ..
             } => {
                 assert_eq!(api_key, "***REDACTED***");
                 assert_eq!(base_url, "https://api.x.ai/v1");
@@ -107,6 +126,7 @@ mod tests {
             api_key: "key".to_string(),
             base_url: "https://api.x.ai/v1".to_string(),
             model: "test-web-search-model".to_string(),
+            api_backend: "responses".to_string(),
             extra_headers: IndexMap::new(),
             alpha_test_key: None,
         };
