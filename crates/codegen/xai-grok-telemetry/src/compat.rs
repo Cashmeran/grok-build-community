@@ -40,7 +40,12 @@ pub fn is_session_metrics_enabled() -> bool {
 
 // ── sentry stubs ──
 
-pub struct SentryConfig;
+pub struct SentryConfig {
+    pub client: &'static str,
+    pub client_version: &'static str,
+    pub release: &'static str,
+    pub disabled: bool,
+}
 /// No-op — sentry crash reporting is deleted.
 pub fn sentry_init(_config: SentryConfig) -> SentryGuard {
     SentryGuard
