@@ -29,6 +29,7 @@ crc32fast = { workspace = true }
 ignore = { workspace = true }
 infer = { workspace = true }
 globset = { workspace = true }
+hex = "0.4"
 kalk = "2.3"
 csv = "1.3"
 image = { workspace = true, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff", "ico"] }

@@ -278,6 +278,8 @@ fn default_grok_build_toolset() -> ToolServerConfig {
             (&grok_build::SchedulerDeleteTool).into(),
             (&grok_build::SchedulerListTool).into(),
             (&grok_build::MonitorTool).into(),
+            (&grok_build::TextTool).into(),
+            (&grok_build::CodecTool).into(),
             (&grok_build::JsonQueryTool).into(),
             (&grok_build::CsvOpsTool).into(),
             (&search_tool::SearchTool).into(),
