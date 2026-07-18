@@ -38,7 +38,9 @@ pub async fn search(
     let mut pos = 0;
     while let Some(item_start) = xml[pos..].find("<item>") {
         let abs_start = pos + item_start;
-        let item_end = xml[abs_start..].find("</item>").unwrap_or(xml.len() - abs_start);
+        let item_end = xml[abs_start..]
+            .find("</item>")
+            .unwrap_or(xml.len() - abs_start);
         let item = &xml[abs_start..abs_start + item_end];
 
         let title = extract_xml(item, "title");
@@ -54,7 +56,10 @@ pub async fn search(
                     .or_else(|| link.strip_prefix("http://"))
                     .and_then(|s| s.split('/').next())
                     .unwrap_or("");
-                if !allowed.iter().any(|d| host == d.as_str() || host.ends_with(&format!(".{d}"))) {
+                if !allowed
+                    .iter()
+                    .any(|d| host == d.as_str() || host.ends_with(&format!(".{d}")))
+                {
                     pos = abs_start + item_end + 7;
                     continue;
                 }

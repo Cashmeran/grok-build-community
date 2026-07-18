@@ -155,6 +155,7 @@ enum AnthropicResponseContent {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct WebSearchResultItem {
     #[serde(default)]
     title: String,

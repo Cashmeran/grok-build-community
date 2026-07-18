@@ -27,6 +27,7 @@ pub enum WindowsShell {
 ///
 /// Result is cached for the process lifetime.
 #[cfg(not(unix))]
+#[allow(clippy::collapsible_if)]
 pub fn detect_windows_shell() -> &'static WindowsShell {
     use std::sync::OnceLock;
     static CACHED: OnceLock<WindowsShell> = OnceLock::new();
@@ -131,14 +132,13 @@ fn find_git_bash() -> Option<String> {
         xai_tty_utils::detach_std_command(&mut cmd);
         cmd.arg("bash.exe").stdin(std::process::Stdio::null());
         cmd.output()
-    } {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                let line = line.trim();
-                if line.to_ascii_lowercase().contains("git") {
-                    return Some(line.to_string());
-                }
+    } && output.status.success()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            let line = line.trim();
+            if line.to_ascii_lowercase().contains("git") {
+                return Some(line.to_string());
             }
         }
     }

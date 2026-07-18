@@ -86,6 +86,7 @@ fn is_platform_system_dir(cwd: &Path) -> bool {
 }
 
 #[cfg(target_os = "windows")]
+#[allow(clippy::collapsible_if, clippy::unnecessary_map_or)]
 fn is_platform_system_dir(cwd: &Path) -> bool {
     if let Ok(temp) = std::env::var("TEMP").or_else(|_| std::env::var("TMP")) {
         if cwd.starts_with(&temp) {
