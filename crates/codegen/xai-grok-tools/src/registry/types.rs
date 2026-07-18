@@ -1035,8 +1035,12 @@ impl ToolRegistryBuilder {
         // Community Edition: always create WebFetchClient (default params when Disabled)
         {
             let params = match &ctx.web_fetch_config {
-                crate::implementations::grok_build::web_fetch::WebFetchConfig::Enabled { params } => params.clone(),
-                crate::implementations::grok_build::web_fetch::WebFetchConfig::Disabled => Default::default(),
+                crate::implementations::grok_build::web_fetch::WebFetchConfig::Enabled {
+                    params,
+                } => params.clone(),
+                crate::implementations::grok_build::web_fetch::WebFetchConfig::Disabled => {
+                    Default::default()
+                }
             };
             match crate::implementations::grok_build::web_fetch::WebFetchClient::new(&params) {
                 Ok(client) => {

@@ -37,15 +37,13 @@ pub async fn search(
     let mut parts: Vec<String> = Vec::new();
 
     // Parse Bing result blocks — each result is in <li class="b_algo">
-    let algo_re = Regex::new(
-        r#"<li class="b_algo"[^>]*>[\s\S]*?</li>"#
-    ).map_err(|e| format!("regex: {e}"))?;
+    let algo_re = Regex::new(r#"<li class="b_algo"[^>]*>[\s\S]*?</li>"#)
+        .map_err(|e| format!("regex: {e}"))?;
 
     let title_re = Regex::new(r#"<h2[^>]*><a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)</a></h2>"#)
         .map_err(|e| format!("regex: {e}"))?;
 
-    let snippet_re = Regex::new(r#"<p[^>]*>([\s\S]*?)</p>"#)
-        .map_err(|e| format!("regex: {e}"))?;
+    let snippet_re = Regex::new(r#"<p[^>]*>([\s\S]*?)</p>"#).map_err(|e| format!("regex: {e}"))?;
 
     for cap in algo_re.captures_iter(&html) {
         let block = cap.get(0).map(|m| m.as_str()).unwrap_or("");
@@ -73,7 +71,10 @@ pub async fn search(
                 None => continue,
             };
 
-            parts.push(format!("- **{}**  \n  {}\n  {}", title, snippet, display_url));
+            parts.push(format!(
+                "- **{}**  \n  {}\n  {}",
+                title, snippet, display_url
+            ));
             citations.push(display_url.to_string());
         }
     }
@@ -164,7 +165,10 @@ mod tests {
 
     #[test]
     fn strip_html_decodes_entities() {
-        assert_eq!(strip_html("if a &lt; b &amp;&amp; c &gt; d"), "if a < b && c > d");
+        assert_eq!(
+            strip_html("if a &lt; b &amp;&amp; c &gt; d"),
+            "if a < b && c > d"
+        );
     }
 
     #[test]
