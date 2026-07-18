@@ -1,10 +1,10 @@
-//! Web search router — auto-detects backend from model api_backend, falls back to DDG.
+//! Web search router — auto-detects backend from model api_backend, falls back to Bing.
 
 use crate::types::output::WebSearchOutput;
 
 use super::WebSearchConfig;
 
-/// Route a search query. Tries native search first, falls back to DuckDuckGo.
+/// Route a search query. Tries native search first, falls back to Bing.
 pub async fn search(
     config: &WebSearchConfig,
     query: &str,
@@ -12,8 +12,8 @@ pub async fn search(
 ) -> Result<WebSearchOutput, xai_tool_runtime::ToolError> {
     let (api_key, base_url, model, api_backend) = match config {
         WebSearchConfig::Disabled => {
-            // Community Edition: fall through to DuckDuckGo free search
-            return super::ddg::search(query, allowed_domains.as_deref())
+            // Community Edition: fall through to Bing free search
+            return super::bing::search(query, allowed_domains.as_deref())
                 .await
                 .map_err(|e| {
                     xai_tool_runtime::ToolError::execution(
@@ -85,8 +85,8 @@ pub async fn search(
         return native_result;
     }
 
-    // 3. Fall back to DuckDuckGo
-    super::ddg::search(query, allowed_domains.as_deref())
+    // 3. Fall back to Bing
+    super::bing::search(query, allowed_domains.as_deref())
         .await
         .map_err(|e| {
             xai_tool_runtime::ToolError::execution(
