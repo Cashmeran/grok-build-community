@@ -288,6 +288,8 @@ fn default_grok_build_toolset() -> ToolServerConfig {
             (&grok_build::CodecTool).into(),
             (&grok_build::JsonQueryTool).into(),
             (&grok_build::CsvOpsTool).into(),
+            (&grok_build::WebSearchTool).into(),
+            (&grok_build::WebFetchTool).into(),
             (&search_tool::SearchTool).into(),
             (&use_tool::UseTool).into(),
             (&grok_build::CalculatorTool).into(),

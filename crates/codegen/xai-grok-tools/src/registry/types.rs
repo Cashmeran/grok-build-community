@@ -999,9 +999,8 @@ impl ToolRegistryBuilder {
         if let Some(auth_provider) = ctx.auth_provider.clone() {
             resources.insert(auth_provider);
         }
-        if ctx.web_search_config.is_enabled() {
-            resources.insert(ctx.web_search_config.clone());
-        }
+        // Community Edition: always pass config — free fallback works without API key
+        resources.insert(ctx.web_search_config.clone());
         if let Some(lsp) = ctx.lsp {
             resources.insert(lsp);
         }

@@ -1,3 +1,4 @@
+pub mod bing;
 pub mod chat;
 pub mod client;
 pub mod ddg;

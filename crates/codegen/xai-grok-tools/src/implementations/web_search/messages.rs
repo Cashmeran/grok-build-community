@@ -16,7 +16,7 @@ pub async fn search(
     allowed_domains: Option<&[String]>,
 ) -> Result<WebSearchOutput, String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
+        .timeout(std::time::Duration::from_secs(60))
         .build()
         .map_err(|e| format!("http client: {e}"))?;
 
@@ -33,6 +33,7 @@ pub async fn search(
         }],
         tools: vec![AnthropicTool {
             tool_type: "web_search_20250305".to_string(),
+            name: "web_search".to_string(),
         }],
     };
 
@@ -72,9 +73,11 @@ pub async fn search(
                     content.push('\n');
                 }
             }
-            AnthropicResponseContent::WebSearchToolResult { url, title, .. } => {
-                citations.push(url.clone());
-                content.push_str(&format!("- [{title}]({url})\n"));
+            AnthropicResponseContent::WebSearchToolResult { content: results } => {
+                for item in results {
+                    citations.push(item.url.clone());
+                    content.push_str(&format!("- [{}]({})\n", item.title, item.url));
+                }
             }
             _ => {} // skip server_tool_use blocks
         }
@@ -122,6 +125,7 @@ struct AnthropicTool {
     /// "web_search_20250305" — versioned tool type identifier.
     #[serde(rename = "type")]
     tool_type: String,
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -135,6 +139,8 @@ struct AnthropicResponse {
 enum AnthropicResponseContent {
     #[serde(rename = "text")]
     Text { text: String },
+    #[serde(rename = "thinking")]
+    Thinking { thinking: String },
     #[serde(rename = "server_tool_use")]
     ServerToolUse {
         name: String,
@@ -143,9 +149,19 @@ enum AnthropicResponseContent {
     },
     #[serde(rename = "web_search_tool_result")]
     WebSearchToolResult {
-        url: String,
-        title: String,
         #[serde(default)]
-        page_age: Option<String>,
+        content: Vec<WebSearchResultItem>,
     },
+}
+
+#[derive(Deserialize)]
+struct WebSearchResultItem {
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    url: String,
+    #[serde(default, rename = "encrypted_content")]
+    _encrypted_content: String,
+    #[serde(default)]
+    page_age: Option<String>,
 }

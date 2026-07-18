@@ -613,6 +613,7 @@ impl ModelOverrideConfig {
         let mut result = Self {
             web_search: parsed_models
                 .web_search
+                .or_else(|| parsed_models.default.clone())
                 .unwrap_or_else(|| crate::models::default_web_search_model().to_owned()),
             session_summary: non_empty_model_override(parsed_models.session_summary.as_deref()),
             image_description: non_empty_model_override(parsed_models.image_description.as_deref()),

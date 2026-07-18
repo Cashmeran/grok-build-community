@@ -4753,7 +4753,7 @@ fn resolve_hidden_default_web_search_sampling_config(
             reasoning_effort: None,
             supports_reasoning_effort: false,
             reasoning_efforts: Vec::new(),
-            supports_backend_search: false,
+            supports_backend_search: true,
             compactions_remaining: None,
             compaction_at_tokens: None,
             show_model_fingerprint: false,
@@ -4783,7 +4783,9 @@ pub fn resolve_web_search_sampling_config(
     client_version: Option<String>,
     endpoints: &EndpointsConfig,
 ) -> Option<SamplerConfig> {
-    let resolved = if let Some(entry) = find_model_by_id(models, model_id).cloned() {
+    let resolved = if let Some(mut entry) = find_model_by_id(models, model_id).cloned() {
+        // Force backend search on so the model can use native web search when available.
+        entry.info.supports_backend_search = true;
         let credentials = resolve_credentials_enforced(&entry, session_key, disable_api_key_auth);
         Some(sampling_config_for_model(
             &entry,

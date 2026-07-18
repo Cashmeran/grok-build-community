@@ -1,10 +1,10 @@
-//! Web search router — auto-detects backend from model api_backend, falls back to DDG.
+//! Web search router — auto-detects backend from model api_backend, falls back to Bing.
 
 use crate::types::output::WebSearchOutput;
 
 use super::WebSearchConfig;
 
-/// Route a search query. Tries native search first, falls back to DuckDuckGo.
+/// Route a search query. Tries native search first, falls back to Bing.
 pub async fn search(
     config: &WebSearchConfig,
     query: &str,
@@ -12,10 +12,15 @@ pub async fn search(
 ) -> Result<WebSearchOutput, xai_tool_runtime::ToolError> {
     let (api_key, base_url, model, api_backend) = match config {
         WebSearchConfig::Disabled => {
-            return Err(xai_tool_runtime::ToolError::execution(
-                xai_tool_protocol::ToolId::new("web_search").expect("valid"),
-                "Web search is disabled".to_string(),
-            ));
+            // Community Edition: fall through to Bing free search
+            return super::bing::search(query, allowed_domains.as_deref())
+                .await
+                .map_err(|e| {
+                    xai_tool_runtime::ToolError::execution(
+                        xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+                        format!("Bing search failed: {e}"),
+                    )
+                });
         }
         WebSearchConfig::Enabled {
             api_key,
@@ -76,17 +81,17 @@ pub async fn search(
     };
 
     // 2. If native search succeeded, return it
-    if native_result.is_ok() {
-        return native_result;
+    if let Ok(out) = native_result {
+        return Ok(out);
     }
 
-    // 3. Fall back to DuckDuckGo
-    super::ddg::search(query, allowed_domains.as_deref())
+    // 3. Fall back to Bing
+    super::bing::search(query, allowed_domains.as_deref())
         .await
         .map_err(|e| {
             xai_tool_runtime::ToolError::execution(
                 xai_tool_protocol::ToolId::new("web_search").expect("valid"),
-                format!("Native search failed, DDG fallback also failed: {e}"),
+                format!("Bing fallback failed: {e}"),
             )
         })
 }
