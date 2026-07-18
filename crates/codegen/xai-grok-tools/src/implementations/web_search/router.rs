@@ -12,10 +12,15 @@ pub async fn search(
 ) -> Result<WebSearchOutput, xai_tool_runtime::ToolError> {
     let (api_key, base_url, model, api_backend) = match config {
         WebSearchConfig::Disabled => {
-            return Err(xai_tool_runtime::ToolError::execution(
-                xai_tool_protocol::ToolId::new("web_search").expect("valid"),
-                "Web search is disabled".to_string(),
-            ));
+            // Community Edition: fall through to DuckDuckGo free search
+            return super::ddg::search(query, allowed_domains.as_deref())
+                .await
+                .map_err(|e| {
+                    xai_tool_runtime::ToolError::execution(
+                        xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+                        format!("DDG search failed: {e}"),
+                    )
+                });
         }
         WebSearchConfig::Enabled {
             api_key,

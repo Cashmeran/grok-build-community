@@ -999,9 +999,8 @@ impl ToolRegistryBuilder {
         if let Some(auth_provider) = ctx.auth_provider.clone() {
             resources.insert(auth_provider);
         }
-        if ctx.web_search_config.is_enabled() {
-            resources.insert(ctx.web_search_config.clone());
-        }
+        // Community Edition: always pass config — DuckDuckGo fallback works without API key
+        resources.insert(ctx.web_search_config.clone());
         if let Some(lsp) = ctx.lsp {
             resources.insert(lsp);
         }
@@ -1033,10 +1032,13 @@ impl ToolRegistryBuilder {
                 }
             }
         }
-        if let crate::implementations::grok_build::web_fetch::WebFetchConfig::Enabled { params } =
-            &ctx.web_fetch_config
+        // Community Edition: always create WebFetchClient (default params when Disabled)
         {
-            match crate::implementations::grok_build::web_fetch::WebFetchClient::new(params) {
+            let params = match &ctx.web_fetch_config {
+                crate::implementations::grok_build::web_fetch::WebFetchConfig::Enabled { params } => params.clone(),
+                crate::implementations::grok_build::web_fetch::WebFetchConfig::Disabled => Default::default(),
+            };
+            match crate::implementations::grok_build::web_fetch::WebFetchClient::new(&params) {
                 Ok(client) => {
                     resources.insert(client);
                 }
