@@ -2190,6 +2190,7 @@ mod tests {
             ]
             .into_iter()
             .map(|id| ToolConfig::from_id(format!("GrokBuild:{id}")))
+            .chain(std::iter::empty::<ToolConfig>())
             .collect(),
             behavior_preset: None,
         };
