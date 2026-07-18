@@ -62,6 +62,11 @@ irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/instal
 curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.sh | bash
 ```
 
+安装后运行：
+```
+grokce
+```
+
 预编译二进制也发布在 [Releases](https://github.com/Cashmeran/grok-build-community/releases) 页面。
 
 ### 从源码构建

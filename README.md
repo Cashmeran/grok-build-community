@@ -62,6 +62,11 @@ irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/instal
 curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.sh | bash
 ```
 
+After install, run:
+```
+grokce
+```
+
 Prebuilt binaries are also published on the [Releases](https://github.com/Cashmeran/grok-build-community/releases) page.
 
 ### Build from source

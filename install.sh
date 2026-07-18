@@ -51,9 +51,9 @@ case "$FILENAME" in
     *.zip)     unzip -o "$FILENAME" && rm "$FILENAME";;
 esac
 
-# Make binary executable
-chmod +x "$INSTALL_DIR/grok" 2>/dev/null || true
-chmod +x "$INSTALL_DIR/xai-grok-pager" 2>/dev/null || true
+# Rename binary to grokce and make executable
+mv "$INSTALL_DIR/grok-ce" "$INSTALL_DIR/grokce" 2>/dev/null || true
+chmod +x "$INSTALL_DIR/grokce" 2>/dev/null || true
 
 echo ""
 echo "Installed to $INSTALL_DIR" | GREP_COLORS='ms=32' grep --color=always "." 2>/dev/null || echo "Installed to $INSTALL_DIR"
@@ -67,4 +67,4 @@ fi
 
 echo ""
 echo "Grok Build Community Edition installed!"
-echo "Run 'grok' to start."
+echo "Run 'grokce' to start."

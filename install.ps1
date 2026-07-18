@@ -30,7 +30,7 @@ if (-not $asset) {
 }
 
 Write-Host "Downloading $($asset.name) ($([math]::Round($asset.size/1MB, 1)) MB)..."
-$outPath = Join-Path $InstallDir "grok.exe"
+$outPath = Join-Path $InstallDir "grokce.exe"
 Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $outPath
 
 Write-Host "Installed to $outPath" -ForegroundColor Green
@@ -47,4 +47,4 @@ if ($userPath -notlike "*$InstallDir*") {
 
 Write-Host ""
 Write-Host "Grok Build Community Edition installed!" -ForegroundColor Green
-Write-Host "Run 'grok' to start."
+Write-Host "Run 'grokce' to start."
