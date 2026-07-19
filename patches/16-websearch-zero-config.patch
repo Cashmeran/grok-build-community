@@ -1,0 +1,375 @@
+From 18f9389f4c0e65d351b36997f72e30e35a7e8cc2 Mon Sep 17 00:00:00 2001
+From: Cashmeran <15231987590@163.com>
+Date: Sat, 18 Jul 2026 22:26:48 +0800
+Subject: [PATCH 17/18] =?UTF-8?q?feat:=20WebSearch=20=E9=9B=B6=E9=85=8D?=
+ =?UTF-8?q?=E7=BD=AE=E5=85=A8=E9=93=BE=E8=B7=AF=E9=80=9A?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- default_grok_build_toolset + WebSearch + WebFetch
+- WebSearchConfig/WebFetchClient 始终注入(不检查is_enabled)
+- Disabled → Bing RSS 免费回退(国内可访问)
+- ModelOverrideConfig 自动回退用户 default 模型
+- supports_backend_search 全局开启
+- messages.rs 适配 DeepSeek Anthropic API (+name +thinking +嵌套响应)
+- router.rs 原生→Bing 智能回退
+---
+ crates/codegen/xai-grok-agent/src/config.rs   |   2 +
+ .../xai-grok-shell/src/agent/config.rs        |   6 +-
+ .../codegen/xai-grok-shell/src/config/mod.rs  |   1 +
+ .../xai-grok-shell/src/tools/config.rs        |   2 +-
+ .../src/implementations/web_search/bing.rs    | 114 ++++++++++++++++++
+ .../implementations/web_search/messages.rs    |  30 +++--
+ .../src/implementations/web_search/mod.rs     |   1 +
+ .../src/implementations/web_search/router.rs  |  27 +++--
+ .../xai-grok-tools/src/registry/types.rs      |   5 +-
+ 9 files changed, 164 insertions(+), 24 deletions(-)
+ create mode 100644 crates/codegen/xai-grok-tools/src/implementations/web_search/bing.rs
+
+diff --git a/crates/codegen/xai-grok-agent/src/config.rs b/crates/codegen/xai-grok-agent/src/config.rs
+index f0db0fb..0b923b6 100644
+--- a/crates/codegen/xai-grok-agent/src/config.rs
++++ b/crates/codegen/xai-grok-agent/src/config.rs
+@@ -288,6 +288,8 @@ fn default_grok_build_toolset() -> ToolServerConfig {
+             (&grok_build::CodecTool).into(),
+             (&grok_build::JsonQueryTool).into(),
+             (&grok_build::CsvOpsTool).into(),
++            (&grok_build::WebSearchTool).into(),
++            (&grok_build::WebFetchTool).into(),
+             (&search_tool::SearchTool).into(),
+             (&use_tool::UseTool).into(),
+             (&grok_build::CalculatorTool).into(),
+diff --git a/crates/codegen/xai-grok-shell/src/agent/config.rs b/crates/codegen/xai-grok-shell/src/agent/config.rs
+index 6ae46b6..7a4206c 100644
+--- a/crates/codegen/xai-grok-shell/src/agent/config.rs
++++ b/crates/codegen/xai-grok-shell/src/agent/config.rs
+@@ -4753,7 +4753,7 @@ fn resolve_hidden_default_web_search_sampling_config(
+             reasoning_effort: None,
+             supports_reasoning_effort: false,
+             reasoning_efforts: Vec::new(),
+-            supports_backend_search: false,
++            supports_backend_search: true,
+             compactions_remaining: None,
+             compaction_at_tokens: None,
+             show_model_fingerprint: false,
+@@ -4783,7 +4783,9 @@ pub fn resolve_web_search_sampling_config(
+     client_version: Option<String>,
+     endpoints: &EndpointsConfig,
+ ) -> Option<SamplerConfig> {
+-    let resolved = if let Some(entry) = find_model_by_id(models, model_id).cloned() {
++    let resolved = if let Some(mut entry) = find_model_by_id(models, model_id).cloned() {
++        // Force backend search on so the model can use native web search when available.
++        entry.info.supports_backend_search = true;
+         let credentials = resolve_credentials_enforced(&entry, session_key, disable_api_key_auth);
+         Some(sampling_config_for_model(
+             &entry,
+diff --git a/crates/codegen/xai-grok-shell/src/config/mod.rs b/crates/codegen/xai-grok-shell/src/config/mod.rs
+index d4203ee..e12bb5b 100644
+--- a/crates/codegen/xai-grok-shell/src/config/mod.rs
++++ b/crates/codegen/xai-grok-shell/src/config/mod.rs
+@@ -613,6 +613,7 @@ impl ModelOverrideConfig {
+         let mut result = Self {
+             web_search: parsed_models
+                 .web_search
++                .or_else(|| parsed_models.default.clone())
+                 .unwrap_or_else(|| crate::models::default_web_search_model().to_owned()),
+             session_summary: non_empty_model_override(parsed_models.session_summary.as_deref()),
+             image_description: non_empty_model_override(parsed_models.image_description.as_deref()),
+diff --git a/crates/codegen/xai-grok-shell/src/tools/config.rs b/crates/codegen/xai-grok-shell/src/tools/config.rs
+index dfce291..54ac943 100644
+--- a/crates/codegen/xai-grok-shell/src/tools/config.rs
++++ b/crates/codegen/xai-grok-shell/src/tools/config.rs
+@@ -234,7 +234,7 @@ impl ShellToolsetConfig {
+             // agent/config.rs and acp_session.rs.
+             attribution_callback: None,
+             bearer_resolver: None,
+-            supports_backend_search: false,
++            supports_backend_search: true,
+             compactions_remaining: None,
+             compaction_at_tokens: None,
+             doom_loop_recovery: None,
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/bing.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/bing.rs
+new file mode 100644
+index 0000000..a24c760
+--- /dev/null
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/bing.rs
+@@ -0,0 +1,114 @@
++//! Bing RSS search backend.
++//! Free, no API key required. Uses Bing RSS endpoint which works in China.
++
++use std::time::Duration;
++
++use crate::types::output::WebSearchOutput;
++
++/// Search Bing via RSS and return formatted results.
++pub async fn search(
++    query: &str,
++    allowed_domains: Option<&[String]>,
++) -> Result<WebSearchOutput, String> {
++    let client = reqwest::Client::builder()
++        .user_agent("Mozilla/5.0")
++        .timeout(Duration::from_secs(15))
++        .build()
++        .map_err(|e| format!("http client: {e}"))?;
++
++    let url = format!(
++        "https://www.bing.com/search?q={}&format=rss&count=10",
++        url_encode(query)
++    );
++
++    let xml = client
++        .get(&url)
++        .header("Accept-Language", "en-US,en;q=0.9")
++        .send()
++        .await
++        .map_err(|e| format!("request: {e}"))?
++        .text()
++        .await
++        .map_err(|e| format!("read body: {e}"))?;
++
++    let mut citations: Vec<String> = Vec::new();
++    let mut parts: Vec<String> = Vec::new();
++
++    // Simple XML parsing for RSS <item> blocks
++    let mut pos = 0;
++    while let Some(item_start) = xml[pos..].find("<item>") {
++        let abs_start = pos + item_start;
++        let item_end = xml[abs_start..].find("</item>").unwrap_or(xml.len() - abs_start);
++        let item = &xml[abs_start..abs_start + item_end];
++
++        let title = extract_xml(item, "title");
++        let link = extract_xml(item, "link");
++        let desc = extract_xml(item, "description");
++
++        if !title.is_empty() && !link.is_empty() {
++            if let Some(allowed) = allowed_domains
++                && !allowed.is_empty()
++            {
++                let host = link
++                    .strip_prefix("https://")
++                    .or_else(|| link.strip_prefix("http://"))
++                    .and_then(|s| s.split('/').next())
++                    .unwrap_or("");
++                if !allowed.iter().any(|d| host == d.as_str() || host.ends_with(&format!(".{d}"))) {
++                    pos = abs_start + item_end + 7;
++                    continue;
++                }
++            }
++            parts.push(format!("- **{}**  \n  {}\n  {}", title, desc, link));
++            citations.push(link);
++        }
++        pos = abs_start + item_end + 7;
++    }
++
++    if parts.is_empty() {
++        return Ok(WebSearchOutput {
++            query: query.to_string(),
++            content: format!("No Bing results found for '{}'.", query),
++            citations: vec![],
++            allowed_domains: allowed_domains.map(|d| d.to_vec()),
++            pre_formatted: None,
++        });
++    }
++
++    Ok(WebSearchOutput {
++        query: query.to_string(),
++        content: parts.join("\n\n"),
++        citations,
++        allowed_domains: allowed_domains.map(|d| d.to_vec()),
++        pre_formatted: None,
++    })
++}
++
++fn extract_xml(xml: &str, tag: &str) -> String {
++    let open = format!("<{}>", tag);
++    let close = format!("</{}>", tag);
++    if let Some(start) = xml.find(&open) {
++        let after = &xml[start + open.len()..];
++        if let Some(end) = after.find(&close) {
++            return after[..end]
++                .replace("&amp;", "&")
++                .replace("&lt;", "<")
++                .replace("&gt;", ">")
++                .replace("&quot;", "\"")
++                .replace("&#39;", "'")
++                .trim()
++                .to_string();
++        }
++    }
++    String::new()
++}
++
++fn url_encode(s: &str) -> String {
++    s.chars()
++        .map(|c| match c {
++            ' ' => "+".to_string(),
++            c if c.is_ascii_alphanumeric() || "-_.~".contains(c) => c.to_string(),
++            c => format!("%{:02X}", c as u8),
++        })
++        .collect()
++}
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs
+index 529d9d4..8a585ff 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs
+@@ -16,7 +16,7 @@ pub async fn search(
+     allowed_domains: Option<&[String]>,
+ ) -> Result<WebSearchOutput, String> {
+     let client = reqwest::Client::builder()
+-        .timeout(std::time::Duration::from_secs(30))
++        .timeout(std::time::Duration::from_secs(60))
+         .build()
+         .map_err(|e| format!("http client: {e}"))?;
+ 
+@@ -33,6 +33,7 @@ pub async fn search(
+         }],
+         tools: vec![AnthropicTool {
+             tool_type: "web_search_20250305".to_string(),
++            name: "web_search".to_string(),
+         }],
+     };
+ 
+@@ -72,9 +73,11 @@ pub async fn search(
+                     content.push('\n');
+                 }
+             }
+-            AnthropicResponseContent::WebSearchToolResult { url, title, .. } => {
+-                citations.push(url.clone());
+-                content.push_str(&format!("- [{title}]({url})\n"));
++            AnthropicResponseContent::WebSearchToolResult { content: results } => {
++                for item in results {
++                    citations.push(item.url.clone());
++                    content.push_str(&format!("- [{}]({})\n", item.title, item.url));
++                }
+             }
+             _ => {} // skip server_tool_use blocks
+         }
+@@ -122,6 +125,7 @@ struct AnthropicTool {
+     /// "web_search_20250305" — versioned tool type identifier.
+     #[serde(rename = "type")]
+     tool_type: String,
++    name: String,
+ }
+ 
+ #[derive(Deserialize)]
+@@ -135,6 +139,8 @@ struct AnthropicResponse {
+ enum AnthropicResponseContent {
+     #[serde(rename = "text")]
+     Text { text: String },
++    #[serde(rename = "thinking")]
++    Thinking { thinking: String },
+     #[serde(rename = "server_tool_use")]
+     ServerToolUse {
+         name: String,
+@@ -143,9 +149,19 @@ enum AnthropicResponseContent {
+     },
+     #[serde(rename = "web_search_tool_result")]
+     WebSearchToolResult {
+-        url: String,
+-        title: String,
+         #[serde(default)]
+-        page_age: Option<String>,
++        content: Vec<WebSearchResultItem>,
+     },
+ }
++
++#[derive(Deserialize)]
++struct WebSearchResultItem {
++    #[serde(default)]
++    title: String,
++    #[serde(default)]
++    url: String,
++    #[serde(default, rename = "encrypted_content")]
++    _encrypted_content: String,
++    #[serde(default)]
++    page_age: Option<String>,
++}
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs
+index 2712648..e4c9646 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs
+@@ -1,3 +1,4 @@
++pub mod bing;
+ pub mod chat;
+ pub mod client;
+ pub mod ddg;
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs
+index 06ef7d0..664033c 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs
+@@ -1,10 +1,10 @@
+-//! Web search router — auto-detects backend from model api_backend, falls back to DDG.
++//! Web search router — auto-detects backend from model api_backend, falls back to Bing.
+ 
+ use crate::types::output::WebSearchOutput;
+ 
+ use super::WebSearchConfig;
+ 
+-/// Route a search query. Tries native search first, falls back to DuckDuckGo.
++/// Route a search query. Tries native search first, falls back to Bing.
+ pub async fn search(
+     config: &WebSearchConfig,
+     query: &str,
+@@ -12,10 +12,15 @@ pub async fn search(
+ ) -> Result<WebSearchOutput, xai_tool_runtime::ToolError> {
+     let (api_key, base_url, model, api_backend) = match config {
+         WebSearchConfig::Disabled => {
+-            return Err(xai_tool_runtime::ToolError::execution(
+-                xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+-                "Web search is disabled".to_string(),
+-            ));
++            // Community Edition: fall through to Bing free search
++            return super::bing::search(query, allowed_domains.as_deref())
++                .await
++                .map_err(|e| {
++                    xai_tool_runtime::ToolError::execution(
++                        xai_tool_protocol::ToolId::new("web_search").expect("valid"),
++                        format!("Bing search failed: {e}"),
++                    )
++                });
+         }
+         WebSearchConfig::Enabled {
+             api_key,
+@@ -76,17 +81,17 @@ pub async fn search(
+     };
+ 
+     // 2. If native search succeeded, return it
+-    if native_result.is_ok() {
+-        return native_result;
++    if let Ok(out) = native_result {
++        return Ok(out);
+     }
+ 
+-    // 3. Fall back to DuckDuckGo
+-    super::ddg::search(query, allowed_domains.as_deref())
++    // 3. Fall back to Bing
++    super::bing::search(query, allowed_domains.as_deref())
+         .await
+         .map_err(|e| {
+             xai_tool_runtime::ToolError::execution(
+                 xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+-                format!("Native search failed, DDG fallback also failed: {e}"),
++                format!("Bing fallback failed: {e}"),
+             )
+         })
+ }
+diff --git a/crates/codegen/xai-grok-tools/src/registry/types.rs b/crates/codegen/xai-grok-tools/src/registry/types.rs
+index 2a0f5fc..83f166d 100644
+--- a/crates/codegen/xai-grok-tools/src/registry/types.rs
++++ b/crates/codegen/xai-grok-tools/src/registry/types.rs
+@@ -999,9 +999,8 @@ impl ToolRegistryBuilder {
+         if let Some(auth_provider) = ctx.auth_provider.clone() {
+             resources.insert(auth_provider);
+         }
+-        if ctx.web_search_config.is_enabled() {
+-            resources.insert(ctx.web_search_config.clone());
+-        }
++        // Community Edition: always pass config — free fallback works without API key
++        resources.insert(ctx.web_search_config.clone());
+         if let Some(lsp) = ctx.lsp {
+             resources.insert(lsp);
+         }
+-- 
+2.53.0.windows.2
+

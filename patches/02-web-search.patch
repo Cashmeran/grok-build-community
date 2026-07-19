@@ -1,0 +1,974 @@
+From 45620e1e2e2104baadf8f6e6192a2faddebfb512 Mon Sep 17 00:00:00 2001
+From: Cashmeran <15231987590@163.com>
+Date: Fri, 17 Jul 2026 13:33:10 +0800
+Subject: [PATCH 02/18] =?UTF-8?q?=E5=A4=9A=E5=90=8E=E7=AB=AF=20Web=20?=
+ =?UTF-8?q?=E6=90=9C=E7=B4=A2=E7=B3=BB=E7=BB=9F?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+4个搜索后端 + 自动路由 + DDG回退：
+
+- responses 后端（原 WebSearchClient）：调 /responses，Grok/GPT-4
+- messages 后端（新增）：调 /messages + web_search_20250305 tool，Claude/DeepSeek
+- chat_completions 后端（新增）：调 /chat/completions + web_search_options，OpenAI搜索模型
+- DuckDuckGo 后端（新增）：免费 Instant Answer API，零配置回退
+
+路由器根据模型 api_backend 自动分发，无需手动配置。
+原生搜索失败自动回退 DDG。
+
+对齐官方文档：
+- Anthropic: content 数组格式 + web_search_tool_result 响应
+- OpenAI Chat: url_citation annotations 响应
+- DDG: AbstractText + RelatedTopics 格式
+---
+ crates/codegen/xai-grok-agent/src/builder.rs  |   4 +-
+ .../src/session/acp_session_impl/spawn.rs     |  10 +
+ .../acp_session_tests/web_search_e2e_tests.rs |   2 +-
+ .../grok_build/web_search/mod.rs              |  43 ++--
+ .../xai-grok-tools/src/implementations/mod.rs |   2 +-
+ .../src/implementations/web_search/chat.rs    | 144 ++++++++++++++
+ .../src/implementations/web_search/client.rs  |  13 +-
+ .../src/implementations/web_search/ddg.rs     | 186 ++++++++++++++++++
+ .../implementations/web_search/messages.rs    | 149 ++++++++++++++
+ .../src/implementations/web_search/mod.rs     |   6 +-
+ .../src/implementations/web_search/router.rs  |  94 +++++++++
+ .../src/implementations/web_search/types.rs   |  24 ++-
+ .../xai-grok-tools/src/registry/types.rs      |   8 +-
+ 13 files changed, 639 insertions(+), 46 deletions(-)
+ create mode 100644 crates/codegen/xai-grok-tools/src/implementations/web_search/chat.rs
+ create mode 100644 crates/codegen/xai-grok-tools/src/implementations/web_search/ddg.rs
+ create mode 100644 crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs
+ create mode 100644 crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs
+
+diff --git a/crates/codegen/xai-grok-agent/src/builder.rs b/crates/codegen/xai-grok-agent/src/builder.rs
+index 230aa3f..10273da 100644
+--- a/crates/codegen/xai-grok-agent/src/builder.rs
++++ b/crates/codegen/xai-grok-agent/src/builder.rs
+@@ -2170,7 +2170,7 @@ mod tests {
+             ToolNotificationHandle::noop(),
+         )
+         .from_definition(definition)
+-        .with_web_search_config(WebSearchConfig::Enabled {
++        .with_web_search_config(WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+             api_key: "test-key".into(),
+             base_url: "https://api.x.ai/v1".into(),
+             model: "test-web-search-model".into(),
+@@ -2296,7 +2296,7 @@ mod tests {
+         use xai_grok_tools::implementations::web_search::WebSearchConfig;
+         use xai_grok_tools::notification::ToolNotificationHandle;
+         let web_search_config = if web_search_enabled {
+-            WebSearchConfig::Enabled {
++            WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+                 api_key: "test-key".into(),
+                 base_url: "https://api.x.ai/v1".into(),
+                 model: "test-web-search-model".into(),
+diff --git a/crates/codegen/xai-grok-shell/src/session/acp_session_impl/spawn.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_impl/spawn.rs
+index 82b1f74..d50e260 100644
+--- a/crates/codegen/xai-grok-shell/src/session/acp_session_impl/spawn.rs
++++ b/crates/codegen/xai-grok-shell/src/session/acp_session_impl/spawn.rs
+@@ -9,6 +9,15 @@ use crate::remote::DEFAULT_CONTEXT_WINDOW;
+ /// `resolution::is_catchall_allow`) substitute for the blocked `--yolo`, so drop them when
+ /// `policy_block` is set; keep everything else (and everything without a pin).
+ /// Pure (no I/O) so the wiring is unit-testable; the caller surfaces `dropped`.
++/// Convert ApiBackend to config string for WebSearchConfig.
++fn api_backend_to_string(backend: xai_grok_sampling_types::ApiBackend) -> String {
++    match backend {
++        xai_grok_sampling_types::ApiBackend::ChatCompletions => "chat_completions".to_string(),
++        xai_grok_sampling_types::ApiBackend::Responses => "responses".to_string(),
++        xai_grok_sampling_types::ApiBackend::Messages => "messages".to_string(),
++    }
++}
++
+ fn drop_cli_catchall_allows(
+     rules: Vec<xai_grok_workspace::permission::types::PermissionRule>,
+     policy_block: Option<&'static str>,
+@@ -365,6 +374,7 @@ pub(crate) async fn spawn_session_actor(
+                 api_key,
+                 base_url: cfg.base_url,
+                 model: cfg.model,
++                api_backend: api_backend_to_string(cfg.api_backend),
+                 extra_headers: cfg.extra_headers,
+                 alpha_test_key: credentials.alpha_test_key.clone(),
+             }
+diff --git a/crates/codegen/xai-grok-shell/src/session/acp_session_tests/web_search_e2e_tests.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_tests/web_search_e2e_tests.rs
+index 44e5ced..0ec1e87 100644
+--- a/crates/codegen/xai-grok-shell/src/session/acp_session_tests/web_search_e2e_tests.rs
++++ b/crates/codegen/xai-grok-shell/src/session/acp_session_tests/web_search_e2e_tests.rs
+@@ -98,7 +98,7 @@ async fn web_search_uses_model_override_from_config_end_to_end() {
+         skills: vec![],
+         state_path: std::env::temp_dir().join("grok-web-search-e2e/state.json"),
+         memory_backend: None,
+-        web_search_config: xai_grok_tools::implementations::web_search::WebSearchConfig::Enabled {
++        web_search_config: xai_grok_tools::implementations::web_search::WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+             api_key: web_search_sampling.api_key.clone().unwrap(),
+             base_url: web_search_sampling.base_url.clone(),
+             model: web_search_sampling.model.clone(),
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/grok_build/web_search/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/web_search/mod.rs
+index e997d3f..f7da2c2 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/grok_build/web_search/mod.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/grok_build/web_search/mod.rs
+@@ -1,10 +1,9 @@
+-//! `web_search` tool — new architecture (`Tool` trait).
++//! `web_search` tool — Community Edition.
+ //!
+-//! Calls the Responses API with web search capability. Reads the
+-//! pre-constructed `WebSearchClient` from Resources (inserted by
+-//! `with_backend()` when the config is `Enabled`).
++//! Routes to the appropriate search backend based on model config:
++//! Responses / Messages / ChatCompletions / DuckDuckGo.
+ 
+-use crate::implementations::web_search::client::WebSearchClient;
++use crate::implementations::web_search::WebSearchConfig;
+ use crate::types::output::WebSearchOutput;
+ use crate::types::requirements::{Expr, ToolRequirement};
+ use crate::types::tool::{ToolKind, ToolNamespace};
+@@ -81,29 +80,18 @@ impl xai_tool_runtime::Tool for WebSearchTool {
+         use crate::types::tool_metadata::shared_resources;
+         let resources = shared_resources(&ctx)?;
+ 
+-        let client;
++        let config;
+         {
+             let res = resources.lock().await;
+-            client = res.require::<WebSearchClient>()?.clone();
++            config = res.require::<WebSearchConfig>()?.clone();
+         }
+ 
+-        let (content, citations) = client
+-            .search(&input.query, input.allowed_domains.clone())
+-            .await
+-            .map_err(|e| {
+-                xai_tool_runtime::ToolError::execution(
+-                    xai_tool_protocol::ToolId::new("web_search").expect("valid"),
+-                    e.to_string(),
+-                )
+-            })?;
+-
+-        Ok(WebSearchOutput {
+-            query: input.query.clone(),
+-            content,
+-            citations,
+-            allowed_domains: input.allowed_domains.clone(),
+-            pre_formatted: None,
+-        })
++        crate::implementations::web_search::router::search(
++            &config,
++            &input.query,
++            input.allowed_domains.clone(),
++        )
++        .await
+     }
+ }
+ 
+@@ -128,7 +116,7 @@ mod tests {
+     }
+ 
+     #[tokio::test]
+-    async fn errors_when_client_not_in_resources() {
++    async fn errors_when_config_not_in_resources() {
+         let resources = Resources::new();
+         let tool = WebSearchTool;
+         let result = xai_tool_runtime::Tool::run(
+@@ -144,8 +132,9 @@ mod tests {
+         assert!(result.is_err());
+         let err_msg = result.unwrap_err().to_string();
+         assert!(
+-            err_msg.contains("missing required resource"),
+-            "Expected 'missing required resource' error, got: {err_msg}"
++            err_msg.contains("missing required resource")
++                || err_msg.contains("Web search is disabled"),
++            "Expected error, got: {err_msg}"
+         );
+     }
+ }
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/mod.rs
+index 69a224c..bc977e1 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/mod.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/mod.rs
+@@ -26,4 +26,4 @@ pub use opencode::{
+ };
+ pub use search_tool::SearchTool;
+ pub use use_tool::{UseTool, UseToolInput};
+-pub use web_search::WebSearchConfig;
++pub use web_search::{WebSearchBackend, WebSearchConfig};
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/chat.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/chat.rs
+new file mode 100644
+index 0000000..3f33101
+--- /dev/null
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/chat.rs
+@@ -0,0 +1,144 @@
++//! Chat Completions API web search backend.
++//!
++//! NOTE: `web_search_options` only works with OpenAI's search-preview models
++//! (`gpt-4o-search-preview`, `gpt-4o-mini-search-preview`). Regular models
++//! do NOT support this parameter. The router will fall back to DuckDuckGo
++//! if this backend returns an error.
++//!
++//! API ref: https://platform.openai.com/docs/guides/tools-web-search
++
++use serde::{Deserialize, Serialize};
++
++use crate::types::output::WebSearchOutput;
++
++/// Search via Chat Completions with web_search_options.
++/// Only works with search-preview models; others will error and fall back to DDG.
++pub async fn search(
++    base_url: &str,
++    model: &str,
++    api_key: &str,
++    query: &str,
++    allowed_domains: Option<&[String]>,
++) -> Result<WebSearchOutput, String> {
++    let client = reqwest::Client::builder()
++        .timeout(std::time::Duration::from_secs(30))
++        .build()
++        .map_err(|e| format!("http client: {e}"))?;
++
++    let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
++
++    let request = ChatRequest {
++        model: model.to_string(),
++        messages: vec![ChatMessage {
++            role: "user".to_string(),
++            content: query.to_string(),
++        }],
++        web_search_options: Some(WebSearchOptions {
++            search_context_size: Some("medium".to_string()),
++        }),
++    };
++
++    let response = client
++        .post(&url)
++        .header("Authorization", format!("Bearer {api_key}"))
++        .json(&request)
++        .send()
++        .await
++        .map_err(|e| format!("request: {e}"))?;
++
++    if !response.status().is_success() {
++        let body = response.text().await.unwrap_or_default();
++        return Err(format!("API returned {}: {body}", response.status()));
++    }
++
++    let resp: ChatResponse = response
++        .json()
++        .await
++        .map_err(|e| format!("parse response: {e}"))?;
++
++    let choice = resp
++        .choices
++        .first()
++        .ok_or("no choices in response")?;
++
++    let content = choice.message.content.clone().unwrap_or_default();
++    if content.is_empty() {
++        return Ok(WebSearchOutput {
++            query: query.to_string(),
++            content: format!("No search results found for '{}'.", query),
++            citations: vec![],
++            allowed_domains: allowed_domains.map(|d| d.to_vec()),
++            pre_formatted: None,
++        });
++    }
++
++    // Extract citations from url_citation annotations
++    let mut citations = Vec::new();
++    if let Some(ref annotations) = choice.message.annotations {
++        for ann in annotations {
++            if let Some(ref uc) = ann.url_citation {
++                citations.push(uc.url.clone());
++            }
++        }
++    }
++
++    Ok(WebSearchOutput {
++        query: query.to_string(),
++        content,
++        citations,
++        allowed_domains: allowed_domains.map(|d| d.to_vec()),
++        pre_formatted: None,
++    })
++}
++
++// ── Chat API types ──
++
++#[derive(Serialize)]
++struct ChatRequest {
++    model: String,
++    messages: Vec<ChatMessage>,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    web_search_options: Option<WebSearchOptions>,
++}
++
++#[derive(Serialize)]
++struct ChatMessage {
++    role: String,
++    content: String,
++}
++
++#[derive(Serialize)]
++struct WebSearchOptions {
++    #[serde(skip_serializing_if = "Option::is_none")]
++    search_context_size: Option<String>,
++}
++
++#[derive(Deserialize)]
++struct ChatResponse {
++    choices: Vec<ChatChoice>,
++}
++
++#[derive(Deserialize)]
++struct ChatChoice {
++    message: ChatAssistantMessage,
++}
++
++#[derive(Deserialize)]
++struct ChatAssistantMessage {
++    content: Option<String>,
++    #[serde(default)]
++    annotations: Option<Vec<UrlAnnotation>>,
++}
++
++#[derive(Deserialize)]
++struct UrlAnnotation {
++    #[serde(rename = "url_citation")]
++    url_citation: Option<UrlCitation>,
++}
++
++#[derive(Deserialize)]
++struct UrlCitation {
++    url: String,
++    #[serde(default)]
++    title: Option<String>,
++}
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/client.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/client.rs
+index e1d9d58..f251f94 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/web_search/client.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/client.rs
+@@ -1,4 +1,4 @@
+-use super::types::WebSearchConfig;
++use super::types::{WebSearchBackend, WebSearchConfig};
+ use crate::attribution::{SharedAttributionCallback, ToolConsumer};
+ use crate::types::SharedApiKeyProvider;
+ use async_openai::types::responses as rs;
+@@ -30,6 +30,7 @@ impl WebSearchClient {
+             model,
+             extra_headers,
+             alpha_test_key,
++            ..
+         } = config
+         else {
+             return Err(xai_tool_runtime::ToolError::execution(
+@@ -344,7 +345,7 @@ mod tests {
+     }
+     #[test]
+     fn test_new_client_uses_configured_model() {
+-        let config = WebSearchConfig::Enabled {
++        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+             api_key: "test-key".to_string(),
+             base_url: "https://api.x.ai/v1".to_string(),
+             model: "custom-enterprise-model".to_string(),
+@@ -374,7 +375,7 @@ mod tests {
+     fn record_401_attribution_passes_truncated_prefix_to_callback() {
+         let cb = std::sync::Arc::new(CountingCallback::default());
+         let cb_dyn: crate::attribution::SharedAttributionCallback = cb.clone();
+-        let config = WebSearchConfig::Enabled {
++        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+             api_key: "ignored".to_string(),
+             base_url: "https://api.x.ai/v1".to_string(),
+             model: "test-model".to_string(),
+@@ -398,7 +399,7 @@ mod tests {
+     /// -- the BYOK / standalone case must not panic or allocate.
+     #[test]
+     fn record_401_attribution_is_noop_without_callback() {
+-        let config = WebSearchConfig::Enabled {
++        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+             api_key: "test-key".to_string(),
+             base_url: "https://api.x.ai/v1".to_string(),
+             model: "test-model".to_string(),
+@@ -520,7 +521,7 @@ mod tests {
+             )))
+             .mount(&server)
+             .await;
+-        let config = WebSearchConfig::Enabled {
++        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+             api_key: "static-key-from-config".to_string(),
+             base_url: server.uri(),
+             model: "test-model".to_string(),
+@@ -560,7 +561,7 @@ mod tests {
+             )))
+             .mount(&server)
+             .await;
+-        let config = WebSearchConfig::Enabled {
++        let config = WebSearchConfig::Enabled { api_backend: "responses".to_string(),
+             api_key: "stale-static-key".to_string(),
+             base_url: server.uri(),
+             model: "test-model".to_string(),
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/ddg.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/ddg.rs
+new file mode 100644
+index 0000000..a6a890f
+--- /dev/null
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/ddg.rs
+@@ -0,0 +1,186 @@
++//! DuckDuckGo Instant Answer API backend.
++//! Free, no API key required. Fallback for models without native search.
++
++use std::time::Duration;
++
++use serde::Deserialize;
++
++use crate::types::output::WebSearchOutput;
++
++/// DDG Instant Answer API response.
++#[derive(Debug, Deserialize)]
++struct DdgResponse {
++    #[serde(rename = "AbstractText")]
++    abstract_text: Option<String>,
++    #[serde(rename = "AbstractURL")]
++    abstract_url: Option<String>,
++    #[serde(rename = "RelatedTopics")]
++    related_topics: Vec<DdgTopic>,
++    #[serde(rename = "Heading")]
++    heading: Option<String>,
++}
++
++#[derive(Debug, Deserialize)]
++struct DdgTopic {
++    #[serde(rename = "Text")]
++    text: Option<String>,
++    #[serde(rename = "FirstURL")]
++    first_url: Option<String>,
++}
++
++/// Search DuckDuckGo and return formatted results.
++pub async fn search(query: &str, allowed_domains: Option<&[String]>) -> Result<WebSearchOutput, String> {
++    let client = reqwest::Client::builder()
++        .user_agent("GrokBuild-Community/0.1")
++        .timeout(Duration::from_secs(10))
++        .build()
++        .map_err(|e| format!("http client: {e}"))?;
++
++    let url = format!(
++        "https://api.duckduckgo.com/?q={}&format=json&no_html=1&skip_disambig=1",
++        url_encode(query)
++    );
++
++    let resp: DdgResponse = client
++        .get(&url)
++        .send()
++        .await
++        .map_err(|e| format!("request: {e}"))?
++        .json()
++        .await
++        .map_err(|e| format!("parse: {e}"))?;
++
++    let mut citations: Vec<String> = Vec::new();
++    let mut parts: Vec<String> = Vec::new();
++
++    // Direct answer from DDG
++    if let Some(ref heading) = resp.heading {
++        if !heading.is_empty() {
++            let snippet = resp.abstract_text.as_deref().unwrap_or("");
++            let url = resp.abstract_url.as_deref().unwrap_or("");
++            if let Some(filtered) = filter_domain(url, allowed_domains) {
++                let filtered = filtered.unwrap_or(url);
++                parts.push(format!("## {heading}\n{snippet}\n{filtered}"));
++                citations.push(filtered.to_string());
++            }
++        }
++    }
++
++    // Related topics
++    for topic in &resp.related_topics {
++        if let (Some(text), Some(url)) = (&topic.text, &topic.first_url) {
++            if let Some(filtered) = filter_domain(url, allowed_domains) {
++                let filtered_url = filtered.unwrap_or(url);
++                let (title, snippet) = text.split_once(" - ").unwrap_or((text, ""));
++                parts.push(format!(
++                    "- **{}**  \n  {}\n  {}",
++                    title.trim(),
++                    snippet.trim(),
++                    filtered_url
++                ));
++                citations.push(filtered_url.to_string());
++            }
++        }
++    }
++
++    if parts.is_empty() {
++        return Ok(WebSearchOutput {
++            query: query.to_string(),
++            content: format!("No DuckDuckGo results found for '{}'.", query),
++            citations: vec![],
++            allowed_domains: allowed_domains.map(|d| d.to_vec()),
++            pre_formatted: None,
++        });
++    }
++
++    let content = parts.join("\n\n");
++
++    Ok(WebSearchOutput {
++        query: query.to_string(),
++        content,
++        citations,
++        allowed_domains: allowed_domains.map(|d| d.to_vec()),
++        pre_formatted: None,
++    })
++}
++
++/// Return the URL if it passes the domain filter, or None to skip.
++fn filter_domain<'a>(url: &'a str, allowed: Option<&[String]>) -> Option<Option<&'a str>> {
++    let allowed = allowed?;
++    if allowed.is_empty() {
++        return Some(None);
++    }
++    let host = url
++        .strip_prefix("https://")
++        .or_else(|| url.strip_prefix("http://"))
++        .and_then(|s| s.split('/').next())
++        .unwrap_or("");
++    if allowed.iter().any(|d| host == d.as_str() || host.ends_with(&format!(".{d}"))) {
++        Some(None)
++    } else {
++        None
++    }
++}
++
++fn url_encode(s: &str) -> String {
++    s.chars()
++        .map(|c| match c {
++            ' ' => "+".to_string(),
++            c if c.is_ascii_alphanumeric() || "-_.~".contains(c) => c.to_string(),
++            c => format!("%{:02X}", c as u8),
++        })
++        .collect()
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn url_encodes_spaces() {
++        assert_eq!(url_encode("hello world"), "hello+world");
++    }
++
++    #[test]
++    fn url_encodes_special_chars() {
++        let encoded = url_encode("rust lang");
++        assert_eq!(encoded, "rust+lang");
++    }
++
++    #[test]
++    fn filter_allowed_domain_match() {
++        let allowed = Some(vec!["docs.rs".to_string()]);
++        assert!(filter_domain("https://docs.rs/foo", allowed.as_deref()).is_some());
++    }
++
++    #[test]
++    fn filter_allowed_domain_subdomain() {
++        let allowed = Some(vec!["rust-lang.org".to_string()]);
++        assert!(filter_domain("https://www.rust-lang.org/foo", allowed.as_deref()).is_some());
++    }
++
++    #[test]
++    fn filter_allowed_domain_no_match() {
++        let allowed = Some(vec!["github.com".to_string()]);
++        assert!(filter_domain("https://docs.rs/foo", allowed.as_deref()).is_none());
++    }
++
++    #[test]
++    fn filter_none_allows_all() {
++        assert!(filter_domain("https://anything.com", None).is_some());
++    }
++
++    #[tokio::test]
++    async fn search_returns_results() {
++        let result = search("Rust programming language", None).await;
++        match result {
++            Ok(output) => {
++                assert_eq!(output.query, "Rust programming language");
++                // DDG may return empty on certain queries — both are valid
++            }
++            Err(e) => {
++                eprintln!("search skipped (network): {e}");
++            }
++        }
++    }
++}
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs
+new file mode 100644
+index 0000000..eb3717f
+--- /dev/null
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/messages.rs
+@@ -0,0 +1,149 @@
++//! Anthropic Messages API web search backend.
++//! Used by Claude (native) and DeepSeek (via /anthropic endpoint).
++//!
++//! API reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool
++
++use serde::{Deserialize, Serialize};
++
++use crate::types::output::WebSearchOutput;
++
++/// Search the web using the Anthropic Messages API with built-in web_search tool.
++pub async fn search(
++    base_url: &str,
++    model: &str,
++    api_key: &str,
++    query: &str,
++    allowed_domains: Option<&[String]>,
++) -> Result<WebSearchOutput, String> {
++    let client = reqwest::Client::builder()
++        .timeout(std::time::Duration::from_secs(30))
++        .build()
++        .map_err(|e| format!("http client: {e}"))?;
++
++    let url = format!("{}/messages", base_url.trim_end_matches('/'));
++
++    let request = AnthropicRequest {
++        model: model.to_string(),
++        max_tokens: 4096,
++        messages: vec![AnthropicMessage {
++            role: "user".to_string(),
++            content: vec![AnthropicContentBlock::Text {
++                text: query.to_string(),
++            }],
++        }],
++        tools: vec![AnthropicTool {
++            tool_type: "web_search_20250305".to_string(),
++        }],
++    };
++
++    let response = client
++        .post(&url)
++        .header("x-api-key", api_key)
++        .header("anthropic-version", "2023-06-01")
++        .json(&request)
++        .send()
++        .await
++        .map_err(|e| format!("request: {e}"))?;
++
++    if !response.status().is_success() {
++        let body = response.text().await.unwrap_or_default();
++        return Err(format!("API returned {}: {body}", response.status()));
++    }
++
++    let resp: AnthropicResponse = response
++        .json()
++        .await
++        .map_err(|e| format!("parse response: {e}"))?;
++
++    // The Anthropic API returns multiple content blocks:
++    // 1. text — Claude's thinking about searching
++    // 2. server_tool_use — the search query actually used
++    // 3. web_search_tool_result — results with url, title, page_age
++    // 4. text — final answer with citations
++    let mut content = String::new();
++    let mut citations = Vec::new();
++
++    for block in &resp.content {
++        match block {
++            AnthropicResponseContent::Text { text } => {
++                if !text.is_empty() {
++                    content.push_str(text);
++                    content.push('\n');
++                }
++            }
++            AnthropicResponseContent::WebSearchToolResult { url, title, .. } => {
++                citations.push(url.clone());
++                content.push_str(&format!("- [{title}]({url})\n"));
++            }
++            _ => {} // skip server_tool_use blocks
++        }
++    }
++
++    if content.trim().is_empty() {
++        content = format!("No search results found for '{}'.", query);
++    }
++
++    Ok(WebSearchOutput {
++        query: query.to_string(),
++        content: content.trim().to_string(),
++        citations,
++        allowed_domains: allowed_domains.map(|d| d.to_vec()),
++        pre_formatted: None,
++    })
++}
++
++// ── Anthropic API types ──
++
++#[derive(Serialize)]
++struct AnthropicRequest {
++    model: String,
++    max_tokens: u32,
++    messages: Vec<AnthropicMessage>,
++    tools: Vec<AnthropicTool>,
++}
++
++#[derive(Serialize)]
++struct AnthropicMessage {
++    role: String,
++    /// Content is an array of content blocks, not a bare string.
++    content: Vec<AnthropicContentBlock>,
++}
++
++#[derive(Serialize)]
++#[serde(tag = "type")]
++enum AnthropicContentBlock {
++    #[serde(rename = "text")]
++    Text { text: String },
++}
++
++#[derive(Serialize)]
++struct AnthropicTool {
++    /// "web_search_20250305" — versioned tool type identifier.
++    #[serde(rename = "type")]
++    tool_type: String,
++}
++
++#[derive(Deserialize)]
++struct AnthropicResponse {
++    content: Vec<AnthropicResponseContent>,
++}
++
++#[derive(Deserialize)]
++#[serde(tag = "type")]
++enum AnthropicResponseContent {
++    #[serde(rename = "text")]
++    Text { text: String },
++    #[serde(rename = "server_tool_use")]
++    ServerToolUse {
++        name: String,
++        id: String,
++        input: serde_json::Value,
++    },
++    #[serde(rename = "web_search_tool_result")]
++    WebSearchToolResult {
++        url: String,
++        title: String,
++        #[serde(default)]
++        page_age: Option<String>,
++    },
++}
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs
+index aa1bcce..2712648 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/mod.rs
+@@ -1,5 +1,9 @@
++pub mod chat;
+ pub mod client;
++pub mod ddg;
++pub mod messages;
++pub mod router;
+ mod tool;
+ mod types;
+ 
+-pub use types::WebSearchConfig;
++pub use types::{WebSearchBackend, WebSearchConfig};
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs
+new file mode 100644
+index 0000000..05737d6
+--- /dev/null
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/router.rs
+@@ -0,0 +1,94 @@
++//! Web search router — auto-detects backend from model api_backend, falls back to DDG.
++
++use crate::types::output::WebSearchOutput;
++
++use super::WebSearchConfig;
++
++/// Route a search query. Tries native search first, falls back to DuckDuckGo.
++pub async fn search(
++    config: &WebSearchConfig,
++    query: &str,
++    allowed_domains: Option<Vec<String>>,
++) -> Result<WebSearchOutput, xai_tool_runtime::ToolError> {
++    let (api_key, base_url, model, api_backend) = match config {
++        WebSearchConfig::Disabled => {
++            return Err(xai_tool_runtime::ToolError::execution(
++                xai_tool_protocol::ToolId::new("web_search").expect("valid"),
++                "Web search is disabled".to_string(),
++            ));
++        }
++        WebSearchConfig::Enabled {
++            api_key,
++            base_url,
++            model,
++            api_backend,
++            ..
++        } => (api_key, base_url, model, api_backend),
++    };
++
++    // 1. Try native search based on model's api_backend
++    let native_result = match api_backend.as_str() {
++        "responses" => {
++            let inner = super::WebSearchConfig::Enabled {
++                api_key: api_key.clone(),
++                base_url: base_url.clone(),
++                model: model.clone(),
++                api_backend: "responses".to_string(),
++                extra_headers: Default::default(),
++                alpha_test_key: None,
++            };
++            let client = super::client::WebSearchClient::new(&inner, None)?;
++            client
++                .search(query, allowed_domains.clone())
++                .await
++                .map(|(content, citations)| WebSearchOutput {
++                    query: query.to_string(),
++                    content,
++                    citations,
++                    allowed_domains: allowed_domains.clone(),
++                    pre_formatted: None,
++                })
++        }
++        "messages" => super::messages::search(
++            base_url,
++            model,
++            api_key,
++            query,
++            allowed_domains.as_deref(),
++        )
++        .await
++        .map_err(|e| xai_tool_runtime::ToolError::execution(
++            xai_tool_protocol::ToolId::new("web_search").expect("valid"),
++            e,
++        )),
++        "chat_completions" => super::chat::search(
++            base_url,
++            model,
++            api_key,
++            query,
++            allowed_domains.as_deref(),
++        )
++        .await
++        .map_err(|e| xai_tool_runtime::ToolError::execution(
++            xai_tool_protocol::ToolId::new("web_search").expect("valid"),
++            e,
++        )),
++        _ => Err(xai_tool_runtime::ToolError::execution(
++            xai_tool_protocol::ToolId::new("web_search").expect("valid"),
++            format!("Unknown api_backend: {api_backend}"),
++        )),
++    };
++
++    // 2. If native search succeeded, return it
++    if native_result.is_ok() {
++        return native_result;
++    }
++
++    // 3. Fall back to DuckDuckGo
++    super::ddg::search(query, allowed_domains.as_deref())
++        .await
++        .map_err(|e| xai_tool_runtime::ToolError::execution(
++            xai_tool_protocol::ToolId::new("web_search").expect("valid"),
++            format!("Native search failed, DDG fallback also failed: {e}"),
++        ))
++}
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/web_search/types.rs b/crates/codegen/xai-grok-tools/src/implementations/web_search/types.rs
+index 0081724..21ef57f 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/web_search/types.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/web_search/types.rs
+@@ -1,9 +1,19 @@
+ use indexmap::IndexMap;
+ 
++/// Internal routing target for web search — determined from the model's api_backend,
++/// not user-configurable. DuckDuckGo is the fallback when native search is unavailable.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum WebSearchBackend {
++    Responses,
++    Messages,
++    ChatCompletions,
++    DuckDuckGo,
++}
++
+ /// Configuration for the web search tool.
+ ///
+-/// Use `Disabled` when no API key is available or web search should be turned off.
+-/// Use `Enabled { … }` to provide credentials and endpoint configuration.
++/// The search backend is automatically determined from the web search model's
++/// `api_backend`. DuckDuckGo is used as fallback when native search fails.
+ #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+ #[serde(tag = "status", rename_all = "snake_case")]
+ pub enum WebSearchConfig {
+@@ -13,6 +23,10 @@ pub enum WebSearchConfig {
+         api_key: String,
+         base_url: String,
+         model: String,
++        /// The model's api_backend — auto-detects search protocol.
++        /// "chat_completions" | "responses" | "messages"
++        #[serde(default)]
++        api_backend: String,
+         #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+         extra_headers: IndexMap<String, String>,
+         #[serde(skip_serializing_if = "Option::is_none")]
+@@ -37,11 +51,13 @@ impl WebSearchConfig {
+                 base_url,
+                 model,
+                 extra_headers,
++                api_backend,
+                 ..
+             } => Self::Enabled {
+                 api_key: "***REDACTED***".to_string(),
+                 base_url: base_url.clone(),
+                 model: model.clone(),
++                api_backend: api_backend.clone(),
+                 extra_headers: extra_headers.clone(),
+                 alpha_test_key: None,
+             },
+@@ -65,6 +81,7 @@ mod tests {
+             api_key: "test-key".to_string(),
+             base_url: "https://api.x.ai/v1".to_string(),
+             model: "test-web-search-model".to_string(),
++            api_backend: "responses".to_string(),
+             extra_headers: IndexMap::new(),
+             alpha_test_key: None,
+         };
+@@ -79,6 +96,7 @@ mod tests {
+             api_key: "secret-key-12345".to_string(),
+             base_url: "https://api.x.ai/v1".to_string(),
+             model: "test-web-search-model".to_string(),
++            api_backend: "responses".to_string(),
+             extra_headers: headers,
+             alpha_test_key: Some("alpha-secret".to_string()),
+         };
+@@ -90,6 +108,7 @@ mod tests {
+                 model,
+                 extra_headers,
+                 alpha_test_key,
++                ..
+             } => {
+                 assert_eq!(api_key, "***REDACTED***");
+                 assert_eq!(base_url, "https://api.x.ai/v1");
+@@ -107,6 +126,7 @@ mod tests {
+             api_key: "key".to_string(),
+             base_url: "https://api.x.ai/v1".to_string(),
+             model: "test-web-search-model".to_string(),
++            api_backend: "responses".to_string(),
+             extra_headers: IndexMap::new(),
+             alpha_test_key: None,
+         };
+diff --git a/crates/codegen/xai-grok-tools/src/registry/types.rs b/crates/codegen/xai-grok-tools/src/registry/types.rs
+index 5167fc3..432bdd6 100644
+--- a/crates/codegen/xai-grok-tools/src/registry/types.rs
++++ b/crates/codegen/xai-grok-tools/src/registry/types.rs
+@@ -993,12 +993,8 @@ impl ToolRegistryBuilder {
+         if let Some(auth_provider) = ctx.auth_provider.clone() {
+             resources.insert(auth_provider);
+         }
+-        if let Ok(client) = crate::implementations::web_search::client::WebSearchClient::new(
+-            &ctx.web_search_config,
+-            ctx.api_key_provider.clone(),
+-        ) {
+-            let client = client.with_attribution_callback(ctx.attribution_callback.clone());
+-            resources.insert(client);
++        if ctx.web_search_config.is_enabled() {
++            resources.insert(ctx.web_search_config.clone());
+         }
+         if let Some(lsp) = ctx.lsp {
+             resources.insert(lsp);
+-- 
+2.53.0.windows.2
+

@@ -1,0 +1,213 @@
+From 480cd224a4075106e83822ef2b01517851dfd782 Mon Sep 17 00:00:00 2001
+From: Cashmeran <15231987590@163.com>
+Date: Sat, 18 Jul 2026 01:13:14 +0800
+Subject: [PATCH 14/18] =?UTF-8?q?chore:=20=E6=B8=85=E7=90=86=E6=AD=BB?=
+ =?UTF-8?q?=E4=BB=A3=E7=A0=81=E4=B8=8E=E8=AD=A6=E5=91=8A=20=E2=80=94=20?=
+ =?UTF-8?q?=E7=A7=BB=E9=99=A4=20editor=5Finfra/otel+sentry=E4=BE=9D?=
+ =?UTF-8?q?=E8=B5=96,=20=E4=BF=AE=E5=A4=8D=20unused=20import/variable=20?=
+ =?UTF-8?q?=E8=AD=A6=E5=91=8A?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../xai-fast-worktree/src/worktree/mod.rs     |  1 -
+ crates/codegen/xai-grok-mermaid/src/mmdc.rs   |  1 -
+ .../xai-grok-mermaid/src/subprocess.rs        |  2 +-
+ .../xai-grok-plugin-marketplace/src/types.rs  |  4 +--
+ crates/codegen/xai-grok-secrets/Cargo.toml    |  2 +-
+ crates/codegen/xai-grok-telemetry/Cargo.toml  | 29 +------------------
+ .../codegen/xai-grok-telemetry/src/config.rs  |  2 ++
+ .../xai-grok-tools/src/implementations/mod.rs |  1 -
+ .../xai-grok-tools/src/types/output.rs        |  7 ++++-
+ crates/codegen/xai-tty-utils/src/lib.rs       |  2 +-
+ 10 files changed, 14 insertions(+), 37 deletions(-)
+
+diff --git a/crates/codegen/xai-fast-worktree/src/worktree/mod.rs b/crates/codegen/xai-fast-worktree/src/worktree/mod.rs
+index 44050de..58cbd52 100644
+--- a/crates/codegen/xai-fast-worktree/src/worktree/mod.rs
++++ b/crates/codegen/xai-fast-worktree/src/worktree/mod.rs
+@@ -37,7 +37,6 @@ pub(crate) fn execute_plan(plan: WorktreePlan) -> Result<CreateWorktreeResult> {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::*;
+     use crate::{IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder};
+     use tempfile::TempDir;
+     use xai_test_utils::git::{git_commit_all, init_git_repo};
+diff --git a/crates/codegen/xai-grok-mermaid/src/mmdc.rs b/crates/codegen/xai-grok-mermaid/src/mmdc.rs
+index 8128075..b936040 100644
+--- a/crates/codegen/xai-grok-mermaid/src/mmdc.rs
++++ b/crates/codegen/xai-grok-mermaid/src/mmdc.rs
+@@ -152,7 +152,6 @@ fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+-    use std::time::Instant;
+ 
+     /// Write an executable `#!/bin/sh` fake `mmdc` and return (dir-guard, path).
+     /// render() invokes `mmdc --input $2 --output $4 --outputFormat svg --theme $8`,
+diff --git a/crates/codegen/xai-grok-mermaid/src/subprocess.rs b/crates/codegen/xai-grok-mermaid/src/subprocess.rs
+index a1b7788..8628173 100644
+--- a/crates/codegen/xai-grok-mermaid/src/subprocess.rs
++++ b/crates/codegen/xai-grok-mermaid/src/subprocess.rs
+@@ -184,8 +184,8 @@ fn reap_process_group(_child: &Child) {
+ mod tests {
+     use super::*;
+     use std::process::Stdio;
+-    use std::time::Instant;
+ 
++    #[allow(dead_code)]
+     fn detached(mut cmd: Command) -> Command {
+         cmd.stdin(Stdio::null())
+             .stdout(Stdio::null())
+diff --git a/crates/codegen/xai-grok-plugin-marketplace/src/types.rs b/crates/codegen/xai-grok-plugin-marketplace/src/types.rs
+index e9c95c3..644ed76 100644
+--- a/crates/codegen/xai-grok-plugin-marketplace/src/types.rs
++++ b/crates/codegen/xai-grok-plugin-marketplace/src/types.rs
+@@ -234,10 +234,10 @@ mod tests {
+     #[test]
+     fn marketplace_relative_path_join_under_rejects_symlink_escape() {
+         let dir = tempfile::tempdir().unwrap();
+-        let outside = tempfile::tempdir().unwrap();
++        let _outside = tempfile::tempdir().unwrap();
+         #[cfg(unix)]
+         {
+-            std::os::unix::fs::symlink(outside.path(), dir.path().join("escape")).unwrap();
++            std::os::unix::fs::symlink(_outside.path(), dir.path().join("escape")).unwrap();
+             let path = MarketplaceRelativePath::parse("escape").unwrap();
+             assert_eq!(
+                 path.join_under(dir.path()).unwrap_err(),
+diff --git a/crates/codegen/xai-grok-secrets/Cargo.toml b/crates/codegen/xai-grok-secrets/Cargo.toml
+index 019c783..ae80af6 100644
+--- a/crates/codegen/xai-grok-secrets/Cargo.toml
++++ b/crates/codegen/xai-grok-secrets/Cargo.toml
+@@ -3,7 +3,7 @@ license = "Apache-2.0"
+ edition.workspace = true
+ name = "xai-grok-secrets"
+ version = "0.1.0"
+-description = "Regex sanitizer for Grok Build outbound data (Sentry / Mixpanel / product-event scrubbing)"
++description = "Regex sanitizer for Grok Build outbound data"
+ 
+ [dependencies]
+ regex = { workspace = true }
+diff --git a/crates/codegen/xai-grok-telemetry/Cargo.toml b/crates/codegen/xai-grok-telemetry/Cargo.toml
+index d289262..e4d0d40 100644
+--- a/crates/codegen/xai-grok-telemetry/Cargo.toml
++++ b/crates/codegen/xai-grok-telemetry/Cargo.toml
+@@ -3,7 +3,7 @@ license = "Apache-2.0"
+ name = "xai-grok-telemetry"
+ version = "0.1.0"
+ edition.workspace = true
+-description = "Telemetry engine: product events + Mixpanel emission + Sentry error reporting for Grok Build sessions"
++description = "Telemetry engine: local-only event logging for Grok Build Community Edition"
+ authors = ["xAI"]
+ 
+ [features]
+@@ -37,16 +37,6 @@ xai-grok-config = { workspace = true }
+ xai-grok-sampler = { workspace = true }
+ xai-token-estimation = { workspace = true }
+ dirs = { workspace = true }
+-sentry = { version = "0.42.0", default-features = false, features = [
+-    "panic",
+-    "anyhow",
+-    "tracing",
+-    "backtrace",
+-    "contexts",
+-    "reqwest",
+-    "rustls",
+-    "debug-images",
+-] }
+ # Single cross-edge: `events::ToolCallCompleted.outcome` reuses
+ # `xai_file_utils::events::types::ToolOutcome` so the local event log and
+ # the product telemetry event share the same enum surface. Semantically this enum
+@@ -62,31 +52,14 @@ mid = "4.0.0"
+ tokio = { workspace = true, features = ["macros", "sync", "rt"] }
+ parking_lot = { workspace = true }
+ xai-grok-auth = { workspace = true }
+-opentelemetry = { workspace = true }
+-opentelemetry_sdk = { workspace = true, features = [
+-    "experimental_logs_batch_log_processor_with_async_runtime",
+-    "experimental_metrics_periodicreader_with_async_runtime",
+-    "rt-tokio-current-thread",
+-] }
+-opentelemetry-otlp = { workspace = true }
+-opentelemetry-http = { workspace = true }
+ http = { workspace = true }
+ bytes = { workspace = true }
+ async-trait = { workspace = true }
+ futures-executor = "0.3"
+ tokio-stream = { workspace = true }
+-tracing-opentelemetry = { workspace = true }
+ 
+ [dev-dependencies]
+-tonic = { workspace = true, features = ["transport"] }
+-# In-memory log/metric exporters for the external-stream wire-shape tests.
+-opentelemetry_sdk = { workspace = true, features = ["testing"] }
+-# In-process OTLP collector fixture (tests/external_otlp.rs).
+-axum = { workspace = true }
+-opentelemetry-proto = { workspace = true }
+-prost = { workspace = true }
+ tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "time"] }
+-# Sets a symlink's own mtime (std's `set_modified` follows links) for prune tests.
+ filetime = { workspace = true }
+ futures-executor = "0.3"
+ tempfile = { workspace = true }
+diff --git a/crates/codegen/xai-grok-telemetry/src/config.rs b/crates/codegen/xai-grok-telemetry/src/config.rs
+index 4fc9dd6..fb1e4d6 100644
+--- a/crates/codegen/xai-grok-telemetry/src/config.rs
++++ b/crates/codegen/xai-grok-telemetry/src/config.rs
+@@ -97,6 +97,8 @@ pub struct TelemetryConfig {
+     pub events_url: Option<String>,
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     pub events_api_key: Option<String>,
++    // The following fields are no-ops in Community Edition.
++    // Kept for API compatibility with upstream crates that still reference them.
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     pub mixpanel_token: Option<String>,
+     #[serde(default)]
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/mod.rs
+index bc977e1..9ffc7c6 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/mod.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/mod.rs
+@@ -1,6 +1,5 @@
+ pub mod codex;
+ pub mod cursor_rules_on_read;
+-pub mod editor_infra;
+ pub mod grok_build;
+ pub mod grok_build_concise;
+ pub mod grok_build_hashline;
+diff --git a/crates/codegen/xai-grok-tools/src/types/output.rs b/crates/codegen/xai-grok-tools/src/types/output.rs
+index 23f3d7a..20a7a17 100644
+--- a/crates/codegen/xai-grok-tools/src/types/output.rs
++++ b/crates/codegen/xai-grok-tools/src/types/output.rs
+@@ -1288,7 +1288,12 @@ impl From<crate::implementations::grok_build::csv_ops::CsvOpsOutput> for ToolOut
+ }
+ impl From<crate::implementations::grok_build::glob::GlobOutput> for ToolOutput {
+     fn from(o: crate::implementations::grok_build::glob::GlobOutput) -> Self {
+-        let text = o.files.iter().map(|f| f.path.clone()).collect::<Vec<_>>().join("\n");
++        let text = o
++            .files
++            .iter()
++            .map(|f| f.path.clone())
++            .collect::<Vec<_>>()
++            .join("\n");
+         ToolOutput::Text(TextOutput::from(text))
+     }
+ }
+diff --git a/crates/codegen/xai-tty-utils/src/lib.rs b/crates/codegen/xai-tty-utils/src/lib.rs
+index c3c6e5c..c1866d9 100644
+--- a/crates/codegen/xai-tty-utils/src/lib.rs
++++ b/crates/codegen/xai-tty-utils/src/lib.rs
+@@ -547,7 +547,7 @@ pub fn dup_tui_stderr() -> io::Result<std::fs::File> {
+         // `DuplicateHandle` — avoiding the `from_raw_handle` footgun
+         // where `File` would take ownership of the process stderr handle
+         // and close it on drop.
+-        use std::os::windows::io::{AsRawHandle, FromRawHandle};
++        use std::os::windows::io::FromRawHandle;
+         let stderr_handle = unsafe {
+             windows::Win32::System::Console::GetStdHandle(
+                 windows::Win32::System::Console::STD_ERROR_HANDLE,
+-- 
+2.53.0.windows.2
+

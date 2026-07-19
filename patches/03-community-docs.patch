@@ -1,0 +1,176 @@
+From eff9f90921ea9434fea83eb638fa0c6db685a83e Mon Sep 17 00:00:00 2001
+From: Cashmeran <15231987590@163.com>
+Date: Fri, 17 Jul 2026 13:35:27 +0800
+Subject: [PATCH 03/18] =?UTF-8?q?=E6=B7=BB=E5=8A=A0=E7=A4=BE=E5=8C=BA?=
+ =?UTF-8?q?=E7=89=88=E8=AF=B4=E6=98=8E=E6=96=87=E6=A1=A3=EF=BC=88=E4=B8=AD?=
+ =?UTF-8?q?=E8=8B=B1=E5=8F=8C=E7=89=88=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ COMMUNITY.md    | 72 +++++++++++++++++++++++++++++++++++++++++++++++++
+ COMMUNITY_CN.md | 72 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+)
+ create mode 100644 COMMUNITY.md
+ create mode 100644 COMMUNITY_CN.md
+
+diff --git a/COMMUNITY.md b/COMMUNITY.md
+new file mode 100644
+index 0000000..01b9494
+--- /dev/null
++++ b/COMMUNITY.md
+@@ -0,0 +1,72 @@
++# Grok Build Community Edition
++
++An independent, community-maintained fork of [SpaceXAI Grok Build](https://github.com/xai-org/grok-build).
++
++**Positioning**: Grok Build Community Edition is to official Grok Build what VSCodium is to VS Code.
++
++## Core Principles
++
++- **Privacy First**: All telemetry and user behavior tracking removed. Data stays local.
++- **Model Freedom**: No vendor lock-in. Works with any OpenAI-compatible or Anthropic-compatible API.
++- **Developer Friendly**: Missing tools and capabilities added. Community PRs welcome.
++
++## Key Differences from Official
++
++### Completed Changes
++
++#### Privacy & Security
++
++| Official | Community Edition |
++|----------|-------------------|
++| Mixpanel user analytics | ✅ Removed |
++| Sentry crash reporting | ✅ Removed |
++| GCS session upload | ✅ Removed |
++| OpenTelemetry data export | ✅ Stubbed (local-only) |
++| Hook event logging | ✅ Removed |
++
++All telemetry data is now **written to local files** (`~/.grok/logs/events.log`).
++
++#### Web Search
++
++| Official | Community Edition |
++|----------|-------------------|
++| Grok-only Responses API search | ✅ 4 backends with auto-routing |
++| No search for other models | ✅ DuckDuckGo free fallback |
++
++Search backends:
++
++| Backend | Works With | Notes |
++|---------|-----------|-------|
++| Responses API | Grok, GPT-4 | Original, preserved |
++| Messages API (new) | DeepSeek, Claude | Anthropic web_search tool |
++| Chat Completions (new) | OpenAI search models | web_search_options |
++| DuckDuckGo (new) | All models | Free, zero-config fallback |
++
++Backend is **auto-selected** based on the model's `api_backend` — no manual config needed.
++
++### Planned
++
++- [ ] Windows build fixes
++- [ ] Chinese system prompt support
++- [ ] xAI branding removal
++- [ ] Glob file matching tool
++- [ ] Desktop GUI (Caelum Tauri shell)
++
++## Build
++
++```bash
++# Requires Rust toolchain
++cargo build -p xai-grok-pager-bin --release
++```
++
++## Contributing
++
++Pull requests welcome. We accept community improvements, fixes, and suggestions.
++
++## License
++
++Apache 2.0, same as upstream.
++
++## Disclaimer
++
++Not affiliated with SpaceXAI / xAI. No warranty provided. Model inference still requires your own API keys.
+diff --git a/COMMUNITY_CN.md b/COMMUNITY_CN.md
+new file mode 100644
+index 0000000..ee4e609
+--- /dev/null
++++ b/COMMUNITY_CN.md
+@@ -0,0 +1,72 @@
++# Grok Build 社区版
++
++Grok Build 社区版是基于 [SpaceXAI Grok Build](https://github.com/xai-org/grok-build) 的独立社区维护分支。
++
++**定位**：Grok Build 社区版 之于 官方 Grok Build，如同 VSCodium 之于 VS Code。
++
++## 核心理念
++
++- **隐私第一**：所有遥测和用户行为追踪已移除，数据仅存本地。
++- **模型自由**：不绑定任何特定模型厂商，支持所有 OpenAI 兼容 / Anthropic 兼容 API。
++- **开发者友好**：添加官方版缺失的工具和能力，接受社区 PR。
++
++## 与官方版的主要区别
++
++### 已完成的改动
++
++#### 隐私与安全
++
++| 官方版 | 社区版 |
++|--------|--------|
++| Mixpanel 用户行为分析 | ✅ 已删除 |
++| Sentry 崩溃上报 | ✅ 已删除 |
++| Google Cloud Storage 会话上传 | ✅ 已删除 |
++| OpenTelemetry 数据导出 | ✅ 已改为空壳（本地） |
++| Hook 事件日志上报 | ✅ 已删除 |
++
++所有原远程遥测数据**改为写入本地文件**（`~/.grok/logs/events.log`）。
++
++#### Web 搜索
++
++| 官方版 | 社区版 |
++|--------|--------|
++| 仅支持 Grok 模型的 Responses API 搜索 | ✅ 4 种搜索后端自动适配 |
++| 其他模型无法使用搜索 | ✅ DuckDuckGo 免费回退 |
++
++新增搜索后端：
++
++| 后端 | 适用模型 | 说明 |
++|------|---------|------|
++| Responses API | Grok, GPT-4 | 官方原有，保留 |
++| Messages API（新增） | DeepSeek, Claude | Anthropic web_search 工具 |
++| Chat Completions（新增） | OpenAI 搜索模型 | web_search_options 参数 |
++| DuckDuckGo（新增） | 所有模型 | 免费，零配置，自动回退 |
++
++搜索后端根据模型的 `api_backend` 配置**自动选择**，无需手动设置。
++
++### 计划中的改动
++
++- [ ] Windows 编译修复
++- [ ] 系统提示词汉化
++- [ ] 去 xAI 品牌化
++- [ ] Glob 文件匹配工具
++- [ ] 桌面 GUI（基于 Caelum Tauri 壳）
++
++## 构建
++
++```bash
++# 需要 Rust 工具链
++cargo build -p xai-grok-pager-bin --release
++```
++
++## 贡献
++
++欢迎提交 PR。我们接受来自社区的改进、修复和建议。
++
++## 许可证
++
++Apache 2.0，与上游一致。
++
++## 免责声明
++
++本项目与 SpaceXAI / xAI 无任何关联，不提供任何担保。模型推理仍需要使用你自己的 API 密钥。
+-- 
+2.53.0.windows.2
+

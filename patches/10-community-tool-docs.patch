@@ -1,0 +1,230 @@
+From 313dc3a2108114e1d916b41304b2b6127558384c Mon Sep 17 00:00:00 2001
+From: Cashmeran <15231987590@163.com>
+Date: Fri, 17 Jul 2026 14:44:17 +0800
+Subject: [PATCH 10/18] =?UTF-8?q?=E6=96=B0=E5=A2=9E=E7=A4=BE=E5=8C=BA?=
+ =?UTF-8?q?=E7=89=88=E5=B7=A5=E5=85=B7=E6=96=87=E6=A1=A3=EF=BC=8C=E6=9B=B4?=
+ =?UTF-8?q?=E6=96=B0=E8=AF=B4=E6=98=8E=E6=96=87=E6=A1=A3?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 新增 user-guide/community-tools.md（6个新工具+搜索系统说明）
+- 更新 COMMUNITY.md / COMMUNITY_CN.md（新增工具列表、提示词优化）
+---
+ COMMUNITY.md                                  |  21 ++-
+ COMMUNITY_CN.md                               |  21 ++-
+ .../docs/user-guide/community-tools.md        | 136 ++++++++++++++++++
+ 3 files changed, 166 insertions(+), 12 deletions(-)
+ create mode 100644 crates/codegen/xai-grok-pager/docs/user-guide/community-tools.md
+
+diff --git a/COMMUNITY.md b/COMMUNITY.md
+index 01b9494..2781ab3 100644
+--- a/COMMUNITY.md
++++ b/COMMUNITY.md
+@@ -44,13 +44,22 @@ Search backends:
+ 
+ Backend is **auto-selected** based on the model's `api_backend` — no manual config needed.
+ 
+-### Planned
++#### New Tools
++
++| Tool | Description |
++|------|-------------|
++| `glob` | File pattern matching (`*`, `**`, `?`), sorted by modification time |
++| `calculator` | Math expressions, statistics (mean/median/stdev), multi-step variables |
++| `json_query` | JSON path navigation, filtering, aggregation (sum/avg/min/max) |
++| `csv_ops` | CSV/TSV schema inference, filtering, sorting, grouped aggregation |
++| `text` | Regex extract/replace/count with linear-time matching |
++| `codec` | Base64/hex/URL encode/decode, sha256/sha512/md5/crc32/blake3 |
++
++#### Prompt Optimizations
+ 
+-- [ ] Windows build fixes
+-- [ ] Chinese system prompt support
+-- [ ] xAI branding removal
+-- [ ] Glob file matching tool
+-- [ ] Desktop GUI (Caelum Tauri shell)
++The system prompt has been improved with additional guidance for communication style, accuracy, and execution discipline — reducing AI clichés and hallucinations.
++
++### Planned
+ 
+ ## Build
+ 
+diff --git a/COMMUNITY_CN.md b/COMMUNITY_CN.md
+index ee4e609..8fc4a34 100644
+--- a/COMMUNITY_CN.md
++++ b/COMMUNITY_CN.md
+@@ -44,13 +44,22 @@ Grok Build 社区版是基于 [SpaceXAI Grok Build](https://github.com/xai-org/g
+ 
+ 搜索后端根据模型的 `api_backend` 配置**自动选择**，无需手动设置。
+ 
+-### 计划中的改动
++#### 新增工具
++
++| 工具 | 说明 |
++|------|------|
++| `glob` | 文件模式匹配（`*` `**` `?`），按修改时间排序 |
++| `calculator` | 数学表达式求值，统计函数（mean/median/stdev），多步变量 |
++| `json_query` | JSON 路径导航、过滤、聚合（sum/avg/min/max） |
++| `csv_ops` | CSV/TSV 结构推断、过滤、排序、分组聚合 |
++| `text` | 正则提取/替换/统计，线性时间匹配 |
++| `codec` | Base64/hex/URL 编解码，sha256/sha512/md5/crc32/blake3 |
++
++#### 提示词优化
+ 
+-- [ ] Windows 编译修复
+-- [ ] 系统提示词汉化
+-- [ ] 去 xAI 品牌化
+-- [ ] Glob 文件匹配工具
+-- [ ] 桌面 GUI（基于 Caelum Tauri 壳）
++系统提示词新增了沟通风格、准确性、执行纪律等指导——减少AI腔调和幻觉。
++
++### 计划中的改动
+ 
+ ## 构建
+ 
+diff --git a/crates/codegen/xai-grok-pager/docs/user-guide/community-tools.md b/crates/codegen/xai-grok-pager/docs/user-guide/community-tools.md
+new file mode 100644
+index 0000000..82c727d
+--- /dev/null
++++ b/crates/codegen/xai-grok-pager/docs/user-guide/community-tools.md
+@@ -0,0 +1,136 @@
++# Community Edition Tools
++
++Tools added by Grok Build Community Edition, not available in the official release.
++
++---
++
++## Web Search (Multi-Backend)
++
++The community edition supports 4 search backends, auto-selected based on your model's `api_backend`:
++
++| Backend | Works With | How |
++|---------|-----------|-----|
++| **Responses API** | Grok, GPT-4 | Uses the model's native `/responses` endpoint |
++| **Messages API** | DeepSeek, Claude | Uses Anthropic `web_search_20250305` tool via `/messages` |
++| **Chat Completions** | OpenAI search models | Uses `web_search_options` via `/chat/completions` |
++| **DuckDuckGo** | All models (fallback) | Free Instant Answer API, no key required |
++
++When native search fails, DuckDuckGo is used automatically. No extra configuration needed.
++
++To use a specific search model, configure it under `[models]`:
++
++```toml
++[models]
++web_search = "deepseek"
++
++[model.deepseek]
++model = "deepseek-v4-pro"
++base_url = "https://api.deepseek.com/anthropic"
++api_backend = "messages"
++env_key = "DEEPSEEK_API_KEY"
++context_window = 1000000
++```
++
++---
++
++## Structured Data
++
++### json_query
++
++Query JSON data with path navigation, filtering, and aggregation.
++
++```
++/json_query {"operation": "get", "path": "users[0].name", "json": "..."}
++/json_query {"operation": "filter", "path": "items", "condition": "price > 100", "json": "..."}
++/json_query {"operation": "sum", "path": "orders", "aggregate_on": "total", "json": "..."}
++```
++
++Operations: `get`, `keys`, `count`, `filter`, `pick`, `sum`, `avg`, `min`, `max`
++
++Path syntax: dot-notation (`user.name`), array index (`[0]`), wildcard (`[*]`)
++
++### csv_ops
++
++Query CSV/TSV data with filtering, sorting, and grouped aggregation.
++
++```
++/csv_ops {"operation": "schema", "csv_text": "..."}
++/csv_ops {"operation": "select", "condition": "age > 25", "csv_text": "..."}
++/csv_ops {"operation": "count", "group_by": "city", "csv_text": "..."}
++```
++
++Operations: `schema`, `select`, `columns`, `sort`, `count`, `sum`, `avg`
++
++Supports custom delimiters (`delimiter` field) and headerless CSV (`has_header: false`).
++
++---
++
++## File & Code
++
++### glob
++
++Find files by glob pattern — fast filename matching, not content search.
++
++```
++/glob {"pattern": "**/*.rs"}
++/glob {"pattern": "*.toml", "path": "src/"}
++/glob {"pattern": "*.rs", "head_limit": 50}
++```
++
++Supports `*`, `**` (recursive), `?` patterns. Results sorted by modification time (newest first).
++
++---
++
++## Text Processing
++
++### text
++
++Regex operations on text with linear-time matching (no ReDoS risk).
++
++```
++/text {"mode": "extract", "pattern": "\\d{4}-\\d{2}-\\d{2}", "input": "..."}
++/text {"mode": "replace", "pattern": "world", "replacement": "there", "input": "hello world"}
++/text {"mode": "count", "unit": "words", "input": "hello world test"}
++```
++
++Modes: `extract` (with capture groups), `replace` (`$1/$2` references), `count` (`chars`/`words`/`lines`/`matches`).
++
++Flags: `i` (case-insensitive), `m` (multiline), `s` (dot-all).
++
++---
++
++## Encoding & Hashing
++
++### codec
++
++Encode, decode, or hash strings.
++
++```
++/codec {"operation": "base64_encode", "input": "hello"}
++/codec {"operation": "sha256", "input": "hello"}
++/codec {"operation": "url_decode", "input": "%E4%B8%AD%E6%96%87"}
++```
++
++Operations: `base64_encode`/`decode`, `base64url_encode`/`decode`, `hex_encode`/`decode`, `url_encode`/`decode`, `sha256`, `sha512`, `md5`, `crc32`, `blake3`.
++
++---
++
++## Math
++
++### calculator
++
++Evaluate mathematical expressions with statistics support.
++
++```
++/calculator {"expression": "2 + 3 * 4"}
++/calculator {"expression": "mean([1, 2, 3, 4, 5])"}
++/calculator {"expression": "x = 5; y = x * 2; y + 1"}
++```
++
++Supports: arithmetic, trig (`sin`, `cos`), statistics (`mean`, `median`, `stdev`, `variance`, `mode`, `min`, `max`, `sum`, `percentile`), multi-step expressions (`;` separator), equality checks (`2+2=4` → true).
++
++---
++
++## Privacy
++
++The community edition removes all telemetry and user tracking. See `COMMUNITY.md` for the full list of privacy changes.
+-- 
+2.53.0.windows.2
+
