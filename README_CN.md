@@ -90,9 +90,21 @@ context_window = 1000000
 
 ---
 
+## 文档
+
+| 文档 | 内容 |
+|------|------|
+| [CHANGELOG](docs/CHANGELOG.md) | 版本历史 |
+| [更新日志](docs/CHANGELOG_CN.md) | 中文更新日志 |
+| [Maintenance Guide](docs/MAINTENANCE.md) | 开发与上游同步 |
+| [维护指南](docs/MAINTENANCE_CN.md) | 中文维护指南 |
+| [Patches](patches/README.md) | 补丁说明 |
+
+---
+
 ## 参与贡献
 
-欢迎提交 PR。
+欢迎提交 PR。详见 [docs/MAINTENANCE_CN.md](docs/MAINTENANCE_CN.md)。
 
 ## 许可证
 

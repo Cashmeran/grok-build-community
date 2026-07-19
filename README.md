@@ -93,15 +93,17 @@ context_window = 1000000
 
 | Document | Content |
 |----------|---------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
-| [MAINTENANCE.md](MAINTENANCE.md) | Development & upstream sync guide |
-| [patches/README.md](patches/README.md) | Patch details and workflow |
+| [CHANGELOG](docs/CHANGELOG.md) | Version history and release notes |
+| [更新日志](docs/CHANGELOG_CN.md) | 中文更新日志 |
+| [Maintenance Guide](docs/MAINTENANCE.md) | Development & upstream sync |
+| [维护指南](docs/MAINTENANCE_CN.md) | 中文维护指南 |
+| [Patches](patches/README.md) | Patch details and workflow |
 
 ---
 
 ## Contributing
 
-Pull requests welcome. See [MAINTENANCE.md](MAINTENANCE.md) for development workflow.
+Pull requests welcome. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) for development workflow.
 
 ## License
 

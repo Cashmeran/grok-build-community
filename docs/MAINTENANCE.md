@@ -5,8 +5,9 @@
 ```
 ├── patches/          ← 17 patches, one per CE change
 ├── ce-tools/         ← CE tool source (never touched by upstream)
+├── docs/             ← Documentation
 ├── build.bat         ← One-click: apply patches → build
-└── MAINTENANCE.md    ← This file
+└── README.md         ← Project overview
 ```
 
 ## Daily Workflow
