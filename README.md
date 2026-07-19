@@ -9,7 +9,7 @@
 
 An independent, community-maintained fork of [SpaceXAI Grok Build](https://github.com/xai-org/grok-build).
 
-**Positioning**: Grok Build CE is to official Grok Build what [VSCodium](https://github.com/VSCodium/vscodium) is to VS Code.
+**Grok Build CE is to official Grok Build what [VSCodium](https://github.com/VSCodium/vscodium) is to VS Code.**
 
 ---
 
@@ -74,8 +74,7 @@ Prebuilt binaries are also published on the [Releases](https://github.com/Cashme
 cargo build -p xai-grok-pager-bin --release
 ```
 
-Multi-model config:
-
+### Multi-model config
 ```toml
 # ~/.grok/config.toml
 [models]
@@ -90,9 +89,19 @@ context_window = 1000000
 
 ---
 
+## Documentation
+
+| Document | Content |
+|----------|---------|
+| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [MAINTENANCE.md](MAINTENANCE.md) | Development & upstream sync guide |
+| [patches/README.md](patches/README.md) | Patch details and workflow |
+
+---
+
 ## Contributing
 
-Pull requests welcome.
+Pull requests welcome. See [MAINTENANCE.md](MAINTENANCE.md) for development workflow.
 
 ## License
 
