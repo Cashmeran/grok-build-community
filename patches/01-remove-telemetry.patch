@@ -1,104 +1,8 @@
-From 398d64da281c0af453f81e2e0b7e713fcb43063a Mon Sep 17 00:00:00 2001
-From: Cashmeran <15231987590@163.com>
-Date: Fri, 17 Jul 2026 13:07:09 +0800
-Subject: [PATCH 01/18] =?UTF-8?q?=E5=88=A0=E9=99=A4=E9=81=A5=E6=B5=8B?=
- =?UTF-8?q?=E7=BD=91=E7=BB=9C=E4=B8=8A=E4=BC=A0=EF=BC=8C=E5=85=A8=E9=83=A8?=
- =?UTF-8?q?=E6=94=B9=E4=B8=BA=E6=9C=AC=E5=9C=B0=E6=97=A5=E5=BF=97?=
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
-- 删除 xai-mixpanel crate（第三方用户行为分析平台）
-- 删除 7 个网络上传模块：client.rs, sentry.rs, otlp_http.rs,
-  hooks_log.rs, http.rs, appender.rs, redact_common.rs
-- 重写 session_ctx.rs：log_event/emit_event 改为写入 ~/.grok/logs/events.log
-- gut external/ 和 otel_layer/ 为空壳（保留类型定义，网络函数全部 noop）
-- 添加 compat.rs 兼容层，确保外部代码无需修改即可编译
-- 简化 TelemetryConfig，清理 mixpanel 相关死代码
-- config.rs 添加 log_dir() 函数
-
-所有网络出口已封堵，遥测数据仅存本地。
----
- Cargo.lock                                    |  12 -
- Cargo.toml                                    |   2 -
- crates/codegen/xai-grok-mcp/src/lib.rs        |   2 +-
- crates/codegen/xai-grok-telemetry/Cargo.toml  |   1 -
- .../xai-grok-telemetry/src/appender.rs        |  46 -
- .../codegen/xai-grok-telemetry/src/client.rs  | 465 --------
- .../codegen/xai-grok-telemetry/src/compat.rs  |  33 +
- .../codegen/xai-grok-telemetry/src/config.rs  |  77 +-
- .../xai-grok-telemetry/src/external/config.rs | 743 -------------
- .../xai-grok-telemetry/src/external/emit.rs   | 269 -----
- .../xai-grok-telemetry/src/external/mod.rs    | 483 +--------
- .../src/external/providers.rs                 | 585 -----------
- .../xai-grok-telemetry/src/external/redact.rs | 248 -----
- .../xai-grok-telemetry/src/external/tests.rs  | 991 ------------------
- .../src/external/truncate.rs                  | 186 ----
- .../xai-grok-telemetry/src/hooks_log.rs       | 124 ---
- crates/codegen/xai-grok-telemetry/src/http.rs |  21 -
- crates/codegen/xai-grok-telemetry/src/lib.rs  |  35 +-
- .../xai-grok-telemetry/src/otel_layer/mod.rs  | 782 +-------------
- .../src/otel_layer/redact.rs                  | 593 -----------
- .../xai-grok-telemetry/src/otlp_http.rs       |  77 --
- .../xai-grok-telemetry/src/redact_common.rs   |  72 --
- .../codegen/xai-grok-telemetry/src/sentry.rs  | 427 --------
- .../xai-grok-telemetry/src/session_ctx.rs     | 166 ++-
- crates/codegen/xai-mixpanel/Cargo.toml        |  16 -
- crates/codegen/xai-mixpanel/src/lib.rs        | 141 ---
- 26 files changed, 186 insertions(+), 6411 deletions(-)
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/appender.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/client.rs
- create mode 100644 crates/codegen/xai-grok-telemetry/src/compat.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/external/config.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/external/emit.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/external/providers.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/external/redact.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/external/tests.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/external/truncate.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/hooks_log.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/http.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/otel_layer/redact.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/otlp_http.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/redact_common.rs
- delete mode 100644 crates/codegen/xai-grok-telemetry/src/sentry.rs
- delete mode 100644 crates/codegen/xai-mixpanel/Cargo.toml
- delete mode 100644 crates/codegen/xai-mixpanel/src/lib.rs
-
-diff --git a/Cargo.lock b/Cargo.lock
-index 855dda1..98a18b5 100644
---- a/Cargo.lock
-+++ b/Cargo.lock
-@@ -13864,7 +13864,6 @@ dependencies = [
-  "xai-grok-env",
-  "xai-grok-sampler",
-  "xai-grok-secrets",
-- "xai-mixpanel",
-  "xai-token-estimation",
- ]
- 
-@@ -14190,17 +14189,6 @@ dependencies = [
-  "serde",
- ]
- 
--[[package]]
--name = "xai-mixpanel"
--version = "0.1.0"
--dependencies = [
-- "base64",
-- "reqwest 0.12.24",
-- "serde_json",
-- "thiserror 2.0.18",
-- "xai-grok-secrets",
--]
--
- [[package]]
- name = "xai-prompt-queue"
- version = "0.1.0"
 diff --git a/Cargo.toml b/Cargo.toml
-index 8184403..e5efa0d 100644
+index b65aab6..f39847b 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -57,7 +57,6 @@ members = [
+@@ -60,7 +60,6 @@ members = [
      "crates/codegen/xai-grok-workspace-types",
      "crates/codegen/xai-hooks-plugins-types",
      "crates/codegen/xai-hunk-tracker",
@@ -106,7 +10,7 @@ index 8184403..e5efa0d 100644
      "crates/codegen/xai-prompt-queue",
      "crates/codegen/xai-ratatui-inline",
      "crates/codegen/xai-ratatui-textarea",
-@@ -304,7 +303,6 @@ xai-grok-workspace = { path = "crates/codegen/xai-grok-workspace" }
+@@ -310,7 +309,6 @@ xai-grok-workspace = { path = "crates/codegen/xai-grok-workspace" }
  xai-grok-workspace-types = { path = "crates/codegen/xai-grok-workspace-types" }
  xai-hooks-plugins-types = { path = "crates/codegen/xai-hooks-plugins-types" }
  xai-interjection-core = { path = "crates/common/xai-interjection-core" }
@@ -114,24 +18,20 @@ index 8184403..e5efa0d 100644
  xai-prompt-queue = { path = "crates/codegen/xai-prompt-queue" }
  xai-proto-build = { path = "crates/build/xai-proto-build" }
  xai-ratatui-inline = { path = "crates/codegen/xai-ratatui-inline" }
-diff --git a/crates/codegen/xai-grok-mcp/src/lib.rs b/crates/codegen/xai-grok-mcp/src/lib.rs
-index 5d20474..a722fe5 100644
---- a/crates/codegen/xai-grok-mcp/src/lib.rs
-+++ b/crates/codegen/xai-grok-mcp/src/lib.rs
-@@ -5,7 +5,7 @@
- //! 1. **Quarantines `rmcp` 2.1 and `reqwest` 0.13.** `rmcp` 2.1 requires
- //!    `reqwest >= 0.13.2`. The rest of the workspace consumes `reqwest` 0.12
- //!    and a transitive ecosystem (`opentelemetry-otlp`, `oauth2`,
--//!    `xai-mixpanel`, `xai-grok-tools`, ...) also pinned to 0.12. Bumping every
-+//!    `xai-grok-tools`, ...) also pinned to 0.12. Bumping every
- //!    crate to 0.13 to satisfy `rmcp` triggers a cascade — an OpenTelemetry
- //!    `HttpClient` adapter and cross-version test breakage when a crate
- //!    carries both versions under a renamed `package = "reqwest"` alias.
 diff --git a/crates/codegen/xai-grok-telemetry/Cargo.toml b/crates/codegen/xai-grok-telemetry/Cargo.toml
-index 04b543c..d289262 100644
+index 04b543c..e4d0d40 100644
 --- a/crates/codegen/xai-grok-telemetry/Cargo.toml
 +++ b/crates/codegen/xai-grok-telemetry/Cargo.toml
-@@ -33,7 +33,6 @@ reqwest = { workspace = true }
+@@ -3,7 +3,7 @@ license = "Apache-2.0"
+ name = "xai-grok-telemetry"
+ version = "0.1.0"
+ edition.workspace = true
+-description = "Telemetry engine: product events + Mixpanel emission + Sentry error reporting for Grok Build sessions"
++description = "Telemetry engine: local-only event logging for Grok Build Community Edition"
+ authors = ["xAI"]
+ 
+ [features]
+@@ -33,21 +33,10 @@ reqwest = { workspace = true }
  url = { workspace = true }
  xai-grok-env = { workspace = true }
  xai-grok-secrets = { workspace = true }
@@ -139,6 +39,52 @@ index 04b543c..d289262 100644
  xai-grok-config = { workspace = true }
  xai-grok-sampler = { workspace = true }
  xai-token-estimation = { workspace = true }
+ dirs = { workspace = true }
+-sentry = { version = "0.42.0", default-features = false, features = [
+-    "panic",
+-    "anyhow",
+-    "tracing",
+-    "backtrace",
+-    "contexts",
+-    "reqwest",
+-    "rustls",
+-    "debug-images",
+-] }
+ # Single cross-edge: `events::ToolCallCompleted.outcome` reuses
+ # `xai_file_utils::events::types::ToolOutcome` so the local event log and
+ # the product telemetry event share the same enum surface. Semantically this enum
+@@ -63,31 +52,14 @@ mid = "4.0.0"
+ tokio = { workspace = true, features = ["macros", "sync", "rt"] }
+ parking_lot = { workspace = true }
+ xai-grok-auth = { workspace = true }
+-opentelemetry = { workspace = true }
+-opentelemetry_sdk = { workspace = true, features = [
+-    "experimental_logs_batch_log_processor_with_async_runtime",
+-    "experimental_metrics_periodicreader_with_async_runtime",
+-    "rt-tokio-current-thread",
+-] }
+-opentelemetry-otlp = { workspace = true }
+-opentelemetry-http = { workspace = true }
+ http = { workspace = true }
+ bytes = { workspace = true }
+ async-trait = { workspace = true }
+ futures-executor = "0.3"
+ tokio-stream = { workspace = true }
+-tracing-opentelemetry = { workspace = true }
+ 
+ [dev-dependencies]
+-tonic = { workspace = true, features = ["transport"] }
+-# In-memory log/metric exporters for the external-stream wire-shape tests.
+-opentelemetry_sdk = { workspace = true, features = ["testing"] }
+-# In-process OTLP collector fixture (tests/external_otlp.rs).
+-axum = { workspace = true }
+-opentelemetry-proto = { workspace = true }
+-prost = { workspace = true }
+ tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "time"] }
+-# Sets a symlink's own mtime (std's `set_modified` follows links) for prune tests.
+ filetime = { workspace = true }
+ futures-executor = "0.3"
+ tempfile = { workspace = true }
 diff --git a/crates/codegen/xai-grok-telemetry/src/appender.rs b/crates/codegen/xai-grok-telemetry/src/appender.rs
 deleted file mode 100644
 index e2932b3..0000000
@@ -193,11 +139,11 @@ index e2932b3..0000000
 -}
 diff --git a/crates/codegen/xai-grok-telemetry/src/client.rs b/crates/codegen/xai-grok-telemetry/src/client.rs
 deleted file mode 100644
-index c2cd3a7..0000000
+index 65101da..0000000
 --- a/crates/codegen/xai-grok-telemetry/src/client.rs
 +++ /dev/null
-@@ -1,465 +0,0 @@
--//! Core telemetry tracking — product events + Mixpanel.
+@@ -1,525 +0,0 @@
+-//! Core telemetry tracking 鈥?product events + Mixpanel.
 -//!
 -//! All calls route through [`track`]. Precedence: env > config > remote config > default.
 -//!
@@ -319,7 +265,7 @@ index c2cd3a7..0000000
 -        "X Premium" | "x_premium" => "x_premium",
 -        "X Basic" | "x_basic" => "x_basic",
 -        "Free" | "free" => "free",
--        // Team / console API keys — dedicated Mixpanel segment, not free.
+-        // Team / console API keys 鈥?dedicated Mixpanel segment, not free.
 -        "API Key" | "api_key" => "api_key",
 -        other => return other.to_ascii_lowercase().replace(' ', "_"),
 -    }
@@ -329,7 +275,7 @@ index c2cd3a7..0000000
 -static TELEMETRY_CLIENT: OnceLock<Mutex<Option<TelemetryClient>>> = OnceLock::new();
 -
 -/// Returns `true` when telemetry mode is `Enabled`.
--/// Used by `log_event` — product analytics events only fire in `Enabled` mode.
+-/// Used by `log_event` 鈥?product analytics events only fire in `Enabled` mode.
 -pub fn is_enabled() -> bool {
 -    TELEMETRY_CLIENT
 -        .get()
@@ -338,7 +284,7 @@ index c2cd3a7..0000000
 -}
 -
 -/// Returns `true` when telemetry mode is `Enabled` or `SessionMetrics`.
--/// Used by `session_metrics` — lifecycle events fire in both modes.
+-/// Used by `session_metrics` 鈥?lifecycle events fire in both modes.
 -pub fn is_session_metrics_enabled() -> bool {
 -    TELEMETRY_CLIENT
 -        .get()
@@ -454,6 +400,10 @@ index c2cd3a7..0000000
 -}
 -
 -/// Sync the user's Mixpanel profile once per init. Fire-and-forget.
+-///
+-/// Only runs in [`TelemetryMode::Enabled`]. SessionMetrics mode may emit
+-/// lifecycle events via [`track`], but must not write Mixpanel people
+-/// profiles (`engage`).
 -pub fn sync_profile() {
 -    let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
 -    let client = {
@@ -463,6 +413,12 @@ index c2cd3a7..0000000
 -            None => return,
 -        }
 -    };
+-
+-    // The single profile-sync gate: reads the installed client's mode, so every
+-    // caller (and any init race) resolves against what was actually installed.
+-    if !client.mode.is_enabled() {
+-        return;
+-    }
 -
 -    let Some(mixpanel) = client.mixpanel.clone() else {
 -        return;
@@ -497,9 +453,9 @@ index c2cd3a7..0000000
 -
 -/// Initialize telemetry client. Safe to call multiple times.
 -///
--/// - `Disabled` → no client
--/// - `SessionMetrics` → client active (only `session_metrics::*` events fire)
--/// - `Enabled` → client active (all events fire)
+-/// - `Disabled` 鈫?no client
+-/// - `SessionMetrics` 鈫?client active (only `session_metrics::*` events fire)
+-/// - `Enabled` 鈫?client active (all events fire)
 -///
 -/// `shell_version` is stamped into every event payload as `shell_version`
 -/// (legacy field name preserved for analytics continuity); shell passes its
@@ -595,6 +551,56 @@ index c2cd3a7..0000000
 -        assert_eq!(event_value("grok-workspace-turn"), "turn");
 -    }
 -
+-    /// SessionMetrics must not attempt Mixpanel profile engage 鈥?sync_profile
+-    /// is a no-op unless mode is fully Enabled.
+-    #[test]
+-    fn sync_profile_is_noop_in_session_metrics_mode() {
+-        // No tokio runtime here BY DESIGN: if the gate wrongly falls through,
+-        // sync_profile's tokio::spawn panics and fails this test. Converting
+-        // this to #[tokio::test] would silently turn it into theater.
+-        assert!(
+-            tokio::runtime::Handle::try_current().is_err(),
+-            "this test must run without a tokio runtime"
+-        );
+-        // Clear the global client even if an assert below panics.
+-        struct ClearClient;
+-        impl Drop for ClearClient {
+-            fn drop(&mut self) {
+-                let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
+-                *lock.lock().unwrap_or_else(|err| err.into_inner()) = None;
+-            }
+-        }
+-        let _clear = ClearClient;
+-
+-        // Mixpanel configured, but no events endpoint: the global must never
+-        // carry a live funnel out of this test.
+-        let cfg = TelemetryConfig {
+-            mixpanel_enabled: true,
+-            mixpanel_token: Some("test-token".into()),
+-            events_url: None,
+-            events_api_key: None,
+-            ..TelemetryConfig::default()
+-        };
+-        init(
+-            cfg,
+-            TelemetryMode::SessionMetrics,
+-            Some("user-1".into()),
+-            None,
+-            None,
+-            None,
+-            "0.0.0-test".into(),
+-            None,
+-            reqwest::Client::new(),
+-        );
+-        // Explicit call must no-op too (init already invoked it once).
+-        sync_profile();
+-        assert!(
+-            is_session_metrics_enabled(),
+-            "client must be live for session metrics"
+-        );
+-        assert!(!is_enabled(), "product analytics must stay off");
+-    }
+-
 -    /// Names without a known emitter prefix pass through unchanged (preserves
 -    /// the old `unwrap_or(event_name)` fallback).
 -    #[test]
@@ -611,7 +617,7 @@ index c2cd3a7..0000000
 -    }
 -
 -    /// The stripper recovers the bare suffix for every origin the emitter can
--    /// produce — ties `event_value` to `EmitterOrigin::event_prefix`.
+-    /// produce 鈥?ties `event_value` to `EmitterOrigin::event_prefix`.
 -    #[test]
 -    fn event_value_round_trips_every_emitter_prefix() {
 -        for origin in EmitterOrigin::ALL {
@@ -634,7 +640,7 @@ index c2cd3a7..0000000
 -        assert_eq!(normalize_tier("X Premium+"), "x_premium_plus");
 -        assert_eq!(normalize_tier("X Premium"), "x_premium");
 -        assert_eq!(normalize_tier("SuperGrok Lite"), "supergrok_lite");
--        // API key is a dedicated Mixpanel segment — never free.
+-        // API key is a dedicated Mixpanel segment 鈥?never free.
 -        assert_eq!(normalize_tier("API Key"), "api_key");
 -        assert_eq!(normalize_tier("api_key"), "api_key");
 -    }
@@ -664,27 +670,62 @@ index c2cd3a7..0000000
 -}
 diff --git a/crates/codegen/xai-grok-telemetry/src/compat.rs b/crates/codegen/xai-grok-telemetry/src/compat.rs
 new file mode 100644
-index 0000000..72cd8f5
+index 0000000..fe7bf1d
 --- /dev/null
 +++ b/crates/codegen/xai-grok-telemetry/src/compat.rs
-@@ -0,0 +1,33 @@
-+//! Stubs for deleted modules — Community Edition.
+@@ -0,0 +1,68 @@
++//! Stubs for deleted modules 鈥?Community Edition.
 +//! External code that directly called these APIs now gets no-op implementations.
 +
-+// ── client stubs ──
++// 鈹€鈹€ client stubs 鈹€鈹€
 +
-+/// No-op — upload client is deleted.
-+pub fn init(_grok_home: &std::path::Path, _cfg: &crate::config::TelemetryConfig) {}
-+/// Always false — no upload, so never "enabled".
-+pub fn is_enabled() -> bool { false }
++/// No-op 鈥?upload client is deleted. Matches original 9-arg signature.
++pub fn init(
++    _cfg: crate::config::TelemetryConfig,
++    _mode: crate::config::TelemetryMode,
++    _user_id: Option<String>,
++    _team_id: Option<String>,
++    _deployment_key: Option<String>,
++    _origin_client: Option<impl std::any::Any + Send>,
++    _version: String,
++    _subscription_tier: Option<String>,
++    _client: reqwest::Client,
++) {
++}
++/// No-op.
++pub fn init_if_needed(
++    _cfg: crate::config::TelemetryConfig,
++    _mode: crate::config::TelemetryMode,
++    _user_id: Option<String>,
++    _team_id: Option<String>,
++    _deployment_key: Option<String>,
++    _origin_client: Option<impl std::any::Any + Send>,
++    _version: String,
++    _subscription_tier: Option<String>,
++    _client: reqwest::Client,
++) {
++}
++/// Always false 鈥?no upload, so never "enabled".
++pub fn is_enabled() -> bool {
++    false
++}
 +/// Always false.
-+pub fn is_session_metrics_enabled() -> bool { false }
++pub fn is_session_metrics_enabled() -> bool {
++    false
++}
 +
-+// ── sentry stubs ──
++// 鈹€鈹€ sentry stubs 鈹€鈹€
 +
-+pub struct SentryConfig;
-+/// No-op — sentry crash reporting is deleted.
-+pub fn sentry_init(_config: SentryConfig) -> SentryGuard { SentryGuard }
++pub struct SentryConfig {
++    pub client: &'static str,
++    pub client_version: &'static str,
++    pub release: &'static str,
++    pub disabled: bool,
++}
++/// No-op 鈥?sentry crash reporting is deleted.
++pub fn sentry_init(_config: SentryConfig) -> SentryGuard {
++    SentryGuard
++}
 +pub struct SentryGuard;
 +impl Drop for SentryGuard {
 +    fn drop(&mut self) {}
@@ -692,9 +733,9 @@ index 0000000..72cd8f5
 +/// No-op.
 +pub fn flush_on_shutdown() {}
 +
-+// ── hooks_log stubs ──
++// 鈹€鈹€ hooks_log stubs 鈹€鈹€
 +
-+/// No-op layer — no hook events are logged.
++/// No-op layer 鈥?no hook events are logged.
 +pub fn hooks_log_layer<S>() -> Box<dyn tracing_subscriber::layer::Layer<S> + Send + Sync>
 +where
 +    S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
@@ -702,11 +743,15 @@ index 0000000..72cd8f5
 +    Box::new(tracing_subscriber::layer::Identity::new())
 +}
 diff --git a/crates/codegen/xai-grok-telemetry/src/config.rs b/crates/codegen/xai-grok-telemetry/src/config.rs
-index b99c7c8..adc4a73 100644
+index b99c7c8..fb1e4d6 100644
 --- a/crates/codegen/xai-grok-telemetry/src/config.rs
 +++ b/crates/codegen/xai-grok-telemetry/src/config.rs
-@@ -91,58 +91,41 @@ pub fn env_telemetry_mode(name: &str) -> Option<TelemetryMode> {
- #[derive(Debug, Clone, Serialize, Deserialize)]
+@@ -88,72 +88,38 @@ pub fn env_telemetry_mode(name: &str) -> Option<TelemetryMode> {
+     let value = std::env::var(name).ok()?;
+     TelemetryMode::parse(&value)
+ }
+-#[derive(Debug, Clone, Serialize, Deserialize)]
++#[derive(Debug, Clone, Default, Serialize, Deserialize)]
  #[serde(default)]
  pub struct TelemetryConfig {
 -    /// Declared for `serde_ignored`. Actual toggle is `[features] telemetry`.
@@ -717,6 +762,8 @@ index b99c7c8..adc4a73 100644
      pub events_url: Option<String>,
 +    #[serde(default, skip_serializing_if = "Option::is_none")]
      pub events_api_key: Option<String>,
++    // The following fields are no-ops in Community Edition.
++    // Kept for API compatibility with upstream crates that still reference them.
 +    #[serde(default, skip_serializing_if = "Option::is_none")]
      pub mixpanel_token: Option<String>,
 +    #[serde(default)]
@@ -756,8 +803,8 @@ index b99c7c8..adc4a73 100644
 -        .filter(|v| !v.is_empty())
 -        .map(str::to_owned)
 -}
- impl Default for TelemetryConfig {
-     fn default() -> Self {
+-impl Default for TelemetryConfig {
+-    fn default() -> Self {
 -        let (baked_url, baked_key, baked_token, baked_enabled) = internal_defaults();
 -        let build_url = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_URL"));
 -        let build_key = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_API_KEY"));
@@ -768,20 +815,27 @@ index b99c7c8..adc4a73 100644
 -            build_key.or(baked_key),
 -            build_token.or(baked_token),
 -        );
-         Self {
-             enabled: None,
+-        Self {
+-            enabled: None,
 -            events_url,
 -            events_api_key,
 -            mixpanel_token,
 -            mixpanel_enabled,
-+            events_url: None,
-+            events_api_key: None,
-+            mixpanel_token: None,
-+            mixpanel_enabled: false,
-             trace_upload: None,
-             otel_enabled: None,
-             otel_metrics_exporter: None,
-@@ -213,25 +196,21 @@ fn env_bool(name: &str) -> Option<bool> {
+-            trace_upload: None,
+-            otel_enabled: None,
+-            otel_metrics_exporter: None,
+-            otel_logs_exporter: None,
+-            otel_endpoint: None,
+-            otel_protocol: None,
+-            otel_log_user_prompts: None,
+-            otel_log_tool_details: None,
+-        }
+-    }
+-}
+ impl TelemetryConfig {
+     pub fn apply_env_overrides(&mut self) {
+         self.normalize();
+@@ -213,25 +179,21 @@ fn env_bool(name: &str) -> Option<bool> {
  pub fn deployment_id_from_key(key: &str) -> String {
      uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, key.as_bytes()).to_string()
  }
@@ -818,6 +872,42 @@ index b99c7c8..adc4a73 100644
 +        assert!(cfg.events_api_key.is_none());
      }
  }
+diff --git a/crates/codegen/xai-grok-telemetry/src/debug_log.rs b/crates/codegen/xai-grok-telemetry/src/debug_log.rs
+index 94bf154..6b60756 100644
+--- a/crates/codegen/xai-grok-telemetry/src/debug_log.rs
++++ b/crates/codegen/xai-grok-telemetry/src/debug_log.rs
+@@ -1,3 +1,4 @@
++#![allow(clippy::needless_borrow)]
+ //! Reusable non-blocking file-logging tracing layers for the `--debug` firehose.
+ //!
+ //! Two install modes, chosen by env precedence (see `resolve_debug_target_inner`):
+@@ -96,7 +97,7 @@ fn build_file_layer<S>(path: &Path, filter: EnvFilter) -> std::io::Result<impl L
+ where
+     S: Subscriber + for<'span> LookupSpan<'span>,
+ {
+-    let non_blocking = crate::appender::non_blocking_file_writer(path)?;
++    let non_blocking = crate::appender::non_blocking_file_writer_from_path(&path)?;
+     let fmt_layer = tracing_subscriber::fmt::layer()
+         .with_target(true)
+         .with_ansi(false)
+@@ -286,7 +287,7 @@ impl RoutingLayer {
+         }
+         // First event for this session: open OUTSIDE the lock.
+         let path = self.dir.join(format!("{key}.txt"));
+-        let Ok(mut writer) = crate::appender::non_blocking_file_writer(&path) else {
++        let Ok(mut writer) = crate::appender::non_blocking_file_writer_from_path(&path) else {
+             return;
+         };
+         update_latest_symlink(&self.dir, &path);
+@@ -307,7 +308,7 @@ impl RoutingLayer {
+             }
+         }
+         let path = self.dir.join(format!("{}-{}.txt", self.role, self.pid));
+-        let Ok(mut writer) = crate::appender::non_blocking_file_writer(&path) else {
++        let Ok(mut writer) = crate::appender::non_blocking_file_writer_from_path(&path) else {
+             return;
+         };
+         let _ = writer.write_all(line);
 diff --git a/crates/codegen/xai-grok-telemetry/src/external/config.rs b/crates/codegen/xai-grok-telemetry/src/external/config.rs
 deleted file mode 100644
 index bc4817d..0000000
@@ -826,7 +916,7 @@ index bc4817d..0000000
 @@ -1,743 +0,0 @@
 -//! Configuration resolution for the external OTEL stream.
 -//!
--//! Pure resolution — no I/O besides reading env vars. The shell resolves the
+-//! Pure resolution 鈥?no I/O besides reading env vars. The shell resolves the
 -//! startup value once (layering the `[telemetry]` `otel_*` config keys under
 -//! the env vars) and passes the resolved struct to [`crate::external::init`].
 -//!
@@ -875,7 +965,7 @@ index bc4817d..0000000
 -/// `OTEL_LOGS_EXPORTER`).
 -#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 -pub enum ExporterSelection {
--    /// No exporter — the signal is not produced.
+-    /// No exporter 鈥?the signal is not produced.
 -    #[default]
 -    None,
 -    /// OTLP to the configured endpoint using [`OtlpTransport`].
@@ -902,7 +992,7 @@ index bc4817d..0000000
 -}
 -
 -/// Content gates (additive opt-ins; default off). May only **tighten**
--/// post-init — a remote policy can force them off, never on.
+-/// post-init 鈥?a remote policy can force them off, never on.
 -#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 -pub struct ContentGates {
 -    /// `OTEL_LOG_USER_PROMPTS=1`: prompt text on `grok_code.user_prompt`
@@ -926,19 +1016,18 @@ index bc4817d..0000000
 -/// attributes. Filled by the caller (pager/shell) at init.
 -#[derive(Debug, Clone, Default)]
 -pub struct ExternalClientInfo {
--    /// Engine build (version + commit) → `service.version`.
+-    /// Engine build (version + commit) 鈫?`service.version`.
 -    pub service_version: String,
--    /// Front-end client version → `client.version`.
+-    /// Front-end client version 鈫?`client.version`.
 -    pub client_version: String,
--    /// How the session was launched (`cli`/`headless`/`agent`) →
--    /// `app.entrypoint`.
+-    /// How the session was launched (`cli`/`headless`/`agent`) 鈫?-    /// `app.entrypoint`.
 -    pub app_entrypoint: String,
 -}
 -
 -/// Config-file layer for the external stream, built by the shell from the
 -/// `otel_*` keys of the `[telemetry]` table and layered *under* env vars
 -/// during resolution. (Field names here are the internal carrier; the
--/// user-facing keys are `otel_enabled`, `otel_metrics_exporter`, … — see
+-/// user-facing keys are `otel_enabled`, `otel_metrics_exporter`, 鈥?鈥?see
 -/// [`crate::config::TelemetryConfig`].)
 -///
 -/// There is deliberately **no `headers` key** (user decision, RQ4): collector
@@ -972,9 +1061,9 @@ index bc4817d..0000000
 -    pub metrics_exporter: ExporterSelection,
 -    pub logs_exporter: ExporterSelection,
 -    pub transport: OtlpTransport,
--    /// Resolved logs endpoint (full `…/v1/logs` for HTTP; collector origin for gRPC).
+-    /// Resolved logs endpoint (full `鈥?v1/logs` for HTTP; collector origin for gRPC).
 -    pub logs_endpoint: String,
--    /// Resolved metrics endpoint (full `…/v1/metrics` for HTTP; collector origin for gRPC).
+-    /// Resolved metrics endpoint (full `鈥?v1/metrics` for HTTP; collector origin for gRPC).
 -    pub metrics_endpoint: String,
 -    /// Customer collector headers for log exports, parsed from
 -    /// `OTEL_EXPORTER_OTLP_HEADERS` plus `OTEL_EXPORTER_OTLP_LOGS_HEADERS`.
@@ -1003,8 +1092,7 @@ index bc4817d..0000000
 -    pub client: ExternalClientInfo,
 -    /// Set by the shell when the **internal** firehose resolved its
 -    /// endpoint/headers from `OTEL_EXPORTER_OTLP_*` (the deprecated
--    /// fallback). [`crate::external::init`] refuses to activate when true —
--    /// the no-double-send invariant is enforced in code, not release
+-    /// fallback). [`crate::external::init`] refuses to activate when true 鈥?-    /// the no-double-send invariant is enforced in code, not release
 -    /// discipline.
 -    pub internal_pipeline_consumed_otel_vars: bool,
 -    /// Which layer supplied the master switch (`"env"` | `"config"`), for the
@@ -1153,7 +1241,7 @@ index bc4817d..0000000
 -            transport,
 -        );
 -
--        // Headers: env only (RQ4) — never from the config file. Resolve them
+-        // Headers: env only (RQ4) 鈥?never from the config file. Resolve them
 -        // per signal so signal-specific overrides never bleed across streams.
 -        let base_headers = parse_header_list(
 -            getenv("OTEL_EXPORTER_OTLP_HEADERS")
@@ -1194,7 +1282,7 @@ index bc4817d..0000000
 -            .as_deref()
 -        {
 -            Some("cumulative") => TemporalityPreference::Cumulative,
--            // `delta`, `lowmemory`, unset, or unrecognized → Delta default.
+-            // `delta`, `lowmemory`, unset, or unrecognized 鈫?Delta default.
 -            _ => TemporalityPreference::Delta,
 -        };
 -
@@ -1577,9 +1665,9 @@ index bd0cbc3..0000000
 -//! truncation, ctx (`session.id`/`turn_number`/`prompt.id`/`event.sequence`)
 -//! injection, metric-increment conversion, and provider hand-off.
 -//!
--//! The per-event *what* (field → attribute mapping) lives in
+-//! The per-event *what* (field 鈫?attribute mapping) lives in
 -//! [`super::schema`], wired via the `telemetry_event!` macro's
--//! `external = …` arm.
+-//! `external = 鈥 arm.
 -
 -use opentelemetry::KeyValue;
 -use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, Severity};
@@ -1643,7 +1731,7 @@ index bd0cbc3..0000000
 -
 -/// Scrub + truncate one string attribute value. Every string passes the
 -/// secret/path scrub; the prompt key gets the 60 KB content cap, everything
--/// else the standard 512→128 value truncation. Defense-in-depth only — the
+-/// else the standard 512鈫?28 value truncation. Defense-in-depth only 鈥?the
 -/// export-time validators in [`super::redact`] enforce the result.
 -fn scrub_string(key: ExternalKey, s: String) -> String {
 -    let scrubbed = crate::redact_common::redact_to_owned(&s);
@@ -1794,7 +1882,7 @@ index bd0cbc3..0000000
 -
 -    // `model` is the one non-enum metric attribute value: scrub it at
 -    // increment time (call-site discipline is never the guarantee on its own
--    // — the PR 6 collector fixture pins this with a wire-payload canary).
+-    // 鈥?the PR 6 collector fixture pins this with a wire-payload canary).
 -    let scrub = |s: &str| crate::redact_common::redact_to_owned(s);
 -
 -    match increment {
@@ -1843,10 +1931,10 @@ index bd0cbc3..0000000
 -    }
 -}
 diff --git a/crates/codegen/xai-grok-telemetry/src/external/mod.rs b/crates/codegen/xai-grok-telemetry/src/external/mod.rs
-index c34cc47..87af779 100644
+index c34cc47..48e56dd 100644
 --- a/crates/codegen/xai-grok-telemetry/src/external/mod.rs
 +++ b/crates/codegen/xai-grok-telemetry/src/external/mod.rs
-@@ -1,480 +1,29 @@
+@@ -1,480 +1,125 @@
 -//! Opt-in, content-redacted **external OTEL** telemetry stream.
 -//!
 -//! Enterprise customers point the Grok CLI at *their own* OpenTelemetry
@@ -1860,11 +1948,11 @@ index c34cc47..87af779 100644
 -//!   (the internal tracer provider owns the global slot); everything is
 -//!   handle-based through the [`EXTERNAL`] registry.
 -//! - The exporters carry **only** customer headers/metadata from
--//!   `OTEL_EXPORTER_OTLP_HEADERS` — this module has no dependency on
+-//!   `OTEL_EXPORTER_OTLP_HEADERS` 鈥?this module has no dependency on
 -//!   `AuthCredentialProvider` and no code path that can attach internal auth
 -//!   headers.
 -//! - Default **off**: with `GROK_EXTERNAL_OTEL` unset (or no exporter
--//!   selected) nothing is constructed — zero allocation, zero threads, zero
+-//!   selected) nothing is constructed 鈥?zero allocation, zero threads, zero
 -//!   sockets.
 -//! - Independent of `TelemetryMode`, GCS trace upload, and the data-collection /
 -//!   data-retention opt-outs (user-confirmed): those govern xAI-side
@@ -1873,7 +1961,8 @@ index c34cc47..87af779 100644
 -//!
 -//! This module is the second authoritative privacy boundary in this crate
 -//! (alongside `otel_layer::redact`).
-+//! External OTEL — Community Edition: all stubs, no network.
++#![allow(dead_code)]
++//! External OTEL 鈥?Community Edition: all stubs, no network.
 +//! `schema.rs` is kept for type definitions (needed by events.rs).
  
 -pub mod config;
@@ -1882,7 +1971,7 @@ index c34cc47..87af779 100644
 -mod redact;
  pub mod schema;
 -pub mod truncate;
- 
+-
 -use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 -use std::sync::{Arc, OnceLock};
 -
@@ -1895,20 +1984,18 @@ index c34cc47..87af779 100644
 -
 -static EXTERNAL: OnceLock<Option<Arc<ExternalTelemetry>>> = OnceLock::new();
 -
--/// Identity *attributes* (plain id strings — never tokens). Derived from a
+-/// Identity *attributes* (plain id strings 鈥?never tokens). Derived from a
 -/// `CredentialSnapshot` at the telemetry-client init sites; updated post-auth
 -/// and on logout.
 -#[derive(Debug, Clone, Default)]
- pub struct IdentityAttrs {
-+    pub deployment_id: Option<String>,
-+    pub api_key_id: Option<String>,
-     pub user_id: Option<String>,
-     pub organization_id: Option<String>,
+-pub struct IdentityAttrs {
+-    pub user_id: Option<String>,
+-    pub organization_id: Option<String>,
 -    pub team_id: Option<String>,
 -    pub deployment_id: Option<String>,
- }
- 
- impl IdentityAttrs {
+-}
+-
+-impl IdentityAttrs {
 -    pub fn from_snapshot(snapshot: &xai_grok_auth::CredentialSnapshot) -> Self {
 -        Self {
 -            user_id: snapshot.user_id.clone(),
@@ -1973,37 +2060,54 @@ index c34cc47..87af779 100644
 -        config::ExporterSelection::None => "none",
 -        config::ExporterSelection::Otlp => "otlp",
 -        config::ExporterSelection::Console => "console",
--    }
++/// Stub 鈥?truncation module was removed.
++pub(crate) mod truncate {
++    pub const MAX_FILE_EXTENSION_LEN: usize = 0;
++    pub fn truncate_string(_s: &str, _max_bytes: usize) -> &str {
++        ""
+     }
 -}
 -
 -impl ExternalTelemetry {
 -    pub(crate) fn next_sequence(&self) -> u64 {
 -        self.sequence.fetch_add(1, Ordering::Relaxed)
--    }
++    pub fn truncate_json_value(_v: &serde_json::Value, _max_bytes: usize) -> serde_json::Value {
++        serde_json::Value::Null
+     }
 -}
 -
 -/// Initialize the external stream. Called once from binary startup after
 -/// config resolution, **before auth** (no credentials needed). `None` records
--/// the dormant state — the default path allocates nothing.
+-/// the dormant state 鈥?the default path allocates nothing.
 -pub fn init(cfg: Option<ExternalOtelConfig>) {
 -    let value = cfg.and_then(build_handle);
 -    if EXTERNAL.set(value).is_err() {
 -        tracing::debug!("external otel: init called more than once; keeping first registration");
--    }
--}
--
++    pub fn reduce_tool_input(_v: &serde_json::Value) -> crate::external::schema::AttrValue {
++        crate::external::schema::AttrValue::Bool(false)
+     }
+ }
+ 
 -fn build_handle(cfg: ExternalOtelConfig) -> Option<Arc<ExternalTelemetry>> {
 -    // No-double-send invariant, enforced in code (not release discipline):
 -    // if the internal firehose resolved its endpoint/headers from
 -    // `OTEL_EXPORTER_OTLP_*` (the deprecated fallback), refuse to activate.
 -    if cfg.internal_pipeline_consumed_otel_vars {
 -        tracing::warn!(
--            "external otel: refusing to activate — the internal trace pipeline consumed \
+-            "external otel: refusing to activate 鈥?the internal trace pipeline consumed \
 -             OTEL_EXPORTER_OTLP_* (deprecated fallback). Migrate internal repointing to \
 -             GROK_INTERNAL_OTLP_* to use the external stream."
 -        );
 -        return None;
--    }
++/// Stub 鈥?config module was removed.
++pub mod config {
++    #[derive(Default)]
++    pub struct ExternalClientInfo {
++        pub client_type: Option<String>,
++        pub client_version: String,
++        pub service_version: String,
++        pub app_entrypoint: String,
+     }
 -
 -    let gates: redact::SharedGates = Arc::new(parking_lot::RwLock::new(cfg.gates));
 -    let health = Arc::new(redact::ExportHealth::default());
@@ -2080,7 +2184,7 @@ index c34cc47..87af779 100644
 -}
 -
 -/// Map and emit one typed telemetry event. No-op unless the stream is active
--/// and the event has an `external = …` mapping. Synchronous and cheap (the
+-/// and the event has an `external = 鈥 mapping. Synchronous and cheap (the
 -/// batch processor queues; nothing blocks on I/O).
 -pub fn emit<T: crate::events::TelemetryEvent>(data: &T) {
 -    let Some(ext) = active_handle() else {
@@ -2094,14 +2198,15 @@ index c34cc47..87af779 100644
 -
 -/// Update identity attrs when auth completes (called alongside the
 -/// telemetry-client init sites). Also emits the one-shot internal adoption
--/// meta-event — post-auth, when the product events client is live.
+-/// meta-event 鈥?post-auth, when the product events client is live.
 -pub fn set_identity(attrs: IdentityAttrs) {
 -    let Some(ext) = handle() else {
 -        return;
 -    };
 -    set_identity_on(&ext, attrs);
--}
--
++    pub const ENV_MASTER_SWITCH: &str = "GROK_EXTERNAL_OTEL";
+ }
+ 
 -pub(crate) fn set_identity_on(ext: &ExternalTelemetry, attrs: IdentityAttrs) {
 -    *ext.identity.write() = attrs;
 -    ext.meta_event_once.call_once(|| {
@@ -2117,11 +2222,16 @@ index c34cc47..87af779 100644
 -            source: meta.source.to_owned(),
 -        });
 -    });
--}
--
++pub struct IdentityAttrs {
++    pub deployment_id: Option<String>,
++    pub api_key_id: Option<String>,
++    pub user_id: Option<String>,
++    pub organization_id: Option<String>,
+ }
+ 
 -/// Apply remote policy when `RemoteSettings` arrive (post-auth, alongside
 -/// [`set_identity`]). **TIGHTEN-ONLY**: may clear `active` (fleet kill switch
--/// — flushes, then drops subsequent emissions) and may force content gates
+-/// 鈥?flushes, then drops subsequent emissions) and may force content gates
 -/// off; it can never enable a stream that env/config left off, and never
 -/// loosens gates mid-run.
 -pub fn apply_remote_policy(policy: ExternalOtelRemotePolicy) {
@@ -2129,7 +2239,11 @@ index c34cc47..87af779 100644
 -        return;
 -    };
 -    apply_remote_policy_on(&ext, policy);
--}
++impl Default for IdentityAttrs {
++    fn default() -> Self {
++        Self::empty()
++    }
+ }
 -
 -pub(crate) fn apply_remote_policy_on(ext: &ExternalTelemetry, policy: ExternalOtelRemotePolicy) {
 -    if policy.lock_content_gates {
@@ -2140,20 +2254,28 @@ index c34cc47..87af779 100644
 -            crate::session_ctx::log_session_event(crate::events::ExternalOtelRemotePolicyApplied {
 -                action: "gates_locked".to_owned(),
 -            });
--        }
--    }
++impl IdentityAttrs {
++    pub fn empty() -> Self {
++        Self {
++            deployment_id: None,
++            api_key_id: None,
++            user_id: None,
++            organization_id: None,
+         }
+     }
 -    if policy.force_disable && ext.active.swap(false, Ordering::Relaxed) {
 -        flush_on(ext);
 -        crate::session_ctx::log_session_event(crate::events::ExternalOtelRemotePolicyApplied {
 -            action: "force_disable".to_owned(),
 -        });
 -        tracing::debug!("external otel: force-disabled by remote policy");
--    }
--}
--
++    pub fn from_snapshot(_snapshot: &xai_grok_auth::CredentialSnapshot) -> Self {
++        Self::empty()
+     }
+ }
+ 
 -/// Flush both providers (logout path: called *before* credentials are
--/// cleared, so post-logout records cannot carry the prior user's ids —
--/// follow with [`set_identity`] carrying the new/empty identity).
+-/// cleared, so post-logout records cannot carry the prior user's ids 鈥?-/// follow with [`set_identity`] carrying the new/empty identity).
 -pub fn flush() {
 -    let Some(ext) = handle() else {
 -        return;
@@ -2171,13 +2293,14 @@ index c34cc47..87af779 100644
 -        && let Err(e) = p.force_flush()
 -    {
 -        tracing::debug!(error = %e, "external otel: meter flush failed");
-+    pub fn empty() -> Self {
-+        Self { deployment_id: None, api_key_id: None, user_id: None, organization_id: None }
-     }
+-    }
++pub struct ExternalOtelRemotePolicy {
++    pub disabled: Option<bool>,
++    pub force_disable: bool,
++    pub lock_content_gates: bool,
  }
- 
--/// Flush + shutdown both providers with a 2-second watchdog. Idempotent —
--/// reachable from every `shutdown_otel()` exit path (16 `OtelGuard` sites,
+-
+-/// Flush + shutdown both providers with a 2-second watchdog. Idempotent 鈥?-/// reachable from every `shutdown_otel()` exit path (16 `OtelGuard` sites,
 -/// the direct call, and the signal handler); subsequent calls are no-ops.
 -pub fn shutdown() {
 -    let Some(ext) = handle() else {
@@ -2190,7 +2313,7 @@ index c34cc47..87af779 100644
 -        let meter_provider = ext.meter_provider.clone();
 -        let (tx, rx) = std::sync::mpsc::channel::<()>();
 -        // Detached thread + timed wait: a hung provider must not hang exit
--        // (`std::thread::scope` is unusable here — it joins unconditionally).
+-        // (`std::thread::scope` is unusable here 鈥?it joins unconditionally).
 -        std::thread::spawn(move || {
 -            if let Some(p) = logger_provider
 -                && let Err(e) = p.shutdown()
@@ -2206,12 +2329,30 @@ index c34cc47..87af779 100644
 -        });
 -        if rx.recv_timeout(std::time::Duration::from_secs(2)).is_err() {
 -            tracing::debug!("external otel: shutdown watchdog expired; abandoning flush thread");
--        }
++pub struct ExternalOtelConfig {
++    pub client: config::ExternalClientInfo,
++    pub transport: OtelProtocol,
++    pub logs_endpoint: Option<String>,
++    pub gates: ExternalOtelGates,
++    pub internal_pipeline_consumed_otel_vars: bool,
++}
++pub enum OtelProtocol {
++    HttpProtobuf,
++    Grpc,
++    None,
++}
++impl OtelProtocol {
++    pub fn as_protocol_str(&self) -> &str {
++        match self {
++            OtelProtocol::HttpProtobuf => "http/protobuf",
++            OtelProtocol::Grpc => "grpc",
++            OtelProtocol::None => "none",
+         }
 -    });
 -}
 -
 -/// Best-effort product-events export-health meta-event (never exported
--/// externally — avoid feedback loops). Emitting needs a Tokio runtime
+-/// externally 鈥?avoid feedback loops). Emitting needs a Tokio runtime
 -/// (`emit_event` spawns); skip silently when exiting without one.
 -fn emit_export_health(ext: &ExternalTelemetry) {
 -    let health = &ext.health;
@@ -2230,8 +2371,8 @@ index c34cc47..87af779 100644
 -    );
 -    if tokio::runtime::Handle::try_current().is_ok() {
 -        crate::session_ctx::log_session_event(snapshot);
--    }
--}
+     }
+ }
 -
 -#[cfg(test)]
 -pub(crate) mod test_support {
@@ -2297,7 +2438,23 @@ index c34cc47..87af779 100644
 -                prompts_gate: gates.log_user_prompts,
 -                details_gate: gates.log_tool_details,
 -                source: "env",
--            },
++pub struct ExternalOtelGates {
++    pub log_user_prompts: bool,
++    pub log_tool_details: bool,
++}
++impl ExternalOtelConfig {
++    pub fn resolve_with(
++        _getenv: impl Fn(&str) -> Option<String>,
++        _file: Option<&ExternalOtelFileConfig>,
++    ) -> Option<Self> {
++        Some(Self {
++            client: config::ExternalClientInfo::default(),
++            transport: OtelProtocol::None,
++            logs_endpoint: None,
++            gates: ExternalOtelGates {
++                log_user_prompts: false,
++                log_tool_details: false,
+             },
 -            meta_event_once: std::sync::Once::new(),
 -        };
 -        TestStream { ext, logs, metrics }
@@ -2319,8 +2476,11 @@ index c34cc47..87af779 100644
 -            .expect("test meter provider")
 -            .force_flush()
 -            .expect("flush metrics");
--    }
--
++            internal_pipeline_consumed_otel_vars: false,
++        })
+     }
++}
+ 
 -    pub(crate) fn emit_event_into<T: crate::events::TelemetryEvent>(
 -        stream: &TestStream,
 -        event: &T,
@@ -2329,14 +2489,22 @@ index c34cc47..87af779 100644
 -            emit_into(stream, record);
 -        }
 -    }
--}
-+pub struct ExternalOtelRemotePolicy { pub disabled: Option<bool> }
-+pub struct ExternalOtelConfig {}
-+pub struct ExternalOtelFileConfig {}
++#[derive(Default)]
++pub struct ExternalOtelFileConfig {
++    pub enabled: Option<bool>,
++    pub metrics_exporter: Option<String>,
++    pub logs_exporter: Option<String>,
++    pub endpoint: Option<String>,
++    pub protocol: Option<String>,
++    pub log_user_prompts: Option<bool>,
++    pub log_tool_details: Option<bool>,
+ }
  
 -#[cfg(test)]
 -mod tests;
-+pub fn is_active() -> bool { false }
++pub fn is_active() -> bool {
++    false
++}
 +pub fn init(_cfg: Option<ExternalOtelConfig>) {}
 +pub fn emit<T: crate::events::TelemetryEvent>(_data: &T) {}
 +pub fn set_identity(_attrs: IdentityAttrs) {}
@@ -2355,7 +2523,7 @@ index def49be..0000000
 -//!
 -//! The exporters are plain `opentelemetry_otlp` http/protobuf or gRPC/protobuf
 -//! exporters built with **only** the customer headers from
--//! `OTEL_EXPORTER_OTLP_HEADERS` — no code path here can attach
+-//! `OTEL_EXPORTER_OTLP_HEADERS` 鈥?no code path here can attach
 -//! `Authorization`/`X-XAI-Token-Auth`/`x-userid`;
 -//! those constants live in `otel_layer` and are not referenced by this
 -//! module. No `AuthCredentialProvider` is ever read.
@@ -2791,7 +2959,7 @@ index def49be..0000000
 -) -> Result<BuiltProviders, opentelemetry_otlp::ExporterBuildError> {
 -    // Build the shared blocking client only when the HTTP transport is
 -    // selected (`otlp_http` handles the dedicated-thread construction). A
--    // build failure disables the external stream (caller warns) — it must
+-    // build failure disables the external stream (caller warns) 鈥?it must
 -    // never panic the process.
 -    let needs_http_client = cfg.transport == OtlpTransport::HttpProtobuf
 -        && (cfg.logs_exporter == ExporterSelection::Otlp
@@ -2885,7 +3053,7 @@ index def49be..0000000
 -    }
 -
 -    /// Header-isolation invariant (T2): the outgoing header map equals
--    /// exactly the parsed `OTEL_EXPORTER_OTLP_HEADERS` — no `Authorization`,
+-    /// exactly the parsed `OTEL_EXPORTER_OTLP_HEADERS` 鈥?no `Authorization`,
 -    /// `X-XAI-Token-Auth`, `x-userid`, or `x-teamid` unless customer-supplied
 -    /// (complement of the internal pipeline's
 -    /// `extra_headers_override_bearer_but_keep_static_identity`).
@@ -2947,7 +3115,7 @@ index 066815f..0000000
 -//! 0.30 log records and metric data are not mutable from an exporter wrapper.
 -//! These wrappers are the **authoritative chokepoint** anyway: they verify,
 -//! per record/data point, that nothing reaches the wire that the emit path
--//! shouldn't have produced — and on any violation they *drop* (a record for
+-//! shouldn't have produced 鈥?and on any violation they *drop* (a record for
 -//! logs, the whole export for metrics) rather than scrub in place. Dropping
 -//! telemetry on a schema bug is acceptable; leaking is not.
 -
@@ -2993,7 +3161,7 @@ index 066815f..0000000
 -/// `true` when this record is clean: every attribute key is schema-named,
 -/// gated keys have their gate open, string values carry no secret shapes the
 -/// emit path should have scrubbed, and the body is empty (`event.name` is the
--/// structured identity — external records carry no free-text body).
+-/// structured identity 鈥?external records carry no free-text body).
 -fn record_is_clean(record: &SdkLogRecord, gates: &ContentGates) -> bool {
 -    if record.body().is_some() {
 -        tracing::debug!("external otel: dropping record with non-empty body");
@@ -3188,12 +3356,21 @@ index 066815f..0000000
 -        self.inner.temporality()
 -    }
 -}
+diff --git a/crates/codegen/xai-grok-telemetry/src/external/schema.rs b/crates/codegen/xai-grok-telemetry/src/external/schema.rs
+index 517ba63..9a25e15 100644
+--- a/crates/codegen/xai-grok-telemetry/src/external/schema.rs
++++ b/crates/codegen/xai-grok-telemetry/src/external/schema.rs
+@@ -1,3 +1,4 @@
++#![allow(dead_code)]
+ //! External OTEL schema v1: event names, attribute keys, typed records, and
+ //! the per-event mapping functions wired through the `telemetry_event!`
+ //! macro's `external = 鈥 arm.
 diff --git a/crates/codegen/xai-grok-telemetry/src/external/tests.rs b/crates/codegen/xai-grok-telemetry/src/external/tests.rs
 deleted file mode 100644
-index ccf9ebb..0000000
+index 4362063..0000000
 --- a/crates/codegen/xai-grok-telemetry/src/external/tests.rs
 +++ /dev/null
-@@ -1,991 +0,0 @@
+@@ -1,993 +0,0 @@
 -//! Unit tests for the external stream: pinned allowlists, per-event schema
 -//! snapshots, canary leak tests, gate enforcement, and the tighten-only
 -//! remote policy. Everything asserting wire shape goes through the
@@ -3271,13 +3448,13 @@ index ccf9ebb..0000000
 -        .collect()
 -}
 -
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -// Pinned allowlists
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -#[test]
 -fn external_allowed_keys_are_pinned() {
--    // Keep this an independent copy — don't reference ALL_KEYS or
+-    // Keep this an independent copy 鈥?don't reference ALL_KEYS or
 -    // ExternalKey::as_str, or the assert becomes a tautology and stops gating
 -    // schema changes. Adding a key exports a new field: confirm it carries no
 -    // user content, then update this pin.
@@ -3353,7 +3530,7 @@ index ccf9ebb..0000000
 -    let actual: Vec<&str> = schema::ALL_KEYS.iter().map(|k| k.as_str()).collect();
 -    assert_eq!(
 -        actual, expected,
--        "EXTERNAL_ALLOWED_KEYS changed: a new key is a wire-schema change — confirm it carries \
+-        "EXTERNAL_ALLOWED_KEYS changed: a new key is a wire-schema change 鈥?confirm it carries \
 -         no user content, then update this pin."
 -    );
 -    // Notably absent: the internal allowlist's file-path family.
@@ -3386,7 +3563,7 @@ index ccf9ebb..0000000
 -    assert_eq!(
 -        schema::METRIC_ALLOWED_ATTR_KEYS,
 -        expected,
--        "metric attribute keys changed — wire-schema change"
+-        "metric attribute keys changed 鈥?wire-schema change"
 -    );
 -    assert!(
 -        !schema::METRIC_ALLOWED_ATTR_KEYS.contains(&"prompt.id"),
@@ -3491,9 +3668,9 @@ index ccf9ebb..0000000
 -    );
 -}
 -
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -// Schema snapshots (gates off / on) through the wire-view harness
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -fn sentinel_session_harness() -> events::SessionHarness {
 -    events::SessionHarness {
@@ -3594,7 +3771,7 @@ index ccf9ebb..0000000
 -    );
 -}
 -
--/// One failed turn ⇒ exactly one `error.count` increment, even though the
+-/// One failed turn 鈬?exactly one `error.count` increment, even though the
 -/// failure emits `ApiError` (and possibly `RateLimitHit`) *alongside*
 -/// `TurnCompleted{Error}`. `TurnCompleted{Error}` is the single increment
 -/// source; the api_error log events carry no metric (Bugbot regression:
@@ -3630,8 +3807,7 @@ index ccf9ebb..0000000
 -            error_category: Some("rate_limit".into()),
 -        },
 -    );
--    // Both api_error events exported as log records…
--    let names: Vec<String> = exported_events(&stream)
+-    // Both api_error events exported as log records鈥?-    let names: Vec<String> = exported_events(&stream)
 -        .iter()
 -        .map(|e| e.0.clone())
 -        .collect();
@@ -3639,7 +3815,7 @@ index ccf9ebb..0000000
 -        names.iter().filter(|n| *n == "grok_code.api_error").count(),
 -        2
 -    );
--    // …but error.count incremented exactly once.
+-    // 鈥ut error.count incremented exactly once.
 -    let total: u64 = stream
 -        .metrics
 -        .get_finished_metrics()
@@ -3822,7 +3998,7 @@ index ccf9ebb..0000000
 -    );
 -    let events = exported_events(&stream);
 -    let ev = &events[0];
--    let prompt = attr(ev, "prompt").expect("gate on ⇒ prompt exported");
+-    let prompt = attr(ev, "prompt").expect("gate on 鈬?prompt exported");
 -    assert!(prompt.contains("fix the bug"));
 -    assert!(
 -        !prompt.contains("CANARY"),
@@ -3914,6 +4090,8 @@ index ccf9ebb..0000000
 -        (K::SmallScreen, A::Accepted, "small_screen", "accepted"),
 -        (K::WordSelect, A::Shown, "word_select", "shown"),
 -        (K::WordSelect, A::Accepted, "word_select", "accepted"),
+-        (K::SshWrap, A::Shown, "ssh_wrap", "shown"),
+-        (K::SshWrap, A::Accepted, "ssh_wrap", "accepted"),
 -    ];
 -    for (tip, action, tip_label, action_label) in cases {
 -        let stream = build(gates_off());
@@ -3929,7 +4107,7 @@ index ccf9ebb..0000000
 -#[test]
 -fn unmapped_events_produce_nothing() {
 -    use crate::events::TelemetryEvent as _;
--    // ~70 events without an `external = …` arm cost nothing and export nothing.
+-    // ~70 events without an `external = 鈥 arm cost nothing and export nothing.
 -    let ev = events::SlashCommandUsed {
 -        command: "secret command".into(),
 -        args_provided: true,
@@ -3939,7 +4117,7 @@ index ccf9ebb..0000000
 -
 -/// Workspace-origin exclusion: events emitted exclusively via
 -/// `EmitterOrigin::Workspace` (`log_session_event_with_origin`) must not carry
--/// an external mapping — the fan-out hook deliberately lives only in the
+-/// an external mapping 鈥?the fan-out hook deliberately lives only in the
 -/// Shell-origin wrappers. The workspace-only surface today is the
 -/// xai-grok-workspace sampler events, which live outside this crate and have
 -/// no `telemetry_event!` binding here; this pin guards the in-crate set.
@@ -3958,9 +4136,9 @@ index ccf9ebb..0000000
 -    );
 -}
 -
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -// Emit-path behavior: ctx injection, sequence, identity, truncation
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -#[test]
 -fn mapping_supplied_session_id_wins_and_sequence_increments() {
@@ -4015,12 +4193,12 @@ index ccf9ebb..0000000
 -        "value not truncated: {} chars",
 -        model.len()
 -    );
--    assert!(model.ends_with("…[truncated]"));
+-    assert!(model.ends_with("鈥truncated]"));
 -}
 -
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -// Export-time validators (fail-closed)
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -#[test]
 -fn validating_metric_exporter_drops_export_on_bad_attr_key() {
@@ -4109,12 +4287,12 @@ index ccf9ebb..0000000
 -    );
 -}
 -
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -// Remote policy: tighten-only
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
--#[test]
--fn remote_force_disable_stops_emission() {
+-#[tokio::test(flavor = "current_thread")]
+-async fn remote_force_disable_stops_emission() {
 -    let stream = build(gates_off());
 -    super::apply_remote_policy_on(
 -        &stream.ext,
@@ -4129,8 +4307,8 @@ index ccf9ebb..0000000
 -    );
 -}
 -
--#[test]
--fn remote_gate_lock_forces_gates_off_and_never_on() {
+-#[tokio::test(flavor = "current_thread")]
+-async fn remote_gate_lock_forces_gates_off_and_never_on() {
 -    let stream = build(gates_all_on());
 -    super::apply_remote_policy_on(
 -        &stream.ext,
@@ -4153,9 +4331,9 @@ index ccf9ebb..0000000
 -    );
 -}
 -
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -// Metric increment derivation
--// ─────────────────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -#[test]
 -fn metric_increments_pass_model_through_scrub_and_attach_session_id() {
@@ -4198,12 +4376,11 @@ index 02f1aec..0000000
 -//! tool-input JSON is capped at 4 KB / depth 2 / 20 items per collection, and
 -//! gated prompt/content text is capped at 60 KB.
 -
--/// Values longer than this are truncated…
--pub const MAX_STRING_LEN: usize = 512;
--/// …to their first 128 chars + [`TRUNCATION_MARKER`].
+-/// Values longer than this are truncated鈥?-pub const MAX_STRING_LEN: usize = 512;
+-/// 鈥o their first 128 chars + [`TRUNCATION_MARKER`].
 -pub const TRUNCATED_PREFIX_LEN: usize = 128;
 -/// Marker appended to truncated strings.
--pub const TRUNCATION_MARKER: &str = "…[truncated]";
+-pub const TRUNCATION_MARKER: &str = "鈥truncated]";
 -/// Total serialized-JSON budget for gated tool parameters.
 -pub const MAX_TOOL_INPUT_JSON_BYTES: usize = 4 * 1024;
 -/// Maximum JSON nesting depth preserved in gated tool parameters.
@@ -4212,7 +4389,7 @@ index 02f1aec..0000000
 -pub const MAX_COLLECTION_ITEMS: usize = 20;
 -/// Cap for gated prompt/content text.
 -pub const MAX_CONTENT_BYTES: usize = 60 * 1024;
--/// File-extension attribute cap (`"rs"`, `"tsx"`, …).
+-/// File-extension attribute cap (`"rs"`, `"tsx"`, 鈥?.
 -pub const MAX_FILE_EXTENSION_LEN: usize = 10;
 -
 -/// Truncate on a `char` boundary at or before `max_bytes`.
@@ -4324,11 +4501,11 @@ index 02f1aec..0000000
 -    #[test]
 -    fn truncation_is_utf8_boundary_safe() {
 -        // Multi-byte chars around both limits must not split a char.
--        let long: String = "é".repeat(MAX_STRING_LEN + 5);
+-        let long: String = "茅".repeat(MAX_STRING_LEN + 5);
 -        let out = truncate_value(&long).expect("must truncate");
--        assert!(out.starts_with(&"é".repeat(TRUNCATED_PREFIX_LEN)));
+-        assert!(out.starts_with(&"茅".repeat(TRUNCATED_PREFIX_LEN)));
 -
--        let content: String = "🎉".repeat(MAX_CONTENT_BYTES / 4 + 10);
+-        let content: String = "馃帀".repeat(MAX_CONTENT_BYTES / 4 + 10);
 -        let out = truncate_content(&content).expect("must truncate");
 -        assert!(out.len() <= MAX_CONTENT_BYTES + TRUNCATION_MARKER.len());
 -        // Round-trip as a str: would panic at construction if we split a char.
@@ -4345,7 +4522,7 @@ index 02f1aec..0000000
 -        let v = serde_json::json!({"a": {"b": {"c": {"d": 1}}}});
 -        let out = reduce_tool_input(&v);
 -        let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
--        // Depth 0 = root object, depth 1 = a's object; b's value is at depth 2 → collapsed.
+-        // Depth 0 = root object, depth 1 = a's object; b's value is at depth 2 鈫?collapsed.
 -        assert_eq!(parsed["a"]["b"], serde_json::json!("{object:1}"));
 -    }
 -
@@ -4392,7 +4569,7 @@ index aad1bc5..0000000
 -//!
 -//! Use regular `tracing::info!` / `tracing::debug!` / `tracing::warn!` with
 -//! targets `xai_grok_hooks` or `xai_grok_agent::plugins` at key lifecycle
--//! points — discovery, dispatch, execution, errors.
+-//! points 鈥?discovery, dispatch, execution, errors.
 -//!
 -//! ## Enabling
 -//!
@@ -4535,12 +4712,13 @@ index 11b53c7..0000000
 -        })
 -}
 diff --git a/crates/codegen/xai-grok-telemetry/src/lib.rs b/crates/codegen/xai-grok-telemetry/src/lib.rs
-index 5d457d0..6194cae 100644
+index 5d457d0..5d9be8e 100644
 --- a/crates/codegen/xai-grok-telemetry/src/lib.rs
 +++ b/crates/codegen/xai-grok-telemetry/src/lib.rs
-@@ -1,39 +1,40 @@
+@@ -1,39 +1,68 @@
 -//! Telemetry engine for Grok Build sessions: product events + Mixpanel emission +
 -//! Sentry error reporting + OpenTelemetry tracing + structured unified log.
++#![allow(dead_code)]
 +//! Telemetry engine for Grok Build Community Edition.
  //!
 -//! Extracted from `xai-file-utils` per review feedback so telemetry has
@@ -4549,6 +4727,33 @@ index 5d457d0..6194cae 100644
 -//! Mixpanel/HTTP/identity dependencies.
 +//! All network upload paths have been removed. Events and metrics are
 +//! written to `~/.grok/logs/` locally. No data leaves the machine.
++
++/// Stub 鈥?appender module was removed. Writes debug logs to local files.
++pub(crate) mod appender {
++    use tracing_appender::non_blocking::NonBlocking;
++
++    pub fn non_blocking_file_writer(
++        dir: &std::path::Path,
++        name: &str,
++    ) -> std::io::Result<NonBlocking> {
++        let _ = std::fs::create_dir_all(dir);
++        let file = std::fs::File::create(dir.join(name))?;
++        let (non_blocking, _guard) = tracing_appender::non_blocking(file);
++        Ok(non_blocking)
++    }
++    /// Overload: takes a single path to a log file.
++    pub fn non_blocking_file_writer_from_path(
++        path: &std::path::Path,
++    ) -> std::io::Result<NonBlocking> {
++        if let Some(parent) = path.parent() {
++            let _ = std::fs::create_dir_all(parent);
++        }
++        let file = std::fs::File::create(path)?;
++        let (non_blocking, _guard) = tracing_appender::non_blocking(file);
++        Ok(non_blocking)
++    }
++    pub fn flush_file_log_guards() {}
++}
  
 -mod appender;
 -pub mod client;
@@ -4582,7 +4787,7 @@ index 5d457d0..6194cae 100644
 +
 +// Re-export stubs under the original module paths for external compatibility.
 +pub mod client {
-+    pub use crate::compat::{init, is_enabled, is_session_metrics_enabled};
++    pub use crate::compat::{init, init_if_needed, is_enabled, is_session_metrics_enabled};
 +}
 +pub mod sentry {
 +    pub use crate::compat::{
@@ -4597,10 +4802,10 @@ index 5d457d0..6194cae 100644
  pub use session_ctx::{
      EmitterOrigin, TelemetryCtx, emit_event, emit_event_with_origin, log_event, log_session_event,
 diff --git a/crates/codegen/xai-grok-telemetry/src/otel_layer/mod.rs b/crates/codegen/xai-grok-telemetry/src/otel_layer/mod.rs
-index fb8c3ad..d4102df 100644
+index fb8c3ad..7fd56aa 100644
 --- a/crates/codegen/xai-grok-telemetry/src/otel_layer/mod.rs
 +++ b/crates/codegen/xai-grok-telemetry/src/otel_layer/mod.rs
-@@ -1,772 +1,24 @@
+@@ -1,772 +1,45 @@
 -//! Shared OpenTelemetry tracing layer for exporting spans to the cli-chat-proxy.
 -//!
 -//! `xai-grok-pager` uses this module to set up OTLP
@@ -4627,24 +4832,30 @@ index fb8c3ad..d4102df 100644
 -/// Built by the binaries (`xai-grok-pager`) from their own
 -/// configuration. The credentials provider is constructed by shell's
 -/// `xai_grok_shell::auth::credential_provider::build_otel_credential_provider`.
--pub struct OtelLayerConfig {
++//! OpenTelemetry layer 鈥?Community Edition: all stubs, no export.
++
++use std::time::Duration;
++
+ pub struct OtelLayerConfig {
 -    /// Live credential source. Read on every batch export to obtain a fresh
 -    /// bearer token for the OTLP `Authorization` header.
 -    pub credentials: Arc<dyn AuthCredentialProvider>,
 -    /// Value for the `X-XAI-Token-Auth` header (typically `"xai-grok-cli"`).
--    pub token_header_value: String,
++    pub credentials: (),
+     pub token_header_value: String,
 -    /// Optional extra access key for traces. Injection is honored only when
 -    /// the crate's optional non-production feature is enabled and only for
 -    /// matching first-party hosts. Field stays present so cross-crate
 -    /// constructors compile regardless of per-crate feature unification.
--    pub alpha_test_key: Option<String>,
--    pub exporter: OtelExporterConfig,
--}
+     pub alpha_test_key: Option<String>,
+     pub exporter: OtelExporterConfig,
+ }
 -/// Static identity of the client emitting telemetry. Becomes resource
 -/// attributes (`client.name`, `client.version`, `service.version`,
 -/// `app.entrypoint`) on every span.
 -#[derive(Debug, Clone, Copy)]
--pub struct OtelClientInfo {
++#[derive(Default)]
+ pub struct OtelClientInfo {
 -    /// Binary name (`grok-pager`) -> `client.name`.
 -    pub client_name: &'static str,
 -    /// Front-end client version -> `client.version`.
@@ -4653,22 +4864,29 @@ index fb8c3ad..d4102df 100644
 -    pub service_version: &'static str,
 -    /// How the session was launched (`cli`/`headless`/`agent`) -> `app.entrypoint`.
 -    pub app_entrypoint: &'static str,
--}
++    pub client_type: Option<String>,
++    pub client_version: String,
++    pub client_name: String,
++    pub service_version: String,
++    pub app_entrypoint: String,
+ }
 -/// OTLP trace-export transport settings, resolved from the `OTEL_*` env vars /
 -/// managed config.
 -#[derive(Debug, Default, Clone)]
--pub struct OtelExporterConfig {
+ pub struct OtelExporterConfig {
 -    /// Full OTLP traces endpoint URL (e.g. `https://cli-chat-proxy.grok.com/v1/traces`).
--    pub traces_url: String,
+     pub traces_url: String,
 -    /// `OTEL_EXPORTER_OTLP_HEADERS` pairs.
--    pub extra_headers: Vec<(String, String)>,
+     pub extra_headers: Vec<(String, String)>,
 -    /// `OTEL_TRACES_EXPORT_INTERVAL` batch flush interval. `None` = SDK default.
 -    pub export_interval: Option<std::time::Duration>,
 -    /// `OTEL_EXPORTER_OTLP_TIMEOUT` export timeout. `None` = 10s default.
 -    pub timeout: Option<std::time::Duration>,
 -    /// `false` when `OTEL_TRACES_EXPORTER=none`: spans created, never exported.
--    pub enabled: bool,
--}
++    pub export_interval: Option<Duration>,
++    pub timeout: Option<Duration>,
+     pub enabled: bool,
+ }
 -/// Creates an OpenTelemetry layer that bridges tracing spans to OpenTelemetry.
 -/// This enables trace context propagation and OTLP export to the cli-chat-proxy.
 -///
@@ -4677,20 +4895,14 @@ index fb8c3ad..d4102df 100644
 -/// - `client_version`: `CARGO_PKG_VERSION` -- sent in the `x-grok-client-version` header.
 -/// - `service_version`: `VERSION_WITH_COMMIT` -- stored as `service.version` resource attribute.
 -/// - `config`: runtime configuration; see [`OtelLayerConfig`].
-+//! OpenTelemetry layer — Community Edition: all stubs, no export.
-+//! Tracing spans remain local-only via the `tracing` crate.
 +
-+pub struct OtelLayerConfig {}
-+pub struct OtelClientInfo {}
-+pub struct OtelExporterConfig {}
-+
-+/// Returns a no-op layer — no spans are exported.
++/// Returns a no-op layer 鈥?no spans are exported.
  pub fn build_otel_layer<S>(
 -    client: OtelClientInfo,
 -    config: OtelLayerConfig,
 -) -> impl tracing_subscriber::layer::Layer<S>
++    _client_info: OtelClientInfo,
 +    _config: OtelLayerConfig,
-+    _exporter: OtelExporterConfig,
 +) -> Box<dyn tracing_subscriber::layer::Layer<S> + Send + Sync>
  where
 -    S: tracing::Subscriber + for<'span> LookupSpan<'span>,
@@ -4719,7 +4931,8 @@ index fb8c3ad..d4102df 100644
 -    OpenTelemetryLayer::new(tracer)
 -        .with_context_activation(false)
 -        .with_filter(otel_filter)
--}
++    Box::new(tracing_subscriber::layer::Identity::new())
+ }
 -fn build_tracer_provider(client: OtelClientInfo, config: OtelLayerConfig) -> SdkTracerProvider {
 -    match instrumentation::current_mode() {
 -        instrumentation::InstrumentationMode::Server => build_server_provider(client, config),
@@ -4820,8 +5033,7 @@ index fb8c3ad..d4102df 100644
 -    use opentelemetry_sdk::trace::SpanExporter as _;
 -    exporter.set_resource(resource);
 -    exporter.export(batch).await
-+    Box::new(tracing_subscriber::layer::Identity::new())
- }
+-}
 -impl RefreshableSpanExporter {
 -    #[cfg(test)]
 -    fn current_token(&self) -> String {
@@ -4832,7 +5044,7 @@ index fb8c3ad..d4102df 100644
 -    }
 -}
 -/// Stamp `deployment.id`/`api_key.id`/`organization.id`/`team.id`/`user.id`
--/// per-export (they're only known after auth is wired, post-init — stamping at
+-/// per-export (they're only known after auth is wired, post-init 鈥?stamping at
 -/// init would leave them blank for a session that authenticates mid-run).
 -fn resource_with_tenant_id(
 -    base: opentelemetry_sdk::Resource,
@@ -5071,7 +5283,7 @@ index fb8c3ad..d4102df 100644
 -    provider.build()
 -}
 -/// Flush and shut down the global tracer provider (and the external OTEL
--/// stream — both ride the same exit chokepoints).
+-/// stream 鈥?both ride the same exit chokepoints).
 -///
 -/// Prefer [`OtelGuard`] for normal code paths. Use this directly only in
 -/// signal handlers or `process::exit` paths where destructors won't run.
@@ -5092,11 +5304,12 @@ index fb8c3ad..d4102df 100644
 -    fn drop(&mut self) {
 -        shutdown_otel();
 -    }
--}
++    fn drop(&mut self) {}
+ }
 -/// Create an [`OtelGuard`] that flushes traces on drop.
--pub fn otel_guard() -> OtelGuard {
--    OtelGuard
--}
+ pub fn otel_guard() -> OtelGuard {
+     OtelGuard
+ }
 -#[cfg(test)]
 -mod tests {
 -    use super::*;
@@ -5308,7 +5521,7 @@ index fb8c3ad..d4102df 100644
 -    }
 -    /// A provider whose `refresh_after_unauthorized` requires a Tokio
 -    /// runtime (calls `tokio::task::spawn_blocking`), mimicking the real
--    /// `OtelAuthCredentialProvider` → `try_lock_auth_file_async` path.
+-    /// `OtelAuthCredentialProvider` 鈫?`try_lock_auth_file_async` path.
 -    struct TokioDependentProvider {
 -        refresh_count: std::sync::atomic::AtomicU32,
 -    }
@@ -5386,16 +5599,14 @@ index fb8c3ad..d4102df 100644
 -            1
 -        );
 -    }
-+    fn drop(&mut self) {}
- }
-+pub fn otel_guard() -> OtelGuard { OtelGuard }
+-}
 +pub fn shutdown_otel() {}
 diff --git a/crates/codegen/xai-grok-telemetry/src/otel_layer/redact.rs b/crates/codegen/xai-grok-telemetry/src/otel_layer/redact.rs
 deleted file mode 100644
-index 5dfc066..0000000
+index 40668ff..0000000
 --- a/crates/codegen/xai-grok-telemetry/src/otel_layer/redact.rs
 +++ /dev/null
-@@ -1,593 +0,0 @@
+@@ -1,636 +0,0 @@
 -use std::borrow::Cow;
 -use std::collections::HashSet;
 -use std::sync::LazyLock;
@@ -5497,10 +5708,6 @@ index 5dfc066..0000000
 -    "status",
 -    "action",
 -    "auth_method",
--    // auth 401 attribution: fixed enum-ish consumer labels only
--    // (e.g. "OaiCompatClient.chat_completions_stream"); never user content.
--    // Key suffix fields stay denied — they are token fingerprints.
--    "consumer",
 -    "to_mode",
 -    "trigger",
 -    "survey_type",
@@ -5549,7 +5756,7 @@ index 5dfc066..0000000
 -
 -/// Allowlisted keys holding full URLs: reduced to `scheme://host[:port]` so
 -/// user-influenced path/query can't export. Storage-*path* keys (`gcs_path`,
--/// `object_path`, `output_path`) are excluded — those paths are wanted.
+-/// `object_path`, `output_path`) are excluded 鈥?those paths are wanted.
 -static URL_VALUED_KEYS: &[&str] = &["url", "endpoint", "gcs_url", "bucket_url"];
 -
 -/// Scrub every text-bearing surface of each span before export.
@@ -5590,8 +5797,7 @@ index 5dfc066..0000000
 -    }
 -}
 -
--/// Numeric/bool scalars and their arrays are content-free; everything else —
--/// strings and any future `#[non_exhaustive]` variant — is content (fail-closed).
+-/// Numeric/bool scalars and their arrays are content-free; everything else 鈥?-/// strings and any future `#[non_exhaustive]` variant 鈥?is content (fail-closed).
 -fn is_content_value(value: &Value) -> bool {
 -    !matches!(
 -        value,
@@ -5619,7 +5825,7 @@ index 5dfc066..0000000
 -    }
 -}
 -
--/// An event's name is the formatted `tracing` message (`Event.name`) — free
+-/// An event's name is the formatted `tracing` message (`Event.name`) 鈥?free
 -/// text the key allowlist can't gate, so replace it with the static callsite id
 -/// (fail-closed). Rebuilt from the `code.filepath`/`code.lineno` attrs that
 -/// `tracing-opentelemetry` attaches to every event (`with_location`, default-on).
@@ -5649,7 +5855,7 @@ index 5dfc066..0000000
 -    };
 -}
 -
--/// Reduce a URL to `scheme://host[:port]` — its path/query can carry user
+-/// Reduce a URL to `scheme://host[:port]` 鈥?its path/query can carry user
 -/// content. Unparseable values pass through to the secret scrubber.
 -fn reduce_url_to_origin(value: &mut Value) {
 -    if let Value::String(s) = value
@@ -5739,10 +5945,10 @@ index 5dfc066..0000000
 -        let mut attrs = vec![
 -            KeyValue::new("session_id", "sess-abc"), // allowlisted string
 -            KeyValue::new("path", "/tmp/x.rs"),      // allowlisted string
--            KeyValue::new("prompt", "CANARY_PROMPT secret user text"), // not allowlisted → drop
--            KeyValue::new("command", "echo CANARY_SECRET"), // not allowlisted → drop
--            KeyValue::new("turn_number", 7_i64),     // numeric → keep
--            KeyValue::new("is_background", true),    // bool → keep
+-            KeyValue::new("prompt", "CANARY_PROMPT secret user text"), // not allowlisted 鈫?drop
+-            KeyValue::new("command", "echo CANARY_SECRET"), // not allowlisted 鈫?drop
+-            KeyValue::new("turn_number", 7_i64),     // numeric 鈫?keep
+-            KeyValue::new("is_background", true),    // bool 鈫?keep
 -        ];
 -        enforce_allowlist(&mut attrs);
 -        let keys: Vec<&str> = attrs.iter().map(|kv| kv.key.as_str()).collect();
@@ -5772,7 +5978,7 @@ index 5dfc066..0000000
 -
 -    #[test]
 -    fn allowlist_contents_are_pinned() {
--        // Keep this an independent copy — don't reference ALLOWED_STRING_KEYS, or
+-        // Keep this an independent copy 鈥?don't reference ALLOWED_STRING_KEYS, or
 -        // the assert becomes a tautology and stops gating allowlist changes.
 -        let expected: &[&str] = &[
 -            "level",
@@ -5856,7 +6062,6 @@ index 5dfc066..0000000
 -            "status",
 -            "action",
 -            "auth_method",
--            "consumer",
 -            "to_mode",
 -            "trigger",
 -            "survey_type",
@@ -5899,8 +6104,8 @@ index 5dfc066..0000000
 -        ];
 -        assert_eq!(
 -            ALLOWED_STRING_KEYS, expected,
--            "ALLOWED_STRING_KEYS changed: adding a key exports a new field — confirm it carries no \
--             user content, then update this pin."
+-            "ALLOWED_STRING_KEYS changed: adding a key exports a new field 鈥?confirm it carries no \
+-             user content and get telemetry-owner review, then update this pin."
 -        );
 -    }
 -
@@ -5988,6 +6193,54 @@ index 5dfc066..0000000
 -            "secret in allowlisted value not scrubbed: {blob}"
 -        );
 -    }
+-
+-    #[test]
+-    fn allowlisted_path_values_are_still_home_scrubbed() {
+-        // Path keys are allowlisted so the field exports, but home/username
+-        // segments must still collapse 鈥?allowlist is not a scrub bypass.
+-        let home = dirs::home_dir().expect("home dir for path-scrub test");
+-        let home_str = home.to_string_lossy();
+-        // Skip if the home path is too short/generic for the scrubber to match.
+-        if home_str.len() < 4 {
+-            return;
+-        }
+-        let full = format!("{home_str}/secret-project/src/main.rs");
+-        let mut attrs = vec![
+-            KeyValue::new("path", full.clone()),
+-            KeyValue::new("file_path", full.clone()),
+-            KeyValue::new("cwd", full.clone()),
+-        ];
+-        scrub_attributes(&mut attrs);
+-        let blob = format!("{attrs:?}");
+-        assert!(
+-            !blob.contains(home_str.as_ref()),
+-            "home path survived allowlisted scrub: {blob}"
+-        );
+-        assert!(
+-            blob.contains("main.rs") || blob.contains("[HOME]") || blob.contains("~"),
+-            "expected redacted path to retain a filename or home marker: {blob}"
+-        );
+-    }
+-
+-    #[test]
+-    fn error_key_value_is_secret_and_path_scrubbed() {
+-        // Free-form `error` strings are allowlisted for classification labels;
+-        // any secret/path content that sneaks in must still be scrubbed.
+-        let home = dirs::home_dir().expect("home dir");
+-        let home_str = home.to_string_lossy();
+-        let msg =
+-            format!("failed reading {home_str}/.config/creds with sk-CANARYabcdefghij1234567890");
+-        let mut attrs = vec![KeyValue::new("error", msg)];
+-        scrub_attributes(&mut attrs);
+-        let blob = format!("{attrs:?}");
+-        assert!(!blob.contains("CANARY"), "secret survived in error: {blob}");
+-        if home_str.len() >= 4 {
+-            assert!(
+-                !blob.contains(home_str.as_ref()),
+-                "home path survived in error: {blob}"
+-            );
+-        }
+-    }
 -}
 diff --git a/crates/codegen/xai-grok-telemetry/src/otlp_http.rs b/crates/codegen/xai-grok-telemetry/src/otlp_http.rs
 deleted file mode 100644
@@ -6040,7 +6293,7 @@ index 00f767c..0000000
 -/// Build the blocking OTLP HTTP client on a dedicated thread.
 -///
 -/// The blocking client can't be built inside a Tokio runtime, and the batch
--/// processors drive exports from non-Tokio threads — building on a fresh
+-/// processors drive exports from non-Tokio threads 鈥?building on a fresh
 -/// thread avoids the "no reactor" panic for every caller.
 -pub(crate) fn build_blocking_client(
 -    timeout: std::time::Duration,
@@ -6063,7 +6316,7 @@ index 00f767c..0000000
 -mod tests {
 -    use super::*;
 -
--    /// The client must build without consulting the system CA store — reqwest
+-    /// The client must build without consulting the system CA store 鈥?reqwest
 -    /// 0.12 `rustls-tls` trusts embedded webpki roots, so this holds on hosts
 -    /// with no system CA store.
 -    #[test]
@@ -6107,7 +6360,7 @@ index ed3e341..0000000
 -    redact_owned(input).unwrap_or_else(|| input.to_owned())
 -}
 -
--/// Reduce a URL to `scheme://host[:port]` — its path/query can carry user
+-/// Reduce a URL to `scheme://host[:port]` 鈥?its path/query can carry user
 -/// content. Unparseable values are returned unchanged (callers pass the result
 -/// through the secret scrubber).
 -pub(crate) fn url_origin(value: &str) -> Cow<'_, str> {
@@ -6168,7 +6421,7 @@ index 74a83a2..0000000
 -const TRACES_SAMPLE_RATE: f32 = 0.01;
 -const FLUSH_TIMEOUT: Duration = Duration::from_secs(2);
 -
--// ─── Host integration ─────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€ Host integration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -/// Per-host config; everything that varies between binaries lives here.
 -pub struct Config {
@@ -6182,7 +6435,7 @@ index 74a83a2..0000000
 -
 -static CONFIG: OnceLock<Config> = OnceLock::new();
 -
--// ─── Public API ────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€ Public API 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -/// Init Sentry + apply the process-wide scope tags. Call once at process
 -/// start; the returned guard must outlive the process. No-op guard when
@@ -6232,7 +6485,7 @@ index 74a83a2..0000000
 -    }
 -}
 -
--// ─── Internals ─────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€ Internals 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -#[derive(Clone, Debug)]
 -struct Scrubber {
@@ -6416,7 +6669,7 @@ index 74a83a2..0000000
 -    }
 -}
 -
--// ─── Tests ─────────────────────────────────────────────────────────────────
+-// 鈹€鈹€鈹€ Tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 -
 -#[cfg(test)]
 -#[allow(clippy::field_reassign_with_default)] // setup reads better field-by-field
@@ -6584,16 +6837,16 @@ index 74a83a2..0000000
 -    }
 -}
 diff --git a/crates/codegen/xai-grok-telemetry/src/session_ctx.rs b/crates/codegen/xai-grok-telemetry/src/session_ctx.rs
-index e1659c3..d4475ca 100644
+index e1659c3..87ebdba 100644
 --- a/crates/codegen/xai-grok-telemetry/src/session_ctx.rs
 +++ b/crates/codegen/xai-grok-telemetry/src/session_ctx.rs
 @@ -1,15 +1,14 @@
--//! Ambient session context for telemetry — product events + Mixpanel via
+-//! Ambient session context for telemetry 鈥?product events + Mixpanel via
 -//! [`log_event`]. `session_id` and `turn_number` are injected from the
 -//! task-local [`TelemetryCtx`] active for the duration of a session.
 -//!
 -//! Extracted from `xai-grok-shell::agent::telemetry`.
-+//! Ambient session context for telemetry — Community Edition: all events
++//! Ambient session context for telemetry 鈥?Community Edition: all events
 +//! are written to `~/.grok/logs/events.log` instead of being uploaded.
 +//! `session_id` and `turn_number` are injected from the task-local
 +//! [`TelemetryCtx`] active for the duration of a session.
@@ -6608,7 +6861,7 @@ index e1659c3..d4475ca 100644
  use crate::events::TelemetryEvent;
  
  /// Ambient session context for telemetry. Snapshotted synchronously by
-@@ -130,113 +129,94 @@ impl EmitterOrigin {
+@@ -130,113 +129,123 @@ impl EmitterOrigin {
  /// `client::event_value` can never silently stop stripping an origin's prefix.
  const _: () = assert!(EmitterOrigin::ALL.len() == <EmitterOrigin as strum::EnumCount>::COUNT);
  
@@ -6677,13 +6930,23 @@ index e1659c3..d4475ca 100644
 -    } else {
 -        crate::external::emit(&data);
 -    }
-+/// Product analytics event → local log. Community Edition: always writes locally,
++/// Product analytics event 鈫?local log. Community Edition: always writes locally,
 +/// never uploads.
 +pub fn log_event<T: TelemetryEvent>(data: T) {
-+    let ctx = TELEMETRY_CTX.try_with(|c| {
-+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
-+    }).ok();
++    let ctx = TELEMETRY_CTX
++        .try_with(|c| {
++            (
++                c.session_id.clone(),
++                c.prompt_index.try_lock().map(|g| *g).ok(),
++            )
++        })
++        .ok();
 +    write_event(T::NAME, EmitterOrigin::Shell.event_prefix(), &data, ctx);
++}
++
++/// Dual-path helper: always routes to local log (community edition).
++pub fn log_event_dual<T: TelemetryEvent>(_internal_enabled: bool, data: T) {
++    log_event(data);
  }
  
 -/// Session lifecycle event (type-safe). Fires in both `Enabled` and
@@ -6691,21 +6954,21 @@ index e1659c3..d4475ca 100644
 -/// workspace-side callers use [`log_session_event_with_origin`].
 -/// Unconditionally fans out to the external OTEL stream first (independent
 -/// gate; see [`log_event`]).
-+/// Dual-path helper: always routes to local log (community edition).
-+pub fn log_event_dual<T: TelemetryEvent>(_internal_enabled: bool, data: T) {
-+    log_event(data);
-+}
-+
-+/// Session lifecycle event → local log.
++/// Session lifecycle event 鈫?local log.
  pub fn log_session_event<T: TelemetryEvent>(data: T) {
 -    crate::external::emit(&data);
 -    if !client::is_session_metrics_enabled() {
 -        return;
 -    }
 -    emit_event_with_origin(EmitterOrigin::Shell, T::NAME, data);
-+    let ctx = TELEMETRY_CTX.try_with(|c| {
-+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
-+    }).ok();
++    let ctx = TELEMETRY_CTX
++        .try_with(|c| {
++            (
++                c.session_id.clone(),
++                c.prompt_index.try_lock().map(|g| *g).ok(),
++            )
++        })
++        .ok();
 +    write_event(T::NAME, EmitterOrigin::Shell.event_prefix(), &data, ctx);
  }
  
@@ -6714,37 +6977,51 @@ index e1659c3..d4475ca 100644
 -/// event-name prefix (`grok-shell-*` vs `grok-workspace-*`).
 -///
 -/// Deliberately **no external fan-out** here: workspace-side callers
--/// (`EmitterOrigin::Workspace` — remote sampler / workspace server, a
+-/// (`EmitterOrigin::Workspace` 鈥?remote sampler / workspace server, a
 -/// different process and monitoring audience) invoke this directly, and the
--/// external stream is Shell-origin only. An `external = …` macro arm on a
+-/// external stream is Shell-origin only. An `external = 鈥 macro arm on a
 -/// workspace-only event therefore has no effect (pinned by test in
 -/// `external::tests`). If the external stream ever needs workspace events,
 -/// the hook moves here behind an explicit `origin == Shell` filter.
-+/// Session lifecycle event with origin → local log.
++/// Session lifecycle event with origin 鈫?local log.
  pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, data: T) {
 -    if !client::is_session_metrics_enabled() {
 -        return;
 -    }
 -    emit_event_with_origin(origin, T::NAME, data);
-+    let ctx = TELEMETRY_CTX.try_with(|c| {
-+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
-+    }).ok();
++    let ctx = TELEMETRY_CTX
++        .try_with(|c| {
++            (
++                c.session_id.clone(),
++                c.prompt_index.try_lock().map(|g| *g).ok(),
++            )
++        })
++        .ok();
 +    write_event(T::NAME, origin.event_prefix(), &data, ctx);
  }
  
 -/// Emit an event with the default [`EmitterOrigin::Shell`] prefix.
-+/// Emit an event with Shell prefix → local log.
++/// Emit an event with Shell prefix 鈫?local log.
  pub fn emit_event<T: Serialize + Send + 'static>(event_suffix: impl Into<String>, data: T) {
 -    emit_event_with_origin(EmitterOrigin::Shell, event_suffix, data);
-+    let event_name = format!("{}{}", EmitterOrigin::Shell.event_prefix(), event_suffix.into());
-+    let ctx = TELEMETRY_CTX.try_with(|c| {
-+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
-+    }).ok();
++    let event_name = format!(
++        "{}{}",
++        EmitterOrigin::Shell.event_prefix(),
++        event_suffix.into()
++    );
++    let ctx = TELEMETRY_CTX
++        .try_with(|c| {
++            (
++                c.session_id.clone(),
++                c.prompt_index.try_lock().map(|g| *g).ok(),
++            )
++        })
++        .ok();
 +    write_event(&event_name, EmitterOrigin::Shell.event_prefix(), &data, ctx);
  }
  
 -/// Emit an event whose analytics name is `{origin prefix}{event_suffix}`.
-+/// Emit an event with origin → local log.
++/// Emit an event with origin 鈫?local log.
  pub fn emit_event_with_origin<T: Serialize + Send + 'static>(
      origin: EmitterOrigin,
      event_suffix: impl Into<String>,
@@ -6752,13 +7029,15 @@ index e1659c3..d4475ca 100644
  ) {
      let event_name = format!("{}{}", origin.event_prefix(), event_suffix.into());
 -    let ctx_snapshot = TELEMETRY_CTX
--        .try_with(|c| {
--            (
--                c.session_id.clone(),
++    let ctx = TELEMETRY_CTX
+         .try_with(|c| {
+             (
+                 c.session_id.clone(),
 -                c.prompt_index.try_lock().map(|g| *g as u32).ok(),
--            )
--        })
--        .ok();
++                c.prompt_index.try_lock().map(|g| *g).ok(),
+             )
+         })
+         .ok();
 -
 -    tokio::spawn(async move {
 -        let user_ctx = UserContext::collect();
@@ -6783,182 +7062,970 @@ index e1659c3..d4475ca 100644
 -
 -        client::track(&event_name, &request_id, &user_ctx, metadata).await;
 -    });
-+    let ctx = TELEMETRY_CTX.try_with(|c| {
-+        (c.session_id.clone(), c.prompt_index.try_lock().map(|g| *g as usize).ok())
-+    }).ok();
 +    write_event(&event_name, origin.event_prefix(), &data, ctx);
  }
  
  #[cfg(test)]
-diff --git a/crates/codegen/xai-mixpanel/Cargo.toml b/crates/codegen/xai-mixpanel/Cargo.toml
+diff --git a/crates/codegen/xai-grok-telemetry/tests/external_otlp.rs b/crates/codegen/xai-grok-telemetry/tests/external_otlp.rs
 deleted file mode 100644
-index 059f28b..0000000
---- a/crates/codegen/xai-mixpanel/Cargo.toml
+index 75548c9..0000000
+--- a/crates/codegen/xai-grok-telemetry/tests/external_otlp.rs
 +++ /dev/null
-@@ -1,16 +0,0 @@
--[package]
--license = "Apache-2.0"
--name = "xai-mixpanel"
--version = "0.1.0"
--edition.workspace = true
--description = "Lightweight Mixpanel HTTP tracking client (replaces mixpanel-rs to avoid pulling reqwest 0.11)"
+@@ -1,233 +0,0 @@
+-//! Integration test for the external OTEL stream against an in-process OTLP
+-//! collector: wire payloads, delta temporality, gates-off canary absence at
+-//! the wire layer, flush-on-shutdown 鈮?2 s, and post-shutdown silence.
 -
--[dependencies]
--reqwest = { workspace = true }
--serde_json = { workspace = true }
--base64 = { workspace = true }
--thiserror = { workspace = true }
--xai-grok-secrets = { workspace = true }
+-mod otlp_collector;
 -
--[dev-dependencies]
--serde_json = { workspace = true }
-diff --git a/crates/codegen/xai-mixpanel/src/lib.rs b/crates/codegen/xai-mixpanel/src/lib.rs
-deleted file mode 100644
-index 94a1a83..0000000
---- a/crates/codegen/xai-mixpanel/src/lib.rs
-+++ /dev/null
-@@ -1,141 +0,0 @@
--//! Lightweight Mixpanel HTTP tracking client.
--//!
--//! This is a minimal replacement for `mixpanel-rs` that uses `reqwest 0.12`
--//! instead of `reqwest 0.11`, avoiding a duplicate HTTP stack in the binary.
--//!
--//! Only the `track` API is implemented since that's all we use.
+-use otlp_collector as col;
 -
--use base64::Engine;
--use std::collections::HashMap;
+-const CANARY_MODEL: &str = "sk-CANARYabcdefghij1234567890";
+-const CANARY_PROMPT: &str = "CANARY_PROMPT_TEXT do not export";
+-const CANARY_MCP: &str = "canary-internal-mcp-server";
 -
--/// Mixpanel client for sending track events.
--#[derive(Clone)]
--pub struct Mixpanel {
--    token: String,
--    client: reqwest::Client,
--}
+-#[test]
+-fn external_stream_end_to_end() {
+-    let collected = col::Collected::default();
+-    let endpoint = col::start_collector(collected.clone());
 -
--/// Error type for Mixpanel operations.
--#[derive(Debug, thiserror::Error)]
--pub enum Error {
--    #[error("HTTP request failed: {0}")]
--    Http(#[from] reqwest::Error),
--    #[error("JSON serialization failed: {0}")]
--    Json(#[from] serde_json::Error),
--}
+-    // Resolve through the real config path (double opt-in, gates off).
+-    let mut cfg = xai_grok_telemetry::external::ExternalOtelConfig::resolve_with(
+-        |name| match name {
+-            "GROK_EXTERNAL_OTEL" => Some("1".into()),
+-            "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
+-            "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
+-            // Keep intervals short so the test is fast; flush() forces anyway.
+-            "OTEL_METRIC_EXPORT_INTERVAL" => Some("200".into()),
+-            "OTEL_BLRP_SCHEDULE_DELAY" => Some("100".into()),
+-            _ => None,
+-        },
+-        None,
+-    )
+-    .expect("double opt-in must resolve");
+-    cfg.client = xai_grok_telemetry::external::config::ExternalClientInfo {
+-        service_version: "0.0.0-test".into(),
+-        client_version: "0.0.0-test".into(),
+-        app_entrypoint: "cli".into(),
+-    };
 -
--impl Mixpanel {
--    /// Create a new Mixpanel client with the given project token.
--    pub fn new(token: impl Into<String>) -> Self {
--        Self {
--            token: token.into(),
--            client: reqwest::Client::new(),
+-    xai_grok_telemetry::external::init(Some(cfg));
+-    assert!(xai_grok_telemetry::external::is_active());
+-
+-    // Emit through the same funnel production uses 鈥?with the product events client
+-    // never initialized (TelemetryMode effectively Disabled) and no auth at
+-    // all, pinning the Disabled half of the G7 independence matrix at the
+-    // funnel level: the external sink fires anyway.
+-    assert!(!xai_grok_telemetry::is_enabled());
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::SessionNew {
+-        session_id: "sess-int-1".into(),
+-        client_identifier: None,
+-        client_version: None,
+-        is_git_repo: true,
+-        permission_mode: xai_grok_telemetry::enums::PermissionMode::Ask,
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::SessionHarness {
+-        session_id: "sess-int-1".into(),
+-        client_identifier: Some("grok-pager".into()),
+-        model_id: "grok-4".into(),
+-        agent_name: "grok-build-plan".into(),
+-        permission_mode: xai_grok_telemetry::enums::PermissionMode::Ask,
+-        mcp_server_names: vec![CANARY_MCP.into()],
+-        plugin_names: vec![],
+-        skill_names: vec![],
+-        lsp_server_names: vec![],
+-        hook_names: vec![],
+-        agents_md_dir_names: vec![],
+-        memory_enabled: false,
+-        is_git_repo: true,
+-        auto_update: None,
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::PromptSubmitted {
+-        prompt_length: CANARY_PROMPT.len(),
+-        model_id: "grok-4".into(),
+-        client_identifier: None,
+-        screen_mode: None,
+-        prompt_text: Some(CANARY_PROMPT.into()),
+-    });
+-    // Model-id canary for the metrics body (increment-time scrub).
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::ModelResponseReceived {
+-        model_id: CANARY_MODEL.into(),
+-        duration_ms: 5,
+-        stop_reason: Some("stop".into()),
+-        prompt_tokens: Some(11),
+-        completion_tokens: Some(7),
+-        reasoning_tokens: None,
+-        cached_prompt_tokens: None,
+-    });
+-
+-    xai_grok_telemetry::external::flush();
+-
+-    assert!(
+-        col::wait_until(std::time::Duration::from_secs(10), || {
+-            collected.logs_len() > 0 && collected.metrics_len() > 0
+-        }),
+-        "collector must receive both signals"
+-    );
+-
+-    // 鈹€鈹€ Logs payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    let logs = col::decode_logs(&collected);
+-    let mut event_names: Vec<String> = vec![];
+-    let mut resource_service_name = None;
+-    for req in &logs {
+-        for rl in &req.resource_logs {
+-            if let Some(resource) = &rl.resource {
+-                for kv in &resource.attributes {
+-                    if kv.key == "service.name"
+-                        && let Some(v) = &kv.value
+-                    {
+-                        resource_service_name = Some(format!("{v:?}"));
+-                    }
+-                }
+-            }
+-            for sl in &rl.scope_logs {
+-                assert_eq!(
+-                    sl.scope.as_ref().map(|s| s.name.as_str()),
+-                    Some("ai.xai.grok_code")
+-                );
+-                for record in &sl.log_records {
+-                    event_names.push(record.event_name.clone());
+-                }
+-            }
 -        }
 -    }
--
--    /// Create a new Mixpanel client with a shared reqwest client.
--    pub fn with_client(token: impl Into<String>, client: reqwest::Client) -> Self {
--        Self {
--            token: token.into(),
--            client,
--        }
--    }
--
--    /// Scrub property string values in place, then inject the project
--    /// token. Split out from [`Self::track`] so the scrub-then-inject
--    /// ordering is testable.
--    fn prepare_properties(
--        &self,
--        mut properties: HashMap<String, serde_json::Value>,
--    ) -> HashMap<String, serde_json::Value> {
--        for v in properties.values_mut() {
--            xai_grok_secrets::redact_json_string_values(v);
--        }
--        properties.insert("token".to_owned(), serde_json::json!(self.token));
--        properties
--    }
--
--    /// Track an event. Properties should include `distinct_id`. The
--    /// project `token` is injected after scrubbing, so it isn't redacted.
--    pub async fn track(
--        &self,
--        event: &str,
--        properties: Option<HashMap<String, serde_json::Value>>,
--    ) -> Result<(), Error> {
--        let props = self.prepare_properties(properties.unwrap_or_default());
--
--        let payload = serde_json::json!([{
--            "event": event,
--            "properties": props,
--        }]);
--
--        let json_bytes = serde_json::to_vec(&payload)?;
--        let encoded = base64::engine::general_purpose::STANDARD.encode(&json_bytes);
--
--        self.client
--            .post("https://api.mixpanel.com/track")
--            .form(&[("data", &encoded)])
--            .send()
--            .await?;
--
--        Ok(())
--    }
--
--    /// Create or update a user profile via Mixpanel's Engage API.
--    /// String values in `set` are scrubbed for secrets before sending.
--    /// The project `token` is injected automatically.
--    pub async fn engage(
--        &self,
--        distinct_id: &str,
--        set: HashMap<String, serde_json::Value>,
--    ) -> Result<(), Error> {
--        let mut scrubbed = set;
--        for v in scrubbed.values_mut() {
--            xai_grok_secrets::redact_json_string_values(v);
--        }
--
--        let payload = serde_json::json!([{
--            "$token": self.token,
--            "$distinct_id": distinct_id,
--            "$set": scrubbed,
--        }]);
--
--        let json_bytes = serde_json::to_vec(&payload)?;
--        let encoded = base64::engine::general_purpose::STANDARD.encode(&json_bytes);
--
--        self.client
--            .post("https://api.mixpanel.com/engage")
--            .form(&[("data", &encoded)])
--            .send()
--            .await?;
--
--        Ok(())
--    }
--}
--
--#[cfg(test)]
--mod tests {
--    use super::*;
--
--    /// Project token is deliberately Bearer-shaped: it would be redacted
--    /// if `prepare_properties` ran the scrubber after token injection.
--    /// The `error` value catches the inverse regression: if the scrub
--    /// loop is dropped, the user-supplied Bearer leaks.
--    #[test]
--    fn prepare_properties_scrubs_then_injects_token() {
--        let project_token = "Bearer fake-project-token-abcdef0123456789";
--        let mp = Mixpanel::new(project_token);
--
--        let mut props = HashMap::new();
--        props.insert("error".into(), "Bearer abcdef0123456789abcdef".into());
--
--        let prepared = mp.prepare_properties(props);
--
--        assert_eq!(prepared["token"], project_token, "project token redacted");
--        let error = prepared["error"].as_str().unwrap();
+-    assert!(
+-        resource_service_name
+-            .as_deref()
+-            .is_some_and(|s| s.contains("grok-cli")),
+-        "service.name=grok-cli is a wire commitment: {resource_service_name:?}"
+-    );
+-    for expected in [
+-        "grok_code.session_start",
+-        "grok_code.user_prompt",
+-        "grok_code.api_request",
+-    ] {
 -        assert!(
--            !error.contains("abcdef0123456789abcdef"),
--            "secret leaked: {error}"
+-            event_names.iter().any(|n| n == expected),
+-            "missing {expected} in {event_names:?}"
 -        );
 -    }
+-    // session_start arrives exactly once per emission (no double-send from
+-    // the funnel).
+-    assert_eq!(
+-        event_names
+-            .iter()
+-            .filter(|n| *n == "grok_code.session_start")
+-            .count(),
+-        1
+-    );
+-
+-    // 鈹€鈹€ Metrics payload: names + Delta temporality + session.count == 1 鈹€鈹€
+-    let metrics = col::decode_metrics(&collected);
+-    let mut metric_names = vec![];
+-    let mut session_count_total = 0u64;
+-    for req in &metrics {
+-        for rm in &req.resource_metrics {
+-            for sm in &rm.scope_metrics {
+-                for metric in &sm.metrics {
+-                    metric_names.push(metric.name.clone());
+-                    use opentelemetry_proto::tonic::metrics::v1::metric::Data;
+-                    if let Some(Data::Sum(sum)) = &metric.data {
+-                        assert_eq!(
+-                            sum.aggregation_temporality,
+-                            opentelemetry_proto::tonic::metrics::v1::AggregationTemporality::Delta
+-                                as i32,
+-                            "default temporality must be Delta (CC parity)"
+-                        );
+-                        if metric.name == "grok_code.session.count" {
+-                            for dp in &sum.data_points {
+-                                if let Some(
+-                                    opentelemetry_proto::tonic::metrics::v1::number_data_point::Value::AsInt(v),
+-                                ) = dp.value
+-                                {
+-                                    session_count_total += v as u64;
+-                                }
+-                            }
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-    }
+-    assert!(
+-        metric_names.iter().any(|n| n == "grok_code.session.count"),
+-        "missing session.count in {metric_names:?}"
+-    );
+-    assert!(metric_names.iter().any(|n| n == "grok_code.token.usage"));
+-    assert_eq!(
+-        session_count_total, 1,
+-        "session.count must increment exactly once per SessionNew"
+-    );
+-
+-    // 鈹€鈹€ Canary absence at the HTTP layer (raw bytes, both signals) 鈹€鈹€鈹€鈹€鈹€鈹€
+-    let raw_logs = collected.raw_logs();
+-    let raw_metrics = collected.raw_metrics();
+-    for (label, raw) in [("logs", &raw_logs), ("metrics", &raw_metrics)] {
+-        let haystack = String::from_utf8_lossy(raw);
+-        assert!(
+-            !haystack.contains("CANARY"),
+-            "canary reached the {label} wire: gates are off / scrub failed"
+-        );
+-        assert!(
+-            !haystack.contains(CANARY_MCP),
+-            "MCP server name reached the {label} wire"
+-        );
+-    }
+-    // Prompt length exported, text not (already covered by the canary scan).
+-
+-    // 鈹€鈹€ Shutdown: 鈮?2 s + post-shutdown silence 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    let start = std::time::Instant::now();
+-    xai_grok_telemetry::external::shutdown();
+-    assert!(
+-        start.elapsed() <= std::time::Duration::from_millis(2500),
+-        "shutdown watchdog must bound exit at ~2s (took {:?})",
+-        start.elapsed()
+-    );
+-    assert!(!xai_grok_telemetry::external::is_active());
+-
+-    let logs_before = collected.logs_len();
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::PromptSubmitted {
+-        prompt_length: 1,
+-        model_id: "grok-4".into(),
+-        client_identifier: None,
+-        screen_mode: None,
+-        prompt_text: None,
+-    });
+-    std::thread::sleep(std::time::Duration::from_millis(400));
+-    assert_eq!(
+-        collected.logs_len(),
+-        logs_before,
+-        "no exports after shutdown"
+-    );
+-
+-    // Idempotent shutdown: second call is a no-op, not an error/panic.
+-    xai_grok_telemetry::external::shutdown();
 -}
--- 
-2.53.0.windows.2
-
+diff --git a/crates/codegen/xai-grok-telemetry/tests/external_otlp_gates_on.rs b/crates/codegen/xai-grok-telemetry/tests/external_otlp_gates_on.rs
+deleted file mode 100644
+index e2d83e2..0000000
+--- a/crates/codegen/xai-grok-telemetry/tests/external_otlp_gates_on.rs
++++ /dev/null
+@@ -1,285 +0,0 @@
+-//! Wire test for the external OTEL stream with **both content gates ON** 鈥?the
+-//! higher-risk privacy path, where prompt text and tool parameters actually
+-//! leave the process. Asserts against an in-process OTLP collector that:
+-//!
+-//! - gated content (`prompt`, `tool_parameters`, `file_path`, verbatim
+-//!   `tool_name`/`mcp_server.name`) IS present when the gate is on,
+-//! - planted secret shapes are STILL scrubbed inside that gated content
+-//!   (gates loosen *which fields* export, never the secret scrub),
+-//! - identity attributes ride every record and metric once set,
+-//! - `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative` and
+-//!   `OTEL_METRICS_INCLUDE_VERSION=1` take effect on the wire,
+-//! - the remote fleet kill switch stops emission in-process.
+-//!
+-//! Single sequential `#[test]` because the `EXTERNAL` registry is a
+-//! process-global `OnceLock`, so each init-config scenario is its own test
+-//! binary.
+-
+-mod otlp_collector;
+-
+-use otlp_collector as col;
+-use xai_grok_telemetry::external::{self, ExternalOtelRemotePolicy, IdentityAttrs};
+-
+-// Secret shapes 鈥?MUST be scrubbed everywhere, even inside gated content.
+-const SECRET_KEY: &str = "sk-LEAKaaaaaaaaaaaaaaaa1234567890";
+-const SECRET_MODEL: &str = "grok-4-sk-LEAKmodel1234567890abcd";
+-// Benign markers 鈥?with the gate ON these MUST appear on the wire (proving the
+-// gated field is actually exported, not just that the scrub ran).
+-const PROMPT_MARK: &str = "promptbodymarker";
+-const PARAM_MARK: &str = "parammarker";
+-const CLIENT_VERSION: &str = "9.9.9-cv";
+-
+-#[test]
+-fn external_stream_gates_on_end_to_end() {
+-    let collected = col::Collected::default();
+-    let endpoint = col::start_collector(collected.clone());
+-
+-    let mut cfg = external::ExternalOtelConfig::resolve_with(
+-        |name| match name {
+-            "GROK_EXTERNAL_OTEL" => Some("1".into()),
+-            "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
+-            "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
+-            // Both content gates ON.
+-            "OTEL_LOG_USER_PROMPTS" | "OTEL_LOG_TOOL_DETAILS" => Some("1".into()),
+-            "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE" => Some("cumulative".into()),
+-            "OTEL_METRICS_INCLUDE_VERSION" => Some("1".into()),
+-            "OTEL_METRIC_EXPORT_INTERVAL" => Some("200".into()),
+-            "OTEL_BLRP_SCHEDULE_DELAY" => Some("100".into()),
+-            _ => None,
+-        },
+-        None,
+-    )
+-    .expect("double opt-in must resolve");
+-    assert!(cfg.gates.log_user_prompts && cfg.gates.log_tool_details);
+-    cfg.client = external::config::ExternalClientInfo {
+-        service_version: "0.0.0-test".into(),
+-        client_version: CLIENT_VERSION.into(),
+-        app_entrypoint: "cli".into(),
+-    };
+-
+-    external::init(Some(cfg));
+-    assert!(external::is_active(), "gates-on config must activate");
+-
+-    // Identity attrs (plain ids 鈥?never tokens) ride every record + metric.
+-    external::set_identity(IdentityAttrs {
+-        user_id: Some("user-x".into()),
+-        organization_id: Some("org-acme".into()),
+-        team_id: Some("team-7".into()),
+-        deployment_id: Some("deploy-eu".into()),
+-    });
+-
+-    // Product events disabled 鈥?pins the "external active while product telemetry off"
+-    // half of the independence matrix through the real funnel.
+-    assert!(!xai_grok_telemetry::is_enabled());
+-
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::SessionHarness {
+-        session_id: "sess-gates-on".into(),
+-        client_identifier: Some("grok-pager".into()),
+-        model_id: "grok-4".into(),
+-        agent_name: "grok-build-plan".into(),
+-        permission_mode: xai_grok_telemetry::enums::PermissionMode::Ask,
+-        mcp_server_names: vec!["internal-mcp".into()],
+-        plugin_names: vec![],
+-        skill_names: vec![],
+-        lsp_server_names: vec![],
+-        hook_names: vec![],
+-        agents_md_dir_names: vec![],
+-        memory_enabled: false,
+-        is_git_repo: true,
+-        auto_update: None,
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::PromptSubmitted {
+-        prompt_length: 100,
+-        model_id: "grok-4".into(),
+-        client_identifier: None,
+-        screen_mode: None,
+-        prompt_text: Some(format!("refactor {PROMPT_MARK} with key {SECRET_KEY} now")),
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::ModelResponseReceived {
+-        model_id: SECRET_MODEL.into(),
+-        duration_ms: 5,
+-        stop_reason: Some("stop".into()),
+-        prompt_tokens: Some(11),
+-        completion_tokens: Some(7),
+-        reasoning_tokens: Some(3),
+-        cached_prompt_tokens: Some(9),
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::ToolCallCompleted {
+-        tool_name: "github__create_issue".into(),
+-        outcome: xai_file_utils::events::types::ToolOutcome::Success,
+-        duration_ms: 12,
+-        file_path: Some("/tmp/projectdir/config.toml".into()),
+-        parameters: Some(serde_json::json!({
+-            "marker": PARAM_MARK,
+-            "token": SECRET_KEY,
+-            "deep": {"a": {"b": "c"}},
+-        })),
+-    });
+-
+-    external::flush();
+-    assert!(
+-        col::wait_until(std::time::Duration::from_secs(10), || {
+-            !collected.logs.lock().unwrap().is_empty()
+-                && !collected.metrics.lock().unwrap().is_empty()
+-        }),
+-        "collector must receive both signals"
+-    );
+-
+-    // 鈹€鈹€ Resource + scope 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    let records = col::log_records(&collected);
+-    let harness = col::find_event(&collected, "grok_code.session_start")
+-        .expect("session_start must be present");
+-    assert_eq!(harness.scope_name, "ai.xai.grok_code");
+-    assert_eq!(
+-        harness
+-            .resource
+-            .get("service.name")
+-            .and_then(|v| v.as_str()),
+-        Some("grok-cli"),
+-        "service.name=grok-cli is a wire commitment"
+-    );
+-    assert_eq!(
+-        harness
+-            .resource
+-            .get("grok_code.schema.version")
+-            .and_then(|v| v.as_str()),
+-        Some("v1")
+-    );
+-    // External records carry no free-text body.
+-    assert!(
+-        records.iter().all(|r| !r.has_body),
+-        "no record may carry a body"
+-    );
+-
+-    // 鈹€鈹€ Identity attrs on a record 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    assert_eq!(
+-        harness.attrs.get("user.id").and_then(|v| v.as_str()),
+-        Some("user-x")
+-    );
+-    assert_eq!(
+-        harness
+-            .attrs
+-            .get("organization.id")
+-            .and_then(|v| v.as_str()),
+-        Some("org-acme")
+-    );
+-    assert_eq!(
+-        harness.attrs.get("team.id").and_then(|v| v.as_str()),
+-        Some("team-7")
+-    );
+-    assert_eq!(
+-        harness.attrs.get("deployment.id").and_then(|v| v.as_str()),
+-        Some("deploy-eu")
+-    );
+-
+-    // 鈹€鈹€ Prompt gate ON: text present, secret still scrubbed 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    let prompt = col::find_event(&collected, "grok_code.user_prompt").expect("user_prompt present");
+-    let prompt_text = prompt
+-        .attrs
+-        .get("prompt")
+-        .and_then(|v| v.as_str())
+-        .expect("prompt attr present when OTEL_LOG_USER_PROMPTS=1");
+-    assert!(
+-        prompt_text.contains(PROMPT_MARK),
+-        "gated prompt body must export: {prompt_text:?}"
+-    );
+-    assert!(
+-        !prompt_text.contains(SECRET_KEY),
+-        "secret survived in prompt: {prompt_text:?}"
+-    );
+-
+-    // 鈹€鈹€ Tool details gate ON: verbatim name + gated path/params, scrubbed 鈹€
+-    let tool = col::find_event(&collected, "grok_code.tool_result").expect("tool_result present");
+-    assert_eq!(
+-        tool.attrs.get("tool_name").and_then(|v| v.as_str()),
+-        Some("github__create_issue"),
+-        "details gate exposes the verbatim tool name"
+-    );
+-    assert_eq!(
+-        tool.attrs.get("file_extension").and_then(|v| v.as_str()),
+-        Some("toml"),
+-        "file_extension always exported"
+-    );
+-    assert!(
+-        tool.attrs.contains_key("file_path"),
+-        "full path exported under details gate"
+-    );
+-    let params = tool
+-        .attrs
+-        .get("tool_parameters")
+-        .and_then(|v| v.as_str())
+-        .expect("tool_parameters present under details gate");
+-    assert!(
+-        params.contains(PARAM_MARK),
+-        "gated params must export: {params:?}"
+-    );
+-    assert!(
+-        !params.contains(SECRET_KEY),
+-        "secret survived in params: {params:?}"
+-    );
+-
+-    // 鈹€鈹€ Metrics: cumulative temporality + app.version + scrubbed model 鈹€鈹€
+-    let tokens = col::find_metric(&collected, "grok_code.token.usage");
+-    assert!(!tokens.is_empty(), "token.usage must export");
+-    for p in &tokens {
+-        assert_eq!(
+-            p.temporality,
+-            col::TEMPORALITY_CUMULATIVE,
+-            "cumulative requested"
+-        );
+-        assert_eq!(
+-            p.attrs.get("app.version").and_then(|v| v.as_str()),
+-            Some(CLIENT_VERSION),
+-            "OTEL_METRICS_INCLUDE_VERSION=1 attaches app.version"
+-        );
+-        assert_eq!(
+-            p.attrs.get("user.id").and_then(|v| v.as_str()),
+-            Some("user-x")
+-        );
+-        let model = p.attrs.get("model").and_then(|v| v.as_str()).unwrap_or("");
+-        assert!(
+-            !model.contains("sk-LEAKmodel"),
+-            "metric model must be scrubbed: {model:?}"
+-        );
+-    }
+-    let sessions = col::find_metric(&collected, "grok_code.session.count");
+-    // SessionHarness has no session.count metric; that comes from SessionNew 鈥?-    // not emitted here, so just confirm token.usage identity coverage above.
+-    let _ = sessions;
+-
+-    // 鈹€鈹€ Canary scan at the raw HTTP layer (both signals) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    let raw = collected.raw_text();
+-    assert!(!raw.contains(SECRET_KEY), "secret key reached the wire");
+-    assert!(
+-        !raw.contains("sk-LEAKmodel"),
+-        "secret model shape reached the wire"
+-    );
+-
+-    // 鈹€鈹€ Remote fleet kill switch stops emission in-process 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    external::flush();
+-    col::wait_until(std::time::Duration::from_millis(500), || false);
+-    let logs_before = collected.logs_len();
+-    external::apply_remote_policy(ExternalOtelRemotePolicy {
+-        force_disable: true,
+-        lock_content_gates: false,
+-    });
+-    assert!(
+-        !external::is_active(),
+-        "kill switch must clear the emission gate"
+-    );
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::PromptSubmitted {
+-        prompt_length: 1,
+-        model_id: "grok-4".into(),
+-        client_identifier: None,
+-        screen_mode: None,
+-        prompt_text: Some("post-kill".into()),
+-    });
+-    std::thread::sleep(std::time::Duration::from_millis(400));
+-    assert_eq!(
+-        collected.logs_len(),
+-        logs_before,
+-        "no exports after the remote kill switch"
+-    );
+-
+-    external::shutdown();
+-}
+diff --git a/crates/codegen/xai-grok-telemetry/tests/external_otlp_grpc.rs b/crates/codegen/xai-grok-telemetry/tests/external_otlp_grpc.rs
+deleted file mode 100644
+index a5ddd7d..0000000
+--- a/crates/codegen/xai-grok-telemetry/tests/external_otlp_grpc.rs
++++ /dev/null
+@@ -1,127 +0,0 @@
+-//! gRPC transport coverage for the external OTEL stream. This mirrors the
+-//! primary HTTP/protobuf wire test in `external_otlp.rs`, but must live in its
+-//! own integration-test binary because the external telemetry registry is a
+-//! process-global `OnceLock`.
+-
+-mod otlp_collector;
+-
+-use otlp_collector as col;
+-
+-const CANARY_MODEL: &str = "sk-CANARYgrpcabcdefghij1234567890";
+-const CANARY_PROMPT: &str = "CANARY_GRPC_PROMPT_TEXT do not export";
+-const CANARY_MCP: &str = "canary-grpc-internal-mcp-server";
+-
+-#[test]
+-fn external_stream_grpc_end_to_end() {
+-    let collected = col::Collected::default();
+-    let endpoint =
+-        col::start_collector_with_protocol(collected.clone(), col::CollectorProtocol::Grpc);
+-
+-    let mut cfg = xai_grok_telemetry::external::ExternalOtelConfig::resolve_with(
+-        |name| match name {
+-            "GROK_EXTERNAL_OTEL" => Some("1".into()),
+-            "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
+-            "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
+-            "OTEL_EXPORTER_OTLP_PROTOCOL" => Some("grpc".into()),
+-            "OTEL_METRIC_EXPORT_INTERVAL" => Some("200".into()),
+-            "OTEL_BLRP_SCHEDULE_DELAY" => Some("100".into()),
+-            _ => None,
+-        },
+-        None,
+-    )
+-    .expect("double opt-in must resolve");
+-    cfg.client = xai_grok_telemetry::external::config::ExternalClientInfo {
+-        service_version: "0.0.0-test".into(),
+-        client_version: "0.0.0-test".into(),
+-        app_entrypoint: "cli".into(),
+-    };
+-
+-    xai_grok_telemetry::external::init(Some(cfg));
+-    assert!(xai_grok_telemetry::external::is_active());
+-
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::SessionNew {
+-        session_id: "sess-grpc-1".into(),
+-        client_identifier: None,
+-        client_version: None,
+-        is_git_repo: true,
+-        permission_mode: xai_grok_telemetry::enums::PermissionMode::Ask,
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::SessionHarness {
+-        session_id: "sess-grpc-1".into(),
+-        client_identifier: Some("grok-pager".into()),
+-        model_id: "grok-4".into(),
+-        agent_name: "grok-build-plan".into(),
+-        permission_mode: xai_grok_telemetry::enums::PermissionMode::Ask,
+-        mcp_server_names: vec![CANARY_MCP.into()],
+-        plugin_names: vec![],
+-        skill_names: vec![],
+-        lsp_server_names: vec![],
+-        hook_names: vec![],
+-        agents_md_dir_names: vec![],
+-        memory_enabled: false,
+-        is_git_repo: true,
+-        auto_update: None,
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::PromptSubmitted {
+-        prompt_length: CANARY_PROMPT.len(),
+-        model_id: "grok-4".into(),
+-        client_identifier: None,
+-        screen_mode: None,
+-        prompt_text: Some(CANARY_PROMPT.into()),
+-    });
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::ModelResponseReceived {
+-        model_id: CANARY_MODEL.into(),
+-        duration_ms: 5,
+-        stop_reason: Some("stop".into()),
+-        prompt_tokens: Some(11),
+-        completion_tokens: Some(7),
+-        reasoning_tokens: None,
+-        cached_prompt_tokens: None,
+-    });
+-
+-    xai_grok_telemetry::external::flush();
+-    assert!(
+-        col::wait_until(std::time::Duration::from_secs(10), || {
+-            collected.logs_len() > 0 && collected.metrics_len() > 0
+-        }),
+-        "gRPC collector must receive both signals"
+-    );
+-
+-    let event_names = col::event_names(&collected);
+-    for expected in [
+-        "grok_code.session_start",
+-        "grok_code.user_prompt",
+-        "grok_code.api_request",
+-    ] {
+-        assert!(
+-            event_names.iter().any(|n| n == expected),
+-            "missing {expected} in {event_names:?}"
+-        );
+-    }
+-
+-    let metrics = col::metric_points(&collected);
+-    assert!(
+-        metrics.iter().any(|p| p.name == "grok_code.session.count"),
+-        "missing session.count in {metrics:?}"
+-    );
+-    assert!(
+-        metrics.iter().any(|p| p.name == "grok_code.token.usage"),
+-        "missing token.usage in {metrics:?}"
+-    );
+-    for point in metrics {
+-        assert_eq!(
+-            point.temporality,
+-            col::TEMPORALITY_DELTA,
+-            "default temporality must be Delta over gRPC"
+-        );
+-    }
+-
+-    let raw = collected.raw_text();
+-    assert!(!raw.contains("CANARY"), "canary reached the gRPC wire");
+-    assert!(
+-        !raw.contains(CANARY_MCP),
+-        "MCP server name reached the gRPC wire"
+-    );
+-
+-    xai_grok_telemetry::external::shutdown();
+-}
+diff --git a/crates/codegen/xai-grok-telemetry/tests/external_otlp_guard.rs b/crates/codegen/xai-grok-telemetry/tests/external_otlp_guard.rs
+deleted file mode 100644
+index fbb522f..0000000
+--- a/crates/codegen/xai-grok-telemetry/tests/external_otlp_guard.rs
++++ /dev/null
+@@ -1,72 +0,0 @@
+-//! Wire test for the **no-double-send invariant** (the credential-leak guard).
+-//!
+-//! If the internal trace firehose resolved its endpoint/headers from the
+-//! deprecated `OTEL_EXPORTER_OTLP_*` fallback, the shell sets
+-//! `internal_pipeline_consumed_otel_vars = true`, and `external::init` MUST
+-//! refuse to activate 鈥?otherwise the same standard vars could point both the
+-//! internally-authed firehose and the customer collector at one endpoint,
+-//! leaking xAI credentials. Here we prove the refusal end-to-end: even with a
+-//! fully valid double opt-in pointed at a live collector, nothing is exported.
+-
+-mod otlp_collector;
+-
+-use otlp_collector as col;
+-use xai_grok_telemetry::external;
+-
+-#[test]
+-fn refuses_to_activate_when_internal_consumed_standard_vars() {
+-    let collected = col::Collected::default();
+-    let endpoint = col::start_collector(collected.clone());
+-
+-    let mut cfg = external::ExternalOtelConfig::resolve_with(
+-        |name| match name {
+-            "GROK_EXTERNAL_OTEL" => Some("1".into()),
+-            "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
+-            "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
+-            "OTEL_METRIC_EXPORT_INTERVAL" => Some("100".into()),
+-            "OTEL_BLRP_SCHEDULE_DELAY" => Some("100".into()),
+-            _ => None,
+-        },
+-        None,
+-    )
+-    .expect("config resolves (the refusal happens at init, not resolution)");
+-    cfg.client = external::config::ExternalClientInfo {
+-        service_version: "0.0.0-test".into(),
+-        client_version: "0.0.0-test".into(),
+-        app_entrypoint: "cli".into(),
+-    };
+-    // The flag the shell sets when the internal firehose consumed the standard
+-    // OTEL_* vars via the deprecated fallback.
+-    cfg.internal_pipeline_consumed_otel_vars = true;
+-
+-    external::init(Some(cfg));
+-    assert!(
+-        !external::is_active(),
+-        "external stream MUST refuse to activate to prevent credential leakage"
+-    );
+-
+-    // Emit through the real funnel; with the stream inert this must be a no-op.
+-    xai_grok_telemetry::log_event(xai_grok_telemetry::events::SessionNew {
+-        session_id: "sess-guard".into(),
+-        client_identifier: None,
+-        client_version: None,
+-        is_git_repo: true,
+-        permission_mode: xai_grok_telemetry::enums::PermissionMode::Ask,
+-    });
+-    external::flush();
+-
+-    // Give any (erroneously constructed) exporter ample time to phone home.
+-    std::thread::sleep(std::time::Duration::from_millis(600));
+-    assert_eq!(
+-        collected.logs_len(),
+-        0,
+-        "no logs may be exported when refused"
+-    );
+-    assert_eq!(
+-        collected.metrics_len(),
+-        0,
+-        "no metrics may be exported when refused"
+-    );
+-
+-    external::shutdown();
+-}
+diff --git a/crates/codegen/xai-grok-telemetry/tests/external_otlp_session_ctx.rs b/crates/codegen/xai-grok-telemetry/tests/external_otlp_session_ctx.rs
+deleted file mode 100644
+index e6ec159..0000000
+--- a/crates/codegen/xai-grok-telemetry/tests/external_otlp_session_ctx.rs
++++ /dev/null
+@@ -1,122 +0,0 @@
+-//! Wire test for ambient-context injection: when events are emitted inside a
+-//! `with_session_ctx` scope, the external records must carry `session.id`,
+-//! `turn_number`, `prompt.id`, and a monotonic `event.sequence` 鈥?and
+-//! `prompt.id` must appear on events ONLY, never on metrics (unbounded
+-//! cardinality). Complements the other wire tests, which emit outside any ctx.
+-
+-mod otlp_collector;
+-
+-use std::sync::Arc;
+-
+-use otlp_collector as col;
+-use xai_grok_telemetry::external;
+-
+-#[test]
+-fn ambient_ctx_injects_session_turn_and_prompt_id() {
+-    let collected = col::Collected::default();
+-    let endpoint = col::start_collector(collected.clone());
+-
+-    let mut cfg = external::ExternalOtelConfig::resolve_with(
+-        |name| match name {
+-            "GROK_EXTERNAL_OTEL" => Some("1".into()),
+-            "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
+-            "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
+-            "OTEL_METRIC_EXPORT_INTERVAL" => Some("150".into()),
+-            "OTEL_BLRP_SCHEDULE_DELAY" => Some("100".into()),
+-            _ => None,
+-        },
+-        None,
+-    )
+-    .expect("double opt-in must resolve");
+-    cfg.client = external::config::ExternalClientInfo {
+-        service_version: "0.0.0-test".into(),
+-        client_version: "0.0.0-test".into(),
+-        app_entrypoint: "cli".into(),
+-    };
+-    external::init(Some(cfg));
+-    assert!(external::is_active());
+-
+-    // Emit inside a session ctx (turn_number = 3) so the ambient snapshot is
+-    // populated. `log_event` is synchronous and runs within the task-local
+-    // scope of `with_session_ctx`.
+-    let ctx = xai_grok_telemetry::TelemetryCtx::new(
+-        "sess-ctx".to_owned(),
+-        Arc::new(tokio::sync::Mutex::new(3usize)),
+-    );
+-    let rt = tokio::runtime::Builder::new_current_thread()
+-        .build()
+-        .expect("current-thread runtime");
+-    rt.block_on(xai_grok_telemetry::with_session_ctx(ctx, async {
+-        xai_grok_telemetry::session_ctx::begin_prompt_id();
+-        xai_grok_telemetry::log_event(xai_grok_telemetry::events::PromptSubmitted {
+-            prompt_length: 42,
+-            model_id: "grok-4".into(),
+-            client_identifier: None,
+-            screen_mode: None,
+-            prompt_text: None,
+-        });
+-        xai_grok_telemetry::log_event(xai_grok_telemetry::events::ModelResponseReceived {
+-            model_id: "grok-4".into(),
+-            duration_ms: 5,
+-            stop_reason: Some("stop".into()),
+-            prompt_tokens: Some(11),
+-            completion_tokens: None,
+-            reasoning_tokens: None,
+-            cached_prompt_tokens: None,
+-        });
+-    }));
+-
+-    external::flush();
+-    assert!(
+-        col::wait_until(std::time::Duration::from_secs(10), || {
+-            !collected.logs.lock().unwrap().is_empty()
+-                && !collected.metrics.lock().unwrap().is_empty()
+-        }),
+-        "collector must receive both signals"
+-    );
+-
+-    // 鈹€鈹€ Event carries session.id, turn_number, prompt.id, event.sequence 鈹€鈹€
+-    let prompt = col::find_event(&collected, "grok_code.user_prompt").expect("user_prompt present");
+-    assert_eq!(
+-        prompt.attrs.get("session.id").and_then(|v| v.as_str()),
+-        Some("sess-ctx"),
+-        "ambient session.id injected onto events"
+-    );
+-    assert_eq!(
+-        prompt.attrs.get("turn_number").and_then(|v| v.as_i64()),
+-        Some(3),
+-        "ambient turn_number injected onto events"
+-    );
+-    let prompt_id = prompt
+-        .attrs
+-        .get("prompt.id")
+-        .and_then(|v| v.as_str())
+-        .expect("prompt.id injected onto events");
+-    assert!(!prompt_id.is_empty(), "prompt.id must be a real uuid");
+-    assert!(
+-        prompt.attrs.contains_key("event.sequence"),
+-        "event.sequence injected onto every event"
+-    );
+-
+-    // 鈹€鈹€ prompt.id / turn_number NEVER on metrics 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-    let tokens = col::find_metric(&collected, "grok_code.token.usage");
+-    assert!(!tokens.is_empty(), "token.usage must export");
+-    for p in &tokens {
+-        assert!(
+-            !p.attrs.contains_key("prompt.id"),
+-            "prompt.id must never reach metrics"
+-        );
+-        assert!(
+-            !p.attrs.contains_key("turn_number"),
+-            "turn_number must never reach metrics"
+-        );
+-        // session.id DOES flow to metrics from the ambient ctx (cardinality
+-        // opt-in, default on).
+-        assert_eq!(
+-            p.attrs.get("session.id").and_then(|v| v.as_str()),
+-            Some("sess-ctx")
+-        );
+-    }
+-
+-    external::shutdown();
+-}
+diff --git a/crates/codegen/xai-grok-telemetry/tests/manual_auth_emit.rs b/crates/codegen/xai-grok-telemetry/tests/manual_auth_emit.rs
+deleted file mode 100644
+index afec720..0000000
+--- a/crates/codegen/xai-grok-telemetry/tests/manual_auth_emit.rs
++++ /dev/null
+@@ -1,89 +0,0 @@
+-//! Wire test: `log_event(ManualAuth)` must POST to the product events endpoint as
+-//! `grok-shell-manual_auth` with the `reason`/`trigger`/`token_kind`/`principal`
+-//! the `distinct(principal)` alert consumes. Mocks the observability backend
+-//! (real HTTP collector) so the emit->wire path is checked, not just the struct.
+-
+-use std::sync::{Arc, Mutex};
+-use std::time::{Duration, Instant};
+-
+-use xai_grok_telemetry::client;
+-use xai_grok_telemetry::config::{TelemetryConfig, TelemetryMode};
+-use xai_grok_telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
+-
+-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-async fn manual_auth_posts_to_events_endpoint_as_grok_shell_manual_auth() {
+-    let bodies: Arc<Mutex<Vec<serde_json::Value>>> = Arc::new(Mutex::new(Vec::new()));
+-    let captured = bodies.clone();
+-    let app = axum::Router::new().route(
+-        "/events",
+-        axum::routing::post(move |axum::Json(v): axum::Json<serde_json::Value>| {
+-            let captured = captured.clone();
+-            async move {
+-                captured.lock().unwrap().push(v);
+-                axum::http::StatusCode::OK
+-            }
+-        }),
+-    );
+-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+-    let url = format!("http://{}/events", listener.local_addr().unwrap());
+-    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+-
+-    client::init(
+-        TelemetryConfig {
+-            events_url: Some(url),
+-            events_api_key: Some("test-key".into()),
+-            mixpanel_enabled: false,
+-            ..TelemetryConfig::default()
+-        },
+-        TelemetryMode::Enabled,
+-        Some("user-xyz".into()),
+-        None,
+-        None,
+-        None,
+-        "0.0.0-test".into(),
+-        None,
+-        reqwest::Client::new(),
+-    );
+-
+-    xai_grok_telemetry::log_event(ManualAuth {
+-        reason: ManualAuthReason::RefreshTokenRejected,
+-        trigger: ManualAuthSurface::Turn,
+-        token_kind: AuthTokenKind::OidcSession,
+-        principal: Some("user-xyz".into()),
+-    });
+-
+-    // The emit is fire-and-forget; poll the collector for the POST.
+-    let deadline = Instant::now() + Duration::from_secs(5);
+-    let event = loop {
+-        let found = bodies.lock().unwrap().iter().find_map(|b| {
+-            let e = b.get("events")?.get(0)?;
+-            (e.get("event_name")?.as_str()? == "grok-shell-manual_auth").then(|| e.clone())
+-        });
+-        if let Some(e) = found {
+-            break e;
+-        }
+-        assert!(
+-            Instant::now() < deadline,
+-            "no grok-shell-manual_auth POST received"
+-        );
+-        tokio::time::sleep(Duration::from_millis(25)).await;
+-    };
+-
+-    let meta = event.get("event_metadata").expect("event_metadata present");
+-    assert_eq!(
+-        meta.get("reason").and_then(|v| v.as_str()),
+-        Some("refresh_token_rejected"),
+-    );
+-    assert_eq!(meta.get("trigger").and_then(|v| v.as_str()), Some("turn"));
+-    assert_eq!(
+-        meta.get("token_kind").and_then(|v| v.as_str()),
+-        Some("oidc_session"),
+-    );
+-    assert_eq!(
+-        meta.get("principal").and_then(|v| v.as_str()),
+-        Some("user-xyz"),
+-        "principal must be a queryable top-level metadata field for distinct() counting",
+-    );
+-
+-    server.abort();
+-}

@@ -1,26 +1,9 @@
-From eff9f90921ea9434fea83eb638fa0c6db685a83e Mon Sep 17 00:00:00 2001
-From: Cashmeran <15231987590@163.com>
-Date: Fri, 17 Jul 2026 13:35:27 +0800
-Subject: [PATCH 03/18] =?UTF-8?q?=E6=B7=BB=E5=8A=A0=E7=A4=BE=E5=8C=BA?=
- =?UTF-8?q?=E7=89=88=E8=AF=B4=E6=98=8E=E6=96=87=E6=A1=A3=EF=BC=88=E4=B8=AD?=
- =?UTF-8?q?=E8=8B=B1=E5=8F=8C=E7=89=88=EF=BC=89?=
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
----
- COMMUNITY.md    | 72 +++++++++++++++++++++++++++++++++++++++++++++++++
- COMMUNITY_CN.md | 72 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 144 insertions(+)
- create mode 100644 COMMUNITY.md
- create mode 100644 COMMUNITY_CN.md
-
 diff --git a/COMMUNITY.md b/COMMUNITY.md
 new file mode 100644
-index 0000000..01b9494
+index 0000000..2781ab3
 --- /dev/null
 +++ b/COMMUNITY.md
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,81 @@
 +# Grok Build Community Edition
 +
 +An independent, community-maintained fork of [SpaceXAI Grok Build](https://github.com/xai-org/grok-build).
@@ -67,13 +50,22 @@ index 0000000..01b9494
 +
 +Backend is **auto-selected** based on the model's `api_backend` — no manual config needed.
 +
-+### Planned
++#### New Tools
 +
-+- [ ] Windows build fixes
-+- [ ] Chinese system prompt support
-+- [ ] xAI branding removal
-+- [ ] Glob file matching tool
-+- [ ] Desktop GUI (Caelum Tauri shell)
++| Tool | Description |
++|------|-------------|
++| `glob` | File pattern matching (`*`, `**`, `?`), sorted by modification time |
++| `calculator` | Math expressions, statistics (mean/median/stdev), multi-step variables |
++| `json_query` | JSON path navigation, filtering, aggregation (sum/avg/min/max) |
++| `csv_ops` | CSV/TSV schema inference, filtering, sorting, grouped aggregation |
++| `text` | Regex extract/replace/count with linear-time matching |
++| `codec` | Base64/hex/URL encode/decode, sha256/sha512/md5/crc32/blake3 |
++
++#### Prompt Optimizations
++
++The system prompt has been improved with additional guidance for communication style, accuracy, and execution discipline — reducing AI clichés and hallucinations.
++
++### Planned
 +
 +## Build
 +
@@ -95,10 +87,10 @@ index 0000000..01b9494
 +Not affiliated with SpaceXAI / xAI. No warranty provided. Model inference still requires your own API keys.
 diff --git a/COMMUNITY_CN.md b/COMMUNITY_CN.md
 new file mode 100644
-index 0000000..ee4e609
+index 0000000..8fc4a34
 --- /dev/null
 +++ b/COMMUNITY_CN.md
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,81 @@
 +# Grok Build 社区版
 +
 +Grok Build 社区版是基于 [SpaceXAI Grok Build](https://github.com/xai-org/grok-build) 的独立社区维护分支。
@@ -145,13 +137,22 @@ index 0000000..ee4e609
 +
 +搜索后端根据模型的 `api_backend` 配置**自动选择**，无需手动设置。
 +
-+### 计划中的改动
++#### 新增工具
 +
-+- [ ] Windows 编译修复
-+- [ ] 系统提示词汉化
-+- [ ] 去 xAI 品牌化
-+- [ ] Glob 文件匹配工具
-+- [ ] 桌面 GUI（基于 Caelum Tauri 壳）
++| 工具 | 说明 |
++|------|------|
++| `glob` | 文件模式匹配（`*` `**` `?`），按修改时间排序 |
++| `calculator` | 数学表达式求值，统计函数（mean/median/stdev），多步变量 |
++| `json_query` | JSON 路径导航、过滤、聚合（sum/avg/min/max） |
++| `csv_ops` | CSV/TSV 结构推断、过滤、排序、分组聚合 |
++| `text` | 正则提取/替换/统计，线性时间匹配 |
++| `codec` | Base64/hex/URL 编解码，sha256/sha512/md5/crc32/blake3 |
++
++#### 提示词优化
++
++系统提示词新增了沟通风格、准确性、执行纪律等指导——减少AI腔调和幻觉。
++
++### 计划中的改动
 +
 +## 构建
 +
@@ -171,6 +172,198 @@ index 0000000..ee4e609
 +## 免责声明
 +
 +本项目与 SpaceXAI / xAI 无任何关联，不提供任何担保。模型推理仍需要使用你自己的 API 密钥。
--- 
-2.53.0.windows.2
-
+diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md
+new file mode 100644
+index 0000000..0e484cc
+--- /dev/null
++++ b/docs/CHANGELOG.md
+@@ -0,0 +1,24 @@
++# Changelog
++
++## 0.2.105-ce.1 (2026-07-19)
++
++### Upstream sync
++- Merged upstream v0.2.105: Grok 4.5 model support, event loop rewrite, MCP OAuth improvements, `/btw` command, line editor, dashboard refactor (364 files, +30K/-16K lines)
++
++### CE infrastructure
++- Established patch-based maintenance system (17 independent patches + `build.bat`)
++- CE tool source moved to `ce-tools/` directory (safe from upstream overwrites)
++- Versioning scheme: upstream version + `-ce.N` patch number
++- Documentation reorganized: README → CHANGELOG + MAINTENANCE + patches/README
++
++---
++
++## Previous (v0.1.0 - v0.3.0)
++
++Early CE releases with independent versioning. Key milestones:
++- Telemetry removal (Mixpanel, Sentry, Google Cloud)
++- Multi-backend web search (Messages API, Chat Completions, DuckDuckGo, Bing)
++- 6 new tools: glob, calculator, json_query, csv_ops, text, codec
++- Community branding and optimized system prompt
++- One-command install scripts, binary named `grokce`
++- CI/CD pipeline with release automation
+diff --git a/docs/CHANGELOG_CN.md b/docs/CHANGELOG_CN.md
+new file mode 100644
+index 0000000..89e0117
+--- /dev/null
++++ b/docs/CHANGELOG_CN.md
+@@ -0,0 +1,24 @@
++# 更新日志
++
++## 0.2.105-ce.1 (2026-07-19)
++
++### 上游同步
++- 合并上游 v0.2.105：Grok 4.5 模型支持、事件循环重写、MCP OAuth 改进、`/btw` 命令、行编辑器、dashboard 重构（364 个文件，+30K/-16K 行）
++
++### CE 基础设施
++- 建立 patch 维护体系（17 个独立补丁 + `build.bat` 一键构建）
++- CE 工具源码移至 `ce-tools/` 目录（上游更新不会被覆盖）
++- 版本方案：上游版本 + `-ce.N` 补丁号
++- 文档重组：README → CHANGELOG + MAINTENANCE + patches
++
++---
++
++## 早期版本 (v0.1.0 - v0.3.0)
++
++CE 早期独立版本号。主要节点：
++- 遥测删除（Mixpanel、Sentry、Google Cloud）
++- 多后端 Web 搜索（Messages API、Chat Completions、DuckDuckGo、Bing）
++- 6 个新工具：glob、calculator、json_query、csv_ops、text、codec
++- 社区品牌去化 + 系统提示词优化
++- 一键安装脚本，二进制命令 `grokce`
++- CI/CD 流水线 + release 自动化
+diff --git a/docs/MAINTENANCE.md b/docs/MAINTENANCE.md
+new file mode 100644
+index 0000000..926363d
+--- /dev/null
++++ b/docs/MAINTENANCE.md
+@@ -0,0 +1,62 @@
++# Grok Build Community Edition - Maintenance Guide
++
++## Directory Structure
++
++```
++├── patches/          ← 17 patches, one per CE change
++├── ce-tools/         ← CE tool source (never touched by upstream)
++├── docs/             ← Documentation
++├── build.bat         ← One-click: apply patches → build
++└── README.md         ← Project overview
++```
++
++## Daily Workflow
++
++### After upstream update
++```bash
++git pull upstream main
++./build.bat
++# Failed patch? Fix code → git diff > patches/failed.patch
++```
++
++### Adding a new CE feature
++```bash
++# 1. Code changes as normal
++# 2. Export as patch
++git diff > patches/18-feature-name.patch
++# 3. Add to build.bat list
++# 4. Update this guide
++```
++
++### Just modifying CE tools
++Edit files in `ce-tools/src/`. These are reference copies - 
++actual compilation uses the patches system.
++
++## Patch List
++
++| # | File | What |
++|---|------|------|
++| 01 | remove-telemetry | Delete Mixpanel, Sentry, Google Cloud uploads |
++| 02 | web-search | Multi-backend: Messages, Chat, DuckDuckGo |
++| 03 | community-docs | Community edition docs (EN+CN) |
++| 04 | add-glob-tool | glob file pattern matching |
++| 05 | add-calculator-tool | Calculator + statistics |
++| 06 | add-json-csv-tools | json_query + csv_ops |
++| 07 | add-text-codec-tools | text + codec |
++| 08 | community-branding | CE branding |
++| 09 | optimize-system-prompt | Better system prompt |
++| 10 | community-tool-docs | CE tool documentation |
++| 11 | ci-cd-build | CI/CD pipeline + block auto-update |
++| 12 | install-scripts | One-command install |
++| 13 | clean-dead-code | Remove dead code + warnings |
++| 14 | inject-tools | Register all 6 CE tools in toolsets |
++| 15 | binary-name-grokce | Binary named grokce |
++| 16 | websearch-zero-config | Zero-config web search |
++| 17 | ci-fixes | CI fmt + clippy fixes |
++
++## Architecture
++
++Same approach as VSCodium, ungoogled-chromium, LineageOS:
++- Upstream code kept clean
++- CE changes stored as independent patches
++- Each patch fails independently, easy to diagnose
+diff --git a/docs/MAINTENANCE_CN.md b/docs/MAINTENANCE_CN.md
+new file mode 100644
+index 0000000..852ecfa
+--- /dev/null
++++ b/docs/MAINTENANCE_CN.md
+@@ -0,0 +1,61 @@
++# Grok Build 社区版 - 维护指南
++
++## 目录结构
++
++```
++├── patches/          ← 17 个补丁，每个对应一项 CE 改动
++├── ce-tools/         ← CE 工具源码（上游更新不会覆盖）
++├── docs/             ← 文档
++├── build.bat         ← 一键构建：apply patches → cargo build
++└── README.md         ← 项目介绍
++```
++
++## 日常操作
++
++### 上游更新后
++```bash
++git pull upstream main
++./build.bat
++# 哪个补丁失败就修哪个：改代码 → git diff > patches/失败的补丁.patch
++```
++
++### 新增 CE 功能
++```bash
++# 1. 正常改代码
++# 2. 导出为补丁
++git diff > patches/18-功能名.patch
++# 3. 更新 build.bat 中的补丁列表
++# 4. 更新本文档和 CHANGELOG
++```
++
++### 修改 CE 工具
++直接在 `ce-tools/src/` 中编辑。这些是参考副本——实际编译走 patch 系统。
++
++## 补丁列表
++
++| # | 文件 | 功能 |
++|---|------|------|
++| 01 | remove-telemetry | 删除 Mixpanel、Sentry、Google Cloud 上传 |
++| 02 | web-search | 多后端搜索（Messages、Chat、DuckDuckGo） |
++| 03 | community-docs | 社区版文档（中英双版） |
++| 04 | add-glob-tool | glob 文件匹配 |
++| 05 | add-calculator-tool | 计算器 + 统计 |
++| 06 | add-json-csv-tools | json_query + csv_ops |
++| 07 | add-text-codec-tools | text + codec |
++| 08 | community-branding | CE 品牌 |
++| 09 | optimize-system-prompt | 系统提示词优化 |
++| 10 | community-tool-docs | CE 工具文档 |
++| 11 | ci-cd-build | CI/CD + 阻止自动更新 |
++| 12 | install-scripts | 一键安装脚本 |
++| 13 | clean-dead-code | 清理死代码 |
++| 14 | inject-tools | 6 个 CE 工具注册到所有 toolset |
++| 15 | binary-name-grokce | 命令名为 grokce |
++| 16 | websearch-zero-config | 搜索零配置 |
++| 17 | ci-fixes | CI fmt + clippy 修复 |
++
++## 架构
++
++与 VSCodium、ungoogled-chromium、LineageOS 相同：
++- 上游代码保持原样
++- CE 改动存为独立补丁
++- 每个补丁独立失败，易于诊断
