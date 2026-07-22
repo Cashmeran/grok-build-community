@@ -403,7 +403,7 @@ pub struct LeaderArgs {
 #[derive(Debug, Clone, Parser)]
 #[command(
     name = "grokce",
-    version = version_with_channel(),
+    version = env!("VERSION_WITH_COMMIT"),
     about = "Grok Build CE TUI",
     disable_version_flag = true,
     next_display_order = None,
