@@ -7,9 +7,9 @@ use std::path::PathBuf;
 /// Top-level commands for the pager binary.
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
-    /// Run Grok without the interactive UI
+    /// Run Grok Build CE without the interactive UI
     Agent(Box<AgentArgs>),
-    /// Show the configuration Grok discovers for this directory
+    /// Show the configuration discovered for this directory
     Inspect {
         /// Emit machine-readable JSON output.
         #[arg(long)]
@@ -17,9 +17,11 @@ pub enum Command {
     },
     /// Manage running leader processes
     Leader(LeaderMgmtArgs),
-    /// Sign out and clear cached credentials
+    /// Sign out and clear cached credentials (not needed for community edition)
+    #[command(hide = true)]
     Logout,
-    /// Sign in to Grok
+    /// Sign in to xAI (not needed for community edition; configure API keys via env/config instead)
+    #[command(hide = true)]
     Login {
         /// Ignored (kept for backwards compatibility). OAuth2 is now the only auth method.
         #[arg(long, hide = true)]
@@ -52,7 +54,8 @@ pub enum Command {
     Models,
     /// List, search, or restore sessions
     Sessions(crate::sessions_cmd::SessionsArgs),
-    /// Fetch and install managed configuration
+    /// Fetch and install managed configuration (xAI-specific; not needed for community edition)
+    #[command(hide = true)]
     Setup {
         /// Print the fetched configuration as JSON instead of installing it;
         /// writes nothing to ~/.grok.
@@ -76,8 +79,8 @@ clipboard (containers, SSH) and your terminal does not handle OSC 52 itself
 sync with your window size.
 
 Examples:
-  grok wrap docker exec -it my-container bash
-  grok wrap kubectl exec -it my-pod -- bash
+  grokce wrap docker exec -it my-container bash
+  grokce wrap kubectl exec -it my-pod -- bash
 
 See ~/.grok/README.md for more information.
 ")]
@@ -86,7 +89,8 @@ See ~/.grok/README.md for more information.
     Export(crate::export_cmd::ExportArgs),
     /// Export or upload session trace data
     Trace(crate::trace_cmd::TraceArgs),
-    /// Check for updates or install a specific version
+    /// Check for updates (community edition auto-update is disabled)
+    #[command(hide = true)]
     Update {
         /// Check for updates without installing.
         #[arg(long)]
@@ -153,10 +157,10 @@ pub struct WrapArgs {
     )]
     pub command: Vec<String>,
 }
-/// Targets a running leader process by PID (used by `grok leader` / `grok workspace`).
+/// Targets a running leader process by PID (used by `grokce leader` / `grokce workspace`).
 #[derive(Debug, clap::Args, Clone, Default)]
 pub struct LeaderTargetArgs {
-    /// Leader process ID from `grok leader list`.
+    /// Leader process ID from `grokce leader list`.
     #[arg(long)]
     pub pid: Option<u32>,
 }
@@ -311,13 +315,13 @@ impl AgentArgs {
                 Ok(canonical) if canonical.is_dir() => Some(canonical),
                 Ok(_) => {
                     eprintln!(
-                        "grok: --plugin-dir {}: not a directory; skipping",
+                        "grokce: --plugin-dir {}: not a directory; skipping",
                         p.display()
                     );
                     None
                 }
                 Err(e) => {
-                    eprintln!("grok: --plugin-dir {}: {e}; skipping", p.display());
+                    eprintln!("grokce: --plugin-dir {}: {e}; skipping", p.display());
                     None
                 }
             })
@@ -408,9 +412,9 @@ fn version_with_channel() -> &'static str {
 }
 #[derive(Debug, Clone, Parser)]
 #[command(
-    name = "grok",
+    name = "grokce",
     version = version_with_channel(),
-    about = "Grok Build TUI",
+    about = "Grok Build CE TUI",
     disable_version_flag = true,
     next_display_order = None,
     help_template = "\
@@ -646,7 +650,7 @@ pub struct PagerArgs {
     pub self_verify: bool,
     /// Exit as soon as the first agent turn ends, without waiting for pending
     /// background bash/monitor tasks or background subagents (headless only).
-    /// Default for all `grok -p` runs is to wait (up to `--background-wait-timeout`)
+    /// Default for all `grokce -p` runs is to wait (up to `--background-wait-timeout`)
     /// so eval harnesses see full task completion. Use this for fast scripts that
     /// only need the first turn's text. Does not wait for server-side auto-wake
     /// output or persistent monitors (those hit the timeout).
@@ -736,7 +740,7 @@ pub struct PagerArgs {
     /// Run standalone even when leader mode is configured.
     #[arg(long, conflicts_with = "leader", hide = true)]
     pub no_leader: bool,
-    /// Initial prompt for the interactive session, e.g. `grok "fix the bug"` or `grok --worktree=feat "create this feature"`.
+    /// Initial prompt for the interactive session, e.g. `grokce "fix the bug"` or `grokce --worktree=feat "create this feature"`.
     #[arg(
         value_name = "PROMPT",
         conflicts_with_all = &["single",
@@ -778,8 +782,8 @@ impl PagerArgs {
             .map(std::path::Path::new)
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .filter(|n| *n == "grok" || *n == "agent")
-            .unwrap_or("grok")
+            .filter(|n| *n == "grokce" || *n == "grok" || *n == "agent")
+            .unwrap_or("grokce")
             .to_owned();
         let mut args = Self::parse_from(std::iter::once(bin_name).chain(std::env::args().skip(1)));
         if let Some(socket) = args.leader_socket.take() {
@@ -892,7 +896,7 @@ impl PagerArgs {
     /// The initial interactive prompt from the positional argument, trimmed.
     ///
     /// Returns `None` when no positional prompt was given or it is only
-    /// whitespace. This is the `grok "<prompt>"` launch form; the headless
+    /// whitespace. This is the `grokce "<prompt>"` launch form; the headless
     /// `-p`/`--single` path is handled separately.
     pub fn initial_prompt(&self) -> Option<&str> {
         self.prompt

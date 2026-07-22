@@ -1,42 +1,50 @@
 {
-  "default": "grok-4.5",
-  "web_search": "grok-4.20-multi-agent",
-  "image_description": "grok-4.5",
-  "session_summary": "grok-4.5",
+  "default": "deepseek-v4-pro",
+  "web_search": "deepseek-v4-pro",
+  "image_description": "deepseek-v4-pro",
+  "session_summary": "deepseek-v4-pro",
   "models": [
     {
-      "id": "grok-4.5",
-      "model": "grok-4.5",
-      "name": "Grok 4.5",
-      "description": "SpaceXAI's new frontier model",
-      "context_window": 500000,
-      "api_backend": "responses",
-      "supports_backend_search": false,
-      "system_prompt_label": "Grok 4.5",
-      "show_model_fingerprint": true,
-      "supports_reasoning_effort": true,
-      "reasoning_effort": "high",
+      "id": "deepseek-v4-pro",
+      "model": "deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro",
+      "description": "DeepSeek's flagship coding model (configure api key via DEEPSEEK_API_KEY env or ~/.grok/config.toml)",
+      "context_window": 1000000,
+      "api_backend": "messages",
+      "supports_backend_search": true,
+      "system_prompt_label": "Grok Build CE",
+      "show_model_fingerprint": false,
       "auto_compact_threshold_percent": 80,
       "compaction_at_tokens": true,
-      "compactions_remaining": 1,
-      "reasoning_efforts": [
-        {
-          "value": "high",
-          "label": "High Effort",
-          "description": "Highest implementation quality with extensive reasoning",
-          "default": true
-        },
-        {
-          "value": "medium",
-          "label": "Medium Effort",
-          "description": "Balanced effort with standard implementation and testing"
-        },
-        {
-          "value": "low",
-          "label": "Low Effort",
-          "description": "Quick, fast implementations"
-        }
-      ]
+      "compactions_remaining": 1
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "model": "claude-sonnet-4-5-20250929",
+      "name": "Claude Sonnet 4.5",
+      "description": "Anthropic's coding model (set ANTHROPIC_API_KEY env var)",
+      "context_window": 200000,
+      "api_backend": "messages",
+      "supports_backend_search": true,
+      "system_prompt_label": "Grok Build CE",
+      "show_model_fingerprint": false,
+      "auto_compact_threshold_percent": 80,
+      "compaction_at_tokens": true,
+      "compactions_remaining": 1
+    },
+    {
+      "id": "gpt-5",
+      "model": "gpt-5",
+      "name": "GPT-5",
+      "description": "OpenAI GPT-5 (set OPENAI_API_KEY env var)",
+      "context_window": 128000,
+      "api_backend": "responses",
+      "supports_backend_search": false,
+      "system_prompt_label": "Grok Build CE",
+      "show_model_fingerprint": false,
+      "auto_compact_threshold_percent": 80,
+      "compaction_at_tokens": true,
+      "compactions_remaining": 1
     }
   ]
 }

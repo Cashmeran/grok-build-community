@@ -702,11 +702,21 @@ impl AgentBuilder {
                     .tools
                     .push((&memory::get_tool::MemoryGetImpl).into());
             }
-            if self.web_search_config.is_enabled() {
+            if self.web_search_config.is_enabled()
+                && !tool_config
+                    .tools
+                    .iter()
+                    .any(|tc| tc.id.as_str() == "GrokBuild:web_search")
+            {
                 use xai_grok_tools::implementations::grok_build;
                 tool_config.tools.push((&grok_build::WebSearchTool).into());
             }
-            if self.web_fetch_config.is_enabled() {
+            if self.web_fetch_config.is_enabled()
+                && !tool_config
+                    .tools
+                    .iter()
+                    .any(|tc| tc.id.as_str() == "GrokBuild:web_fetch")
+            {
                 use xai_grok_tools::implementations::grok_build;
                 tool_config.tools.push((&grok_build::WebFetchTool).into());
             }
