@@ -17,6 +17,7 @@ use crate::scrollback::text_selection::{
     render_block_drag_overlay, render_persistent_selection_overlay,
 };
 use crate::theme::Theme;
+use xai_grok_i18n::tr;
 use crate::views::btw_overlay::BTW_OVERLAY_ENTRY_IDX;
 use crate::views::modal;
 use crate::views::plan_approval_view::PlanApprovalFocus;
@@ -87,23 +88,23 @@ impl AgentView {
         match pav.focus {
             PlanApprovalFocus::Commenting => {
                 vec![
-                    HintItem::new(key!(Enter), "save comment"),
-                    HintItem::new(key!(Esc), "cancel"),
+                    HintItem::new(key!(Enter), tr!("save comment")),
+                    HintItem::new(key!(Esc), tr!("cancel")),
                 ]
             }
             PlanApprovalFocus::Prompt => {
                 let has_content = !pav.comments.is_empty() || !self.prompt.text().trim().is_empty();
                 if has_content {
                     vec![
-                        HintItem::new(key!(Enter), "request changes"),
-                        HintItem::new(key!(Tab), "plan"),
-                        HintItem::new(key!(Esc), "back"),
+                        HintItem::new(key!(Enter), tr!("request changes")),
+                        HintItem::new(key!(Tab), tr!("plan")),
+                        HintItem::new(key!(Esc), tr!("back")),
                     ]
                 } else {
                     vec![
-                        HintItem::new(key!(Enter), "approve"),
-                        HintItem::new(key!(Tab), "plan"),
-                        HintItem::new(key!(Esc), "back"),
+                        HintItem::new(key!(Enter), tr!("approve")),
+                        HintItem::new(key!(Tab), tr!("plan")),
+                        HintItem::new(key!(Esc), tr!("back")),
                     ]
                 }
             }
@@ -132,8 +133,8 @@ impl AgentView {
                 match perm.focus {
                     PermissionFocus::FollowupInput => {
                         vec![
-                            HintItem::new(key!(Enter), "send"),
-                            HintItem::new(key!(Esc), "back"),
+                            HintItem::new(key!(Enter), tr!("send")),
+                            HintItem::new(key!(Esc), tr!("back")),
                         ]
                     }
                     PermissionFocus::Options => {
@@ -142,20 +143,20 @@ impl AgentView {
                         let n = perm.options.len().min(9) as u8;
                         let last_ch = char::from(b'0' + n.max(1));
                         let last_key = KeyShortcut::new(KeyCode::Char(last_ch), KeyModifiers::NONE);
-                        let mut hints = vec![HintItem::paired(key!('1'), last_key, "select")];
+                        let mut hints = vec![HintItem::paired(key!('1'), last_key, tr!("select"))];
                         if perm.has_adjustable_scope() {
-                            hints.push(HintItem::paired(key!(Left), key!(Right), "scope"));
+                            hints.push(HintItem::paired(key!(Left), key!(Right), tr!("scope")));
                         }
                         if !perm.description.is_empty() {
                             let label = if perm.args_expanded {
-                                "collapse"
+                                tr!("collapse")
                             } else {
-                                "expand"
+                                tr!("expand")
                             };
                             hints.push(HintItem::new(key!('f', CONTROL), label));
                         }
-                        hints.push(HintItem::new(key!('o', CONTROL), "always-approve"));
-                        hints.push(HintItem::new(key!('c', CONTROL), "cancel"));
+                        hints.push(HintItem::new(key!('o', CONTROL), tr!("always-approve")));
+                        hints.push(HintItem::new(key!('c', CONTROL), tr!("cancel")));
                         hints
                     }
                 }
@@ -173,18 +174,18 @@ impl AgentView {
                 vec![]
             } else if self.is_casual_commenting() {
                 vec![
-                    HintItem::new(key!(Enter), "save comment"),
-                    HintItem::new(key!(Esc), "cancel"),
+                    HintItem::new(key!(Enter), tr!("save comment")),
+                    HintItem::new(key!(Esc), tr!("cancel")),
                 ]
             } else {
                 let mut h = vec![
-                    HintItem::new(key!('c'), "comment"),
-                    HintItem::new(key!('f', CONTROL), "fullscreen"),
+                    HintItem::new(key!('c'), tr!("comment")),
+                    HintItem::new(key!('f', CONTROL), tr!("fullscreen")),
                 ];
                 if !self.plan_comments.is_empty() {
-                    h.push(HintItem::new(key!('s'), "send"));
+                    h.push(HintItem::new(key!('s'), tr!("send")));
                 }
-                h.push(HintItem::new(key!(Esc), "close"));
+                h.push(HintItem::new(key!(Esc), tr!("close")));
                 h
             }
         } else if let Some(ref qv) = self.question_view {
@@ -193,32 +194,32 @@ impl AgentView {
                 QuestionFocus::InputMode => {
                     if self.prompt.file_search_visible() {
                         vec![
-                            HintItem::paired(key!(Up), key!(Down), "nav"),
-                            HintItem::new(key!(Tab), "accept"),
-                            HintItem::new(key!(Right), "drill"),
-                            HintItem::new(key!(Esc), "dismiss"),
+                            HintItem::paired(key!(Up), key!(Down), tr!("nav")),
+                            HintItem::new(key!(Tab), tr!("accept")),
+                            HintItem::new(key!(Right), tr!("drill")),
+                            HintItem::new(key!(Esc), tr!("dismiss")),
                         ]
                     } else {
                         vec![
-                            HintItem::new(key!(Enter), "submit"),
-                            HintItem::new(key!(Esc), "back"),
+                            HintItem::new(key!(Enter), tr!("submit")),
+                            HintItem::new(key!(Esc), tr!("back")),
                         ]
                     }
                 }
                 QuestionFocus::Navigation => {
                     vec![
-                        HintItem::new(key!(Esc), "unselect"),
-                        HintItem::new(key!(Tab), "scrollback"),
-                        HintItem::new(key!('X'), "dismiss"),
+                        HintItem::new(key!(Esc), tr!("unselect")),
+                        HintItem::new(key!(Tab), tr!("scrollback")),
+                        HintItem::new(key!('X'), tr!("dismiss")),
                     ]
                 }
             }
         } else if self.cancel_turn_view.is_some() {
             vec![
-                HintItem::paired(key!('1'), key!('4'), "select"),
-                HintItem::new(key!(Enter), "confirm"),
-                HintItem::new(key!(Esc), "keep running"),
-                HintItem::new(key!(Tab), "scrollback"),
+                HintItem::paired(key!('1'), key!('4'), tr!("select")),
+                HintItem::new(key!(Enter), tr!("confirm")),
+                HintItem::new(key!(Esc), tr!("keep running")),
+                HintItem::new(key!(Tab), tr!("scrollback")),
             ]
         } else {
             self.normal_pane_hints(registry)
@@ -2183,7 +2184,7 @@ impl AgentView {
         }
         if self.session.is_yolo() && !effective_plan {
             mode_flags_vec.push(PromptFlag {
-                text: "always-approve",
+                text: tr!("always-approve"),
                 color: None,
                 bold: false,
             });
@@ -3077,8 +3078,8 @@ impl AgentView {
                 match perm.focus {
                     PermissionFocus::FollowupInput => {
                         vec![
-                            HintItem::new(key!(Enter), "send"),
-                            HintItem::new(key!(Esc), "back"),
+                            HintItem::new(key!(Enter), tr!("send")),
+                            HintItem::new(key!(Esc), tr!("back")),
                         ]
                     }
                     PermissionFocus::Options => {
@@ -3087,20 +3088,20 @@ impl AgentView {
                         let n = perm.options.len().min(9) as u8;
                         let last_ch = char::from(b'0' + n.max(1));
                         let last_key = KeyShortcut::new(KeyCode::Char(last_ch), KeyModifiers::NONE);
-                        let mut hints = vec![HintItem::paired(key!('1'), last_key, "select")];
+                        let mut hints = vec![HintItem::paired(key!('1'), last_key, tr!("select"))];
                         if perm.has_adjustable_scope() {
-                            hints.push(HintItem::paired(key!(Left), key!(Right), "scope"));
+                            hints.push(HintItem::paired(key!(Left), key!(Right), tr!("scope")));
                         }
                         if !perm.description.is_empty() {
                             let label = if perm.args_expanded {
-                                "collapse"
+                                tr!("collapse")
                             } else {
-                                "expand"
+                                tr!("expand")
                             };
                             hints.push(HintItem::new(key!('f', CONTROL), label));
                         }
-                        hints.push(HintItem::new(key!('o', CONTROL), "always-approve"));
-                        hints.push(HintItem::new(key!('c', CONTROL), "cancel"));
+                        hints.push(HintItem::new(key!('o', CONTROL), tr!("always-approve")));
+                        hints.push(HintItem::new(key!('c', CONTROL), tr!("cancel")));
                         hints
                     }
                 }
@@ -3126,18 +3127,18 @@ impl AgentView {
                 use crate::views::shortcuts_bar::HintItem;
                 let hints = if self.is_casual_commenting() {
                     vec![
-                        HintItem::new(key!(Enter), "save comment"),
-                        HintItem::new(key!(Esc), "cancel"),
+                        HintItem::new(key!(Enter), tr!("save comment")),
+                        HintItem::new(key!(Esc), tr!("cancel")),
                     ]
                 } else {
                     let mut h = vec![
-                        HintItem::new(key!('c'), "comment"),
-                        HintItem::new(key!('f', CONTROL), "fullscreen"),
+                        HintItem::new(key!('c'), tr!("comment")),
+                        HintItem::new(key!('f', CONTROL), tr!("fullscreen")),
                     ];
                     if !self.plan_comments.is_empty() {
-                        h.push(HintItem::new(key!('s'), "send"));
+                        h.push(HintItem::new(key!('s'), tr!("send")));
                     }
-                    h.push(HintItem::new(key!(Esc), "close"));
+                    h.push(HintItem::new(key!(Esc), tr!("close")));
                     h
                 };
                 ShortcutsBar::new(&hints)
@@ -3151,23 +3152,23 @@ impl AgentView {
                 QuestionFocus::InputMode => {
                     if self.prompt.file_search_visible() {
                         vec![
-                            HintItem::paired(key!(Up), key!(Down), "nav"),
-                            HintItem::new(key!(Tab), "accept"),
-                            HintItem::new(key!(Right), "drill"),
-                            HintItem::new(key!(Esc), "dismiss"),
+                            HintItem::paired(key!(Up), key!(Down), tr!("nav")),
+                            HintItem::new(key!(Tab), tr!("accept")),
+                            HintItem::new(key!(Right), tr!("drill")),
+                            HintItem::new(key!(Esc), tr!("dismiss")),
                         ]
                     } else {
                         vec![
-                            HintItem::new(key!(Enter), "submit"),
-                            HintItem::new(key!(Esc), "back"),
+                            HintItem::new(key!(Enter), tr!("submit")),
+                            HintItem::new(key!(Esc), tr!("back")),
                         ]
                     }
                 }
                 QuestionFocus::Navigation => {
                     vec![
-                        HintItem::new(key!(Esc), "unselect"),
-                        HintItem::new(key!(Tab), "scrollback"),
-                        HintItem::new(key!('X'), "dismiss"),
+                        HintItem::new(key!(Esc), tr!("unselect")),
+                        HintItem::new(key!(Tab), tr!("scrollback")),
+                        HintItem::new(key!('X'), tr!("dismiss")),
                     ]
                 }
             };
@@ -3175,10 +3176,10 @@ impl AgentView {
         } else if self.cancel_turn_view.is_some() {
             use crate::views::shortcuts_bar::HintItem;
             let hints = vec![
-                HintItem::paired(key!('1'), key!('4'), "select"),
-                HintItem::new(key!(Enter), "confirm"),
-                HintItem::new(key!(Esc), "keep running"),
-                HintItem::new(key!(Tab), "scrollback"),
+                HintItem::paired(key!('1'), key!('4'), tr!("select")),
+                HintItem::new(key!(Enter), tr!("confirm")),
+                HintItem::new(key!(Esc), tr!("keep running")),
+                HintItem::new(key!(Tab), tr!("scrollback")),
             ];
             ShortcutsBar::new(&hints)
                 .with_pending(pending_hint)
@@ -3194,20 +3195,20 @@ impl AgentView {
                             .find(ActionId::DashboardOverlayStop)
                             .map(|def| def.default_key)
                             .unwrap_or(key!('x', CONTROL)),
-                        "stop",
+                        tr!("stop"),
                     ),
                 );
                 hints.insert(
                     0,
                     HintItem {
                         keys: vec![key!('[', CONTROL), key!(']', CONTROL)],
-                        label: "agents".into(),
+                        label: tr!("agents").into(),
                         custom_display: Some("Ctrl+[/]"),
                         description: None,
                         pinned: false,
                     },
                 );
-                hints.insert(0, HintItem::new(key!('\\', CONTROL), "dashboard"));
+                hints.insert(0, HintItem::new(key!('\\', CONTROL), tr!("dashboard")));
             }
             let help_hint = registry.find(ActionId::ShortcutsHelp).map(|def| {
                 let mut hint = def.hint();
@@ -3287,30 +3288,30 @@ impl AgentView {
                     .is_some_and(|pav| !pav.comments.is_empty());
             let viewer_hints = if in_plan_approval && on_comment {
                 let mut h = vec![
-                    HintItem::new(key!(Enter), "edit"),
-                    HintItem::new(key!('x'), "delete"),
+                    HintItem::new(key!(Enter), tr!("edit")),
+                    HintItem::new(key!('x'), tr!("delete")),
                 ];
                 if approval_has_comments {
-                    h.push(HintItem::new(key!('s'), "send"));
+                    h.push(HintItem::new(key!('s'), tr!("send")));
                 } else {
-                    h.push(HintItem::new(key!('a'), "approve"));
+                    h.push(HintItem::new(key!('a'), tr!("approve")));
                 }
-                h.push(HintItem::new(key!('q'), "quit plan"));
-                h.push(HintItem::new(key!(Tab), "prompt"));
+                h.push(HintItem::new(key!('q'), tr!("quit plan")));
+                h.push(HintItem::new(key!(Tab), tr!("prompt")));
                 h
             } else if in_plan_approval {
-                let mut h = vec![HintItem::new(key!('c'), "comment")];
+                let mut h = vec![HintItem::new(key!('c'), tr!("comment"))];
                 if approval_has_comments {
-                    h.push(HintItem::new(key!('s'), "send"));
+                    h.push(HintItem::new(key!('s'), tr!("send")));
                 } else {
-                    h.push(HintItem::new(key!('a'), "approve"));
+                    h.push(HintItem::new(key!('a'), tr!("approve")));
                 }
-                h.push(HintItem::new(key!('q'), "quit plan"));
+                h.push(HintItem::new(key!('q'), tr!("quit plan")));
                 if self.vim_mode {
-                    h.push(HintItem::paired(key!('j'), key!('k'), "nav"));
+                    h.push(HintItem::paired(key!('j'), key!('k'), tr!("nav")));
                 }
-                h.push(HintItem::new(key!('v'), "select"));
-                h.push(HintItem::new(key!(Tab), "prompt"));
+                h.push(HintItem::new(key!('v'), tr!("select")));
+                h.push(HintItem::new(key!(Tab), tr!("prompt")));
                 h
             } else if is_plan_viewer {
                 let on_casual_comment = viewer
@@ -3323,37 +3324,37 @@ impl AgentView {
                     .is_some_and(|item| item.comment_id().is_some());
                 let mut h = if on_casual_comment {
                     vec![
-                        HintItem::new(key!(Enter), "edit"),
-                        HintItem::new(key!('x'), "delete"),
+                        HintItem::new(key!(Enter), tr!("edit")),
+                        HintItem::new(key!('x'), tr!("delete")),
                     ]
                 } else {
-                    vec![HintItem::new(key!('c'), "comment")]
+                    vec![HintItem::new(key!('c'), tr!("comment"))]
                 };
                 if has_plan_comments {
-                    h.push(HintItem::new(key!('s'), "send"));
+                    h.push(HintItem::new(key!('s'), tr!("send")));
                 }
                 if self.vim_mode {
-                    h.push(HintItem::paired(key!('j'), key!('k'), "nav"));
+                    h.push(HintItem::paired(key!('j'), key!('k'), tr!("nav")));
                 }
-                h.push(HintItem::new(key!('v'), "select"));
-                h.push(HintItem::new(key!('f', CONTROL), "fullscreen"));
-                h.push(HintItem::new(key!('/'), "search"));
-                h.push(HintItem::new(key!(Esc), "close"));
+                h.push(HintItem::new(key!('v'), tr!("select")));
+                h.push(HintItem::new(key!('f', CONTROL), tr!("fullscreen")));
+                h.push(HintItem::new(key!('/'), tr!("search")));
+                h.push(HintItem::new(key!(Esc), tr!("close")));
                 h
             } else {
-                let mut h = vec![HintItem::new(key!(Enter), "confirm")];
+                let mut h = vec![HintItem::new(key!(Enter), tr!("confirm"))];
                 if self.vim_mode {
-                    h.push(HintItem::paired(key!('j'), key!('k'), "nav"));
+                    h.push(HintItem::paired(key!('j'), key!('k'), tr!("nav")));
                 }
-                h.push(HintItem::new(key!('v'), "select"));
-                h.push(HintItem::new(key!('x'), "clear"));
+                h.push(HintItem::new(key!('v'), tr!("select")));
+                h.push(HintItem::new(key!('x'), tr!("clear")));
                 if self.vim_mode {
-                    h.push(HintItem::new(key!('y'), "copy"));
-                    h.push(HintItem::new(key!('Y'), "filename"));
+                    h.push(HintItem::new(key!('y'), tr!("copy")));
+                    h.push(HintItem::new(key!('Y'), tr!("filename")));
                 }
-                h.push(HintItem::new(key!(':'), "goto"));
-                h.push(HintItem::new(key!('/'), "search"));
-                h.push(HintItem::new(key!(Esc), "cancel"));
+                h.push(HintItem::new(key!(':'), tr!("goto")));
+                h.push(HintItem::new(key!('/'), tr!("search")));
+                h.push(HintItem::new(key!(Esc), tr!("cancel")));
                 h
             };
             let input_bar_active = viewer.list_state.input_mode().is_some();
@@ -3528,7 +3529,7 @@ impl AgentView {
                 let clear = crate::terminal::overlay::clear_kitty();
                 prompt_post_flush = Some(clear.into());
             }
-            let hints = vec![HintItem::new(key!(Esc), "close")];
+            let hints = vec![HintItem::new(key!(Esc), tr!("close"))];
             ShortcutsBar::new(&hints).render(layout.shortcuts, buf);
             self.pane_areas = layout.pane_areas();
             return (None, prompt_post_flush);
@@ -3567,9 +3568,9 @@ impl AgentView {
             }
             let play_label = if viewer.playing { "pause" } else { "play" };
             let hints = vec![
-                HintItem::new(key!(Esc), "close"),
+                HintItem::new(key!(Esc), tr!("close")),
                 HintItem::new(key!(' '), play_label),
-                HintItem::new(key!(Left), "back"),
+                HintItem::new(key!(Left), tr!("back")),
                 HintItem::new(key!(Right), "fwd"),
             ];
             ShortcutsBar::new(&hints).render(layout.shortcuts, buf);
@@ -3855,12 +3856,12 @@ impl AgentView {
             );
             if modal_state.input.is_some() {
                 let hints = vec![
-                    HintItem::new(key!(Enter), "submit"),
-                    HintItem::new(key!(Esc), "cancel"),
+                    HintItem::new(key!(Enter), tr!("submit")),
+                    HintItem::new(key!(Esc), tr!("cancel")),
                 ];
                 ShortcutsBar::new(&hints).render(layout.shortcuts, buf);
             } else if modal_state.pending_action.is_some() {
-                let hints = vec![HintItem::new(key!(Esc), "dismiss")];
+                let hints = vec![HintItem::new(key!(Esc), tr!("dismiss"))];
                 ShortcutsBar::new(&hints).render(layout.shortcuts, buf);
             } else if modal_state.picker_state.search_active {
                 let hints = vec![

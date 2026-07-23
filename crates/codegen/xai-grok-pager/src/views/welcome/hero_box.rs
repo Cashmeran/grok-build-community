@@ -8,6 +8,8 @@ use ratatui::widgets::{Block, BorderType, Borders, Widget};
 
 use crate::theme::Theme;
 
+use xai_grok_i18n::tr;
+
 use super::WelcomeLayout;
 
 /// Minimum terminal width for the side-by-side hero box layout.
@@ -28,7 +30,9 @@ const LOGO_H_PAD: u16 = 3;
 /// message never paints over the button.
 const UPGRADE_CTA_ROWS: u16 = 2;
 
-const HERO_SUBTITLE: &str = "Thanks for trying Grok Build, give feedback with /feedback!";
+fn hero_subtitle() -> &'static str {
+    tr!("Welcome to Grok Build CE — give feedback with /feedback!")
+}
 
 use super::{PROMPT_HEIGHT, VERSION_GAP};
 
@@ -334,7 +338,7 @@ pub(super) fn render_hero_box(
         buf.set_span(
             layout.hero_subtitle.x,
             layout.hero_subtitle.y,
-            &Span::styled(HERO_SUBTITLE, subtitle_style),
+            &Span::styled(hero_subtitle(), subtitle_style),
             layout.hero_subtitle.width,
         );
     }

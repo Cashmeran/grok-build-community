@@ -14,6 +14,8 @@ use crate::appearance::permission_cursor::DefaultSelectedPermission;
 use xai_grok_shell::agent::config::UiConfig;
 use xai_grok_tools::implementations::grok_build::ask_user_question;
 
+use xai_grok_i18n::tr;
+
 // ---------------------------------------------------------------------------
 // Int bounds for `max_thoughts_width`.
 //
@@ -38,39 +40,40 @@ pub(crate) const MAX_THOUGHTS_WIDTH_KEY: &str = "max_thoughts_width";
 // ---------------------------------------------------------------------------
 
 /// Full theme catalog including the "auto" meta-variant. Used by `theme` only.
-const THEME_CHOICES: &[EnumChoice] = &[
+fn theme_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "auto",
         display: "Auto",
-        description: "Follow system dark/light appearance.",
+        description: tr!("Follow system dark/light appearance."),
     },
     EnumChoice {
         canonical: "groknight",
         display: "Grok Night",
-        description: "Neutral dark with magenta accent.",
+        description: tr!("Neutral dark with magenta accent."),
     },
     EnumChoice {
         canonical: "grokday",
         display: "Grok Day",
-        description: "Light theme for bright environments.",
+        description: tr!("Light theme for bright environments."),
     },
     EnumChoice {
         canonical: "tokyonight",
         display: "Tokyo Night",
-        description: "Dark + blue-tinted; needs truecolor.",
+        description: tr!("Dark + blue-tinted; needs truecolor."),
     },
     // ASCII "Rose Pine Moon" (not "Rosé") for cross-terminal compatibility.
     EnumChoice {
         canonical: "rosepine-moon",
         display: "Rose Pine Moon",
-        description: "Muted dark with mauve accents; needs truecolor.",
+        description: tr!("Muted dark with mauve accents; needs truecolor."),
     },
     EnumChoice {
         canonical: "oscura-midnight",
         display: "Oscura Midnight",
-        description: "Deep dark with warm accents; needs truecolor.",
+        description: tr!("Deep dark with warm accents; needs truecolor."),
     },
-];
+]))
+}
 
 // ---------------------------------------------------------------------------
 // Permission-mode catalog.
@@ -94,30 +97,31 @@ const THEME_CHOICES: &[EnumChoice] = &[
 // Choice order: safe → classifier → unsafe (Default → Ask → Auto → Always approve).
 // "Always approve" at the end creates a speed bump against
 // accidental selection.
-const PERMISSION_MODE_CHOICES: &[EnumChoice] = &[
+fn permission_mode_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     // "default" = agent's default behavior. Same as "ask" at runtime;
     // distinct on disk and in the modal indicator.
     EnumChoice {
         canonical: "default",
         display: "Default",
-        description: "Use the agent's default permission behavior (currently equivalent to Ask).",
+        description: tr!("Use the agent's default permission behavior (currently equivalent to Ask)."),
     },
     EnumChoice {
         canonical: "ask",
         display: "Ask",
-        description: "Prompt for permission before tool actions.",
+        description: tr!("Prompt for permission before tool actions."),
     },
     EnumChoice {
         canonical: "auto",
         display: "Auto",
-        description: "LLM classifier approves safe tools; dangerous actions may still prompt or deny.",
+        description: tr!("LLM classifier approves safe tools; dangerous actions may still prompt or deny."),
     },
     EnumChoice {
         canonical: "always-approve",
         display: "Always approve",
-        description: "Auto-approve every tool action. Skips ALL permission prompts.",
+        description: tr!("Auto-approve every tool action. Skips ALL permission prompts."),
     },
-];
+]))
+}
 
 // ---------------------------------------------------------------------------
 // Coding-data-sharing catalog.
@@ -130,18 +134,19 @@ const PERMISSION_MODE_CHOICES: &[EnumChoice] = &[
 // can fail. Commit on Enter only.
 // ---------------------------------------------------------------------------
 
-const CODING_DATA_SHARING_CHOICES: &[EnumChoice] = &[
+fn coding_data_sharing_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "opt-in",
         display: "Opt in",
-        description: "Allow SpaceXAI to retain coding session data for model training and product improvement.",
+        description: tr!("Allow SpaceXAI to retain coding session data for model training and product improvement."),
     },
     EnumChoice {
         canonical: "opt-out",
         display: "Opt out",
-        description: "Do not retain coding session data for training. Does not disable product analytics.",
+        description: tr!("Do not retain coding session data for training. Does not disable product analytics."),
     },
-];
+]))
+}
 
 // ---------------------------------------------------------------------------
 // Plan-mode catalog.
@@ -179,41 +184,43 @@ const CODING_DATA_SHARING_CHOICES: &[EnumChoice] = &[
 // Canonicals + display labels come from `DefaultSelectedPermission` (the
 // single source of truth) so this table can never drift from the parser,
 // the dispatch toast, or the cursor logic.
-const DEFAULT_SELECTED_PERMISSION_CHOICES: &[EnumChoice] = &[
+fn default_selected_permission_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: DefaultSelectedPermission::AlwaysAllowAllSessions.as_canonical(),
         display: DefaultSelectedPermission::AlwaysAllowAllSessions.display(),
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: DefaultSelectedPermission::AllowCommandAlways.as_canonical(),
         display: DefaultSelectedPermission::AllowCommandAlways.display(),
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: DefaultSelectedPermission::AllowOnce.as_canonical(),
         display: DefaultSelectedPermission::AllowOnce.display(),
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: DefaultSelectedPermission::Reject.as_canonical(),
         display: DefaultSelectedPermission::Reject.display(),
-        description: "",
+        description: tr!(""),
     },
-];
+]))
+}
 
-const PLAN_MODE_CHOICES: &[EnumChoice] = &[
+fn plan_mode_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "off",
         display: "Off",
-        description: "Agent runs tools and edits files directly (default).",
+        description: tr!("Agent runs tools and edits files directly (default)."),
     },
     EnumChoice {
         canonical: "on",
         display: "On",
-        description: "Agent summarises a plan and asks for approval before running tools.",
+        description: tr!("Agent summarises a plan and asks for approval before running tools."),
     },
-];
+]))
+}
 
 // ---------------------------------------------------------------------------
 // Mermaid-rendering catalog.
@@ -223,112 +230,118 @@ const PLAN_MODE_CHOICES: &[EnumChoice] = &[
 // render hot path. Canonicals match `RenderMermaid::as_canonical`.
 // ---------------------------------------------------------------------------
 
-const RENDER_MERMAID_CHOICES: &[EnumChoice] = &[
+fn render_mermaid_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "auto",
         display: "Auto",
-        description: "Show diagrams with a clickable row to open/copy the rendered image.",
+        description: tr!("Show diagrams with a clickable row to open/copy the rendered image."),
     },
     EnumChoice {
         canonical: "on",
         display: "On",
-        description: "Same as auto: always show the clickable affordance row.",
+        description: tr!("Same as auto: always show the clickable affordance row."),
     },
     EnumChoice {
         canonical: "off",
         display: "Off",
-        description: "Always show the raw Mermaid source as a code block.",
+        description: tr!("Always show the raw Mermaid source as a code block."),
     },
-];
+]))
+}
 
 // Scroll-input catalog. SHELL-owned, persisted to `[ui].scroll_mode`.
 // Canonical strings match `ScrollMode::as_canonical` (pinned by test).
-const SCROLL_MODE_CHOICES: &[EnumChoice] = &[
+fn scroll_mode_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: ScrollMode::Auto.as_canonical(),
         display: "Auto-detect",
-        description: "Detect wheel vs trackpad per gesture from event timing. Default.",
+        description: tr!("Detect wheel vs trackpad per gesture from event timing. Default."),
     },
     EnumChoice {
         canonical: ScrollMode::Wheel.as_canonical(),
         display: "Mouse wheel",
-        description: "Always treat scrolling as wheel notches (fixed lines per tick).",
+        description: tr!("Always treat scrolling as wheel notches (fixed lines per tick)."),
     },
     EnumChoice {
         canonical: ScrollMode::Trackpad.as_canonical(),
         display: "Trackpad",
-        description: "Always treat scrolling as a trackpad (fractional accumulation).",
+        description: tr!("Always treat scrolling as a trackpad (fractional accumulation)."),
     },
-];
+]))
+}
 
-const TEXT_SELECTION_CHOICES: &[EnumChoice] = &[
+fn text_selection_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: TextSelection::Flash.as_canonical(),
         display: "Flash after copy",
-        description: "Brief highlight on mouse-up, then clear. Double-click toggles fold. Default.",
+        description: tr!("Brief highlight on mouse-up, then clear. Double-click toggles fold. Default."),
     },
     EnumChoice {
         canonical: TextSelection::Hold.as_canonical(),
         display: "Hold until dismissed",
-        description: "Keep the selection visible until Esc, click, or scroll. Double-click toggles fold.",
+        description: tr!("Keep the selection visible until Esc, click, or scroll. Double-click toggles fold."),
     },
     EnumChoice {
         canonical: TextSelection::WordSelect.as_canonical(),
         display: "Word select (terminal-like)",
-        description: "Double-click selects & copies a word, triple-click a line; selection stays until dismissed.",
+        description: tr!("Double-click selects & copies a word, triple-click a line; selection stays until dismissed."),
     },
-];
+]))
+}
 
 // Hunk-tracker-mode catalog. SHELL-owned, persisted to `[ui].hunk_tracker_mode`.
 // `disabled` is accepted as an alias for `off` at parse time but not surfaced
 // as a choice.
-const HUNK_TRACKER_MODE_CHOICES: &[EnumChoice] = &[
+fn hunk_tracker_mode_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "agent_only",
         display: "Agent only",
-        description: "Track only files the agent edits (default).",
+        description: tr!("Track only files the agent edits (default)."),
     },
     EnumChoice {
         canonical: "all_dirty",
         display: "All dirty",
-        description: "Track every git-dirty file, including external edits.",
+        description: tr!("Track every git-dirty file, including external edits."),
     },
     EnumChoice {
         canonical: "off",
         display: "Off",
-        description: "Disable hunk tracking entirely. Also disables LOC tracking.",
+        description: tr!("Disable hunk tracking entirely. Also disables LOC tracking."),
     },
-];
+]))
+}
 
-const SCREEN_MODE_CHOICES: &[EnumChoice] = &[
+fn screen_mode_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "fullscreen",
         display: "Fullscreen",
-        description: "Open plain grok in the standard fullscreen TUI. Default when unset.",
+        description: tr!("Open plain grok in the standard fullscreen TUI. Default when unset."),
     },
     EnumChoice {
         canonical: "minimal",
         display: "Minimal",
-        description: "Open plain grok in scrollback-native (minimal) mode.",
+        description: tr!("Open plain grok in scrollback-native (minimal) mode."),
     },
-];
+]))
+}
 
 // Voice-capture-mode catalog. SHELL-owned, persisted to `[ui].voice_capture_mode`.
 // `hold` is only offered on terminals that report key releases (Kitty keyboard
 // protocol); `effective_enum_choices` hides it elsewhere, and it falls back to
 // `toggle` at runtime.
-const VOICE_CAPTURE_MODE_CHOICES: &[EnumChoice] = &[
+fn voice_capture_mode_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "toggle",
         display: "Toggle",
-        description: "Ctrl+Space / F8 starts dictation; press again (or Esc/Enter) to stop.",
+        description: tr!("Ctrl+Space / F8 starts dictation; press again (or Esc/Enter) to stop."),
     },
     EnumChoice {
         canonical: "hold",
         display: "Hold to talk",
-        description: "Hold Ctrl+Space / F8 to record, release to stop. Needs a Kitty-protocol terminal.",
+        description: tr!("Hold Ctrl+Space / F8 to record, release to stop. Needs a Kitty-protocol terminal."),
     },
-];
+]))
+}
 
 // Voice STT language choices for the settings modal.
 //
@@ -337,169 +350,171 @@ const VOICE_CAPTURE_MODE_CHOICES: &[EnumChoice] = &[
 // `auto` is client-only; the voice crate resolves it to a concrete code before
 // the STT handshake. Order: English (default), System, then remaining languages
 // A–Z by English name. A registry unit test locks this list to the voice crate.
-const VOICE_STT_LANGUAGE_CHOICES: &[EnumChoice] = &[
+fn voice_stt_language_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "en",
         display: "English",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "auto",
         display: "System",
-        description: "Use the system locale when it is a supported STT language; otherwise English.",
+        description: tr!("Use the system locale when it is a supported STT language; otherwise English."),
     },
     EnumChoice {
         canonical: "ar",
         display: "Arabic",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "cs",
         display: "Czech",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "da",
         display: "Danish",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "nl",
         display: "Dutch",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "fil",
         display: "Filipino",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "fr",
         display: "French",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "de",
         display: "German",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "hi",
         display: "Hindi",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "id",
         display: "Indonesian",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "it",
         display: "Italian",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "ja",
         display: "Japanese",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "ko",
         display: "Korean",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "mk",
         display: "Macedonian",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "ms",
         display: "Malay",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "fa",
         display: "Persian",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "pl",
         display: "Polish",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "pt",
         display: "Portuguese",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "ro",
         display: "Romanian",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "ru",
         display: "Russian",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "es",
         display: "Spanish",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "sv",
         display: "Swedish",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "th",
         display: "Thai",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "tr",
         display: "Turkish",
-        description: "",
+        description: tr!(""),
     },
     EnumChoice {
         canonical: "vi",
         display: "Vietnamese",
-        description: "",
+        description: tr!(""),
     },
-];
+]))
+}
 
 /// Concrete-only theme catalog (excludes "auto"). Used by both
 /// `auto_dark_theme` and `auto_light_theme`. No dark/light filtering —
 /// the user can pair any theme with any system-appearance bucket.
-const CONCRETE_THEME_CHOICES: &[EnumChoice] = &[
+fn concrete_theme_choices() -> &'static [EnumChoice] { &*Box::leak(Box::new([
     EnumChoice {
         canonical: "groknight",
         display: "Grok Night",
-        description: "Neutral dark with magenta accent.",
+        description: tr!("Neutral dark with magenta accent."),
     },
     EnumChoice {
         canonical: "grokday",
         display: "Grok Day",
-        description: "Light theme for bright environments.",
+        description: tr!("Light theme for bright environments."),
     },
     EnumChoice {
         canonical: "tokyonight",
         display: "Tokyo Night",
-        description: "Dark + blue-tinted; needs truecolor.",
+        description: tr!("Dark + blue-tinted; needs truecolor."),
     },
     EnumChoice {
         canonical: "rosepine-moon",
         display: "Rose Pine Moon",
-        description: "Muted dark with mauve accents; needs truecolor.",
+        description: tr!("Muted dark with mauve accents; needs truecolor."),
     },
     EnumChoice {
         canonical: "oscura-midnight",
         display: "Oscura Midnight",
-        description: "Deep dark with warm accents; needs truecolor.",
+        description: tr!("Deep dark with warm accents; needs truecolor."),
     },
-];
+]))
+}
 
 /// Child settings shown inside the "Show contextual hints" group sub-sheet.
 /// Keys match the `[ui.contextual_hints]` serde fields (namespaced so they stay
@@ -528,8 +543,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Compact mode",
-            description: "Reduce padding around messages for more content density. \
-                          Auto-enabled while the terminal is 20 rows or shorter.",
+            description: tr!("Reduce padding around messages for more content density. \
+                          Auto-enabled while the terminal is 20 rows or shorter."),
             keywords: &[
                 "compact", "density", "padding", "tight", "small", "screen", "auto",
             ],
@@ -544,9 +559,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shell,
             label: "Default screen mode",
-            description: "How plain grok opens next time: Fullscreen (default when unset) or \
+            description: tr!("How plain grok opens next time: Fullscreen (default when unset) or \
                           Minimal. Writes [ui] screen_mode in config.toml. Restart required. \
-                          Switch this session only with /minimal or /fullscreen.",
+                          Switch this session only with /minimal or /fullscreen."),
             keywords: &[
                 "screen",
                 "mode",
@@ -561,7 +576,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Enum {
                 default: "fullscreen",
-                choices: SCREEN_MODE_CHOICES,
+                choices: screen_mode_choices(),
                 supports_preview: false,
             },
             restart_required: true,
@@ -572,7 +587,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Show timestamps",
-            description: "Show clock time next to user messages and agent responses.",
+            description: tr!("Show clock time next to user messages and agent responses."),
             keywords: &["timestamps", "time", "clock", "date"],
             kind: SettingKind::Bool {
                 // `Option<bool>` — `None` treated as `true`.
@@ -586,7 +601,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Timeline sidebar",
-            description: "Per-turn tick rail in place of the scrollbar: hover previews a turn, click jumps to it.",
+            description: tr!("Per-turn tick rail in place of the scrollbar: hover previews a turn, click jumps to it."),
             keywords: &["timeline", "sidebar", "ticks", "turns", "navigator", "rail"],
             kind: SettingKind::Bool {
                 // Single source: UiConfig::SHOW_TIMELINE_DEFAULT (opt-in).
@@ -601,9 +616,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Snap prompt to top on send",
-            description: "When you send a prompt, scroll it to the top of the screen so the \
+            description: tr!("When you send a prompt, scroll it to the top of the screen so the \
                           response starts on a fresh page (default). Turn off to leave the scroll \
-                          position unchanged when you send.",
+                          position unchanged when you send."),
             keywords: &[
                 "page", "flip", "send", "prompt", "scroll", "top", "jump", "auto", "snap",
             ],
@@ -618,10 +633,10 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Editor,
             owner: SettingOwner::Shared,
             label: "Combine queued prompts",
-            description: "Merge consecutive plain follow-ups into one model turn \
+            description: tr!("Merge consecutive plain follow-ups into one model turn \
                           (TUI shows one bubble each). Stops at bash, slash commands, \
                           cron, expanded skills, image follow-ups, or a row under edit. \
-                          Default off; applies on local drain and shell promote.",
+                          Default off; applies on local drain and shell promote."),
             keywords: &["queue", "combine", "batch", "follow-up", "merge", "pending"],
             kind: SettingKind::Bool {
                 default: ui_default.combine_queued_prompts.unwrap_or(false),
@@ -637,7 +652,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Disable vim input mode",
-            description: "Use plain readline-style input instead of vim keys in the prompt. Experimental.",
+            description: tr!("Use plain readline-style input instead of vim keys in the prompt. Experimental."),
             keywords: &[
                 "simple",
                 "ascii",
@@ -667,7 +682,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shell,
             label: "Vim scrollback navigation",
-            description: "Enable vim keys (h/j/k/l, gg/G, /) for navigating the scrollback. Does not affect the input prompt.",
+            description: tr!("Enable vim keys (h/j/k/l, gg/G, /) for navigating the scrollback. Does not affect the input prompt."),
             keywords: &[
                 "vim",
                 "scrollback",
@@ -689,7 +704,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Theme",
-            description: "Color theme for the pager UI.",
+            description: tr!("Color theme for the pager UI."),
             keywords: &[
                 "theme",
                 "color",
@@ -702,7 +717,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             kind: SettingKind::Enum {
                 // `Option<String>` — `None` resolved to "groknight".
                 default: "groknight",
-                choices: THEME_CHOICES,
+                choices: theme_choices(),
                 supports_preview: true,
             },
             restart_required: false,
@@ -713,12 +728,12 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Auto dark theme",
-            description: "Theme to use when the system is in dark mode (only with theme=auto).",
+            description: tr!("Theme to use when the system is in dark mode (only with theme=auto)."),
             keywords: &["auto", "dark", "theme", "system", "appearance", "night"],
             kind: SettingKind::Enum {
                 // `Option<String>` — `None` falls back to "groknight".
                 default: "groknight",
-                choices: CONCRETE_THEME_CHOICES,
+                choices: concrete_theme_choices(),
                 supports_preview: true,
             },
             restart_required: false,
@@ -729,12 +744,12 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Auto light theme",
-            description: "Theme to use when the system is in light mode (only with theme=auto).",
+            description: tr!("Theme to use when the system is in light mode (only with theme=auto)."),
             keywords: &["auto", "light", "theme", "system", "appearance", "day"],
             kind: SettingKind::Enum {
                 // `Option<String>` — `None` falls back to "grokday".
                 default: "grokday",
-                choices: CONCRETE_THEME_CHOICES,
+                choices: concrete_theme_choices(),
                 supports_preview: true,
             },
             restart_required: false,
@@ -748,8 +763,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shell,
             label: "Render Mermaid diagrams",
-            description: "How ```mermaid code blocks are shown: auto/on add a clickable row to \
-                          open the rendered diagram; off shows the raw source.",
+            description: tr!("How ```mermaid code blocks are shown: auto/on add a clickable row to \
+                          open the rendered diagram; off shows the raw source."),
             keywords: &[
                 "mermaid",
                 "diagram",
@@ -761,7 +776,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Enum {
                 default: "auto",
-                choices: RENDER_MERMAID_CHOICES,
+                choices: render_mermaid_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -775,10 +790,10 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Agent,
             owner: SettingOwner::Shell,
             label: "Permission mode",
-            description: "Default uses the agent's built-in behavior; \
+            description: tr!("Default uses the agent's built-in behavior; \
                           Ask prompts for each tool action; \
                           Auto uses an LLM classifier for risky tools; \
-                          Always approve grants all permissions automatically.",
+                          Always approve grants all permissions automatically."),
             keywords: &[
                 "permission",
                 "approve",
@@ -793,7 +808,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Enum {
                 default: "ask",
-                choices: PERMISSION_MODE_CHOICES,
+                choices: permission_mode_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -807,9 +822,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Agent,
             owner: SettingOwner::Shell,
             label: "Remember tool approvals",
-            description: "Show \"Always allow\" options in permission prompts so you can stop \
+            description: tr!("Show \"Always allow\" options in permission prompts so you can stop \
                           being re-asked about a specific command or tool. Applies in ask and \
-                          auto; Always-approve still skips all prompts. Restart required.",
+                          auto; Always-approve still skips all prompts. Restart required."),
             keywords: &[
                 "permission",
                 "approve",
@@ -836,7 +851,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Editor,
             owner: SettingOwner::Pager,
             label: "Multiline",
-            description: "When on, Enter inserts a newline and Shift+Enter sends. Resets each session.",
+            description: tr!("When on, Enter inserts a newline and Shift+Enter sends. Resets each session."),
             keywords: &["multiline", "newline", "input", "editor", "enter"],
             kind: SettingKind::Bool { default: false },
             restart_required: false,
@@ -850,7 +865,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Models,
             owner: SettingOwner::Shell,
             label: "Default model",
-            description: "Model used for new sessions. Changing this also switches the active session. Pick `(no override)` to clear.",
+            description: tr!("Model used for new sessions. Changing this also switches the active session. Pick `(no override)` to clear."),
             keywords: &["model", "default", "agent", "llm", "grok", "switch"],
             kind: SettingKind::DynamicEnum {
                 default: "",
@@ -867,7 +882,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shared,
             label: "Max thoughts width",
-            description: "Column width budget for the agent's thoughts panel (40-500, default 120).",
+            description: tr!("Column width budget for the agent's thoughts panel (40-500, default 120)."),
             keywords: &[
                 "thoughts",
                 "width",
@@ -891,7 +906,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shell,
             label: "Show thinking blocks",
-            description: "Show agent thinking/reasoning blocks in the scrollback while streaming.",
+            description: tr!("Show agent thinking/reasoning blocks in the scrollback while streaming."),
             keywords: &[
                 "thinking",
                 "reasoning",
@@ -913,9 +928,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Editor,
             owner: SettingOwner::Shell,
             label: "Prompt suggestions",
-            description: "After each turn, predict your likely next prompt and show it as \
+            description: tr!("After each turn, predict your likely next prompt and show it as \
                           ghost text in the input (Tab to accept). Uses a small model call \
-                          per turn.",
+                          per turn."),
             keywords: &[
                 "prompt",
                 "suggestion",
@@ -941,8 +956,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Pager,
             label: "Respect manual folds",
-            description: "Keep manually folded blocks as-is while streaming and stop \
-                          auto-scroll when expanding a block. Experimental.",
+            description: tr!("Keep manually folded blocks as-is while streaming and stop \
+                          auto-scroll when expanding a block. Experimental."),
             keywords: &[
                 "fold", "pin", "collapse", "expand", "thinking", "follow", "scroll",
             ],
@@ -958,8 +973,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shell,
             label: "Group tool calls",
-            description: "Fold consecutive read/search/list tool calls and subagent rows into \
-                          one summary row; finished thoughts fold into the group too.",
+            description: tr!("Fold consecutive read/search/list tool calls and subagent rows into \
+                          one summary row; finished thoughts fold into the group too."),
             keywords: &[
                 "group", "tool", "verbs", "fold", "collapse", "read", "search", "summary",
                 "thinking", "subagent",
@@ -977,9 +992,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shell,
             label: "Collapsed edit blocks",
-            description: "Show edits as one-line +N/-M diffstat summaries and merge \
+            description: tr!("Show edits as one-line +N/-M diffstat summaries and merge \
                           back-to-back edits to the same file into one block; expand a \
-                          row to see the diffs.",
+                          row to see the diffs."),
             keywords: &[
                 "edit",
                 "edits",
@@ -1006,9 +1021,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Appearance,
             owner: SettingOwner::Shell,
             label: "Match display refresh rate",
-            description: "On high-refresh displays, the TUI will stream/scroll faster \
+            description: tr!("On high-refresh displays, the TUI will stream/scroll faster \
                           to match the display. Off keeps the classic ~60 Hz cadence. \
-                          Restart required.",
+                          Restart required."),
             keywords: &[
                 "display", "refresh", "rate", "hz", "cadence", "fps", "smooth", "scroll", "stream",
                 "high", "120", "144",
@@ -1028,7 +1043,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Mouse,
             owner: SettingOwner::Shell,
             label: "Scroll speed",
-            description: "Mouse-wheel and trackpad scroll speed multiplier (1-100). Higher = faster.",
+            description: tr!("Mouse-wheel and trackpad scroll speed multiplier (1-100). Higher = faster."),
             keywords: &[
                 "scroll", "speed", "mouse", "wheel", "trackpad", "fast", "slow",
             ],
@@ -1046,8 +1061,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Mouse,
             owner: SettingOwner::Shell,
             label: "Scroll input",
-            description: "Force wheel or trackpad scroll behavior when auto-detection \
-                          misreads your device.",
+            description: tr!("Force wheel or trackpad scroll behavior when auto-detection \
+                          misreads your device."),
             keywords: &[
                 "scroll", "mode", "wheel", "trackpad", "mouse", "detect", "force", "input",
             ],
@@ -1058,7 +1073,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
                     .and_then(ScrollMode::from_canonical)
                     .unwrap_or_default()
                     .as_canonical(),
-                choices: SCROLL_MODE_CHOICES,
+                choices: scroll_mode_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -1073,8 +1088,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Mouse,
             owner: SettingOwner::Shell,
             label: "Scroll lines",
-            description: "Lines per scroll tick for both wheel and trackpad (1-10). \
-                          Until set, each terminal's own profile applies.",
+            description: tr!("Lines per scroll tick for both wheel and trackpad (1-10). \
+                          Until set, each terminal's own profile applies."),
             keywords: &[
                 "scroll", "lines", "tick", "notch", "wheel", "trackpad", "mouse",
             ],
@@ -1092,7 +1107,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Mouse,
             owner: SettingOwner::Shell,
             label: "Invert scroll",
-            description: "Reverse vertical scroll direction (natural scrolling).",
+            description: tr!("Reverse vertical scroll direction (natural scrolling)."),
             keywords: &[
                 "invert",
                 "scroll",
@@ -1114,7 +1129,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Mouse,
             owner: SettingOwner::Shell,
             label: "Text selection",
-            description: "How long in-app selection stays on screen and what double-click does (fold vs. select & copy a word). For your terminal or multiplexer's own selection, hold Shift while dragging (native copy).",
+            description: tr!("How long in-app selection stays on screen and what double-click does (fold vs. select & copy a word). For your terminal or multiplexer's own selection, hold Shift while dragging (native copy)."),
             keywords: &[
                 "selection",
                 "drag",
@@ -1132,7 +1147,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Enum {
                 default: TextSelection::Flash.as_canonical(),
-                choices: TEXT_SELECTION_CHOICES,
+                choices: text_selection_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -1150,9 +1165,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Privacy,
             owner: SettingOwner::Shell,
             label: "Coding data sharing",
-            description: "Controls whether SpaceXAI may retain and train on coding session \
+            description: tr!("Controls whether SpaceXAI may retain and train on coding session \
                           data. Does not affect product analytics; see Configuration and \
-                          Monitoring docs.",
+                          Monitoring docs."),
             keywords: &[
                 "privacy",
                 "data",
@@ -1165,7 +1180,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Enum {
                 default: "opt-out",
-                choices: CODING_DATA_SHARING_CHOICES,
+                choices: coding_data_sharing_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -1181,7 +1196,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Agent,
             owner: SettingOwner::Shell,
             label: "Default selected permission",
-            description: "Which row the cursor preselects on permission prompts.",
+            description: tr!("Which row the cursor preselects on permission prompts."),
             keywords: &[
                 "permission",
                 "approval",
@@ -1198,7 +1213,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Enum {
                 default: DefaultSelectedPermission::AlwaysAllowAllSessions.as_canonical(),
-                choices: DEFAULT_SELECTED_PERMISSION_CHOICES,
+                choices: default_selected_permission_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -1214,8 +1229,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Agent,
             owner: SettingOwner::Shell,
             label: "Ask-Question timeout",
-            description: "When on, the ask_user_question tool will time out after a set period \
-                          of time instead of infinitely blocking.",
+            description: tr!("When on, the ask_user_question tool will time out after a set period \
+                          of time instead of infinitely blocking."),
             keywords: &[
                 "ask",
                 "question",
@@ -1241,13 +1256,13 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Agent,
             owner: SettingOwner::Pager,
             label: "Plan mode",
-            description: "When on, the agent summarises a plan before running tools or making edits.",
+            description: tr!("When on, the agent summarises a plan before running tools or making edits."),
             keywords: &[
                 "plan", "mode", "agent", "summary", "approval", "review", "session",
             ],
             kind: SettingKind::Enum {
                 default: "off",
-                choices: PLAN_MODE_CHOICES,
+                choices: plan_mode_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -1260,7 +1275,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Show tips",
-            description: "Show the tip-of-the-day banner on startup. Restart required.",
+            description: tr!("Show the tip-of-the-day banner on startup. Restart required."),
             keywords: &[
                 "tips", "tip", "show", "banner", "welcome", "startup", "launch",
             ],
@@ -1276,8 +1291,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Show contextual hints",
-            description: "Show brief, in-context keyboard hints as you work; \
-                          toggle each one individually.",
+            description: tr!("Show brief, in-context keyboard hints as you work; \
+                          toggle each one individually."),
             keywords: &[
                 "contextual",
                 "hints",
@@ -1321,8 +1336,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Auto-update",
-            description: "Automatically download and install pager updates on startup. \
-                          Restart required.",
+            description: tr!("Automatically download and install pager updates on startup. \
+                          Restart required."),
             keywords: &[
                 "auto", "update", "updates", "upgrade", "version", "install", "channel",
             ],
@@ -1337,15 +1352,15 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Hunk tracker",
-            description: "Which file changes the agent tracks as hunks. \
+            description: tr!("Which file changes the agent tracks as hunks. \
                           Off disables tracking (and LOC stats) entirely. \
-                          Restart required.",
+                          Restart required."),
             keywords: &[
                 "hunk", "tracker", "tracking", "diff", "changes", "git", "loc", "off", "disable",
             ],
             kind: SettingKind::Enum {
                 default: "agent_only",
-                choices: HUNK_TRACKER_MODE_CHOICES,
+                choices: hunk_tracker_mode_choices(),
                 supports_preview: false,
             },
             restart_required: true,
@@ -1359,9 +1374,9 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Editor,
             owner: SettingOwner::Shell,
             label: "Voice capture",
-            description: "How the voice chord (Ctrl+Space / F8) behaves: Toggle \
+            description: tr!("How the voice chord (Ctrl+Space / F8) behaves: Toggle \
                           (press to start/stop) or Hold to talk (hold to record, \
-                          release to stop; needs a Kitty-protocol terminal).",
+                          release to stop; needs a Kitty-protocol terminal)."),
             keywords: &[
                 "voice",
                 "dictation",
@@ -1378,7 +1393,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Enum {
                 default: "hold",
-                choices: VOICE_CAPTURE_MODE_CHOICES,
+                choices: voice_capture_mode_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -1393,13 +1408,13 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Editor,
             owner: SettingOwner::Shell,
             label: "Voice language",
-            description: "Speech-to-text language for voice dictation (Grok STT). \
+            description: tr!("Speech-to-text language for voice dictation (Grok STT). \
                           English by default; System uses your locale when supported. \
-                          Sets formatting language for numbers and currencies.",
+                          Sets formatting language for numbers and currencies."),
             keywords: &["voice", "language", "locale", "dictation", "stt", "speech"],
             kind: SettingKind::Enum {
                 default: "en",
-                choices: VOICE_STT_LANGUAGE_CHOICES,
+                choices: voice_stt_language_choices(),
                 supports_preview: false,
             },
             restart_required: false,
@@ -1412,7 +1427,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Undo",
-            description: "Remind you that Ctrl+Z restores the prompt after you clear it.",
+            description: tr!("Remind you that Ctrl+Z restores the prompt after you clear it."),
             keywords: &["undo", "ctrl+z", "draft", "wipe", "hint"],
             kind: SettingKind::Bool {
                 default: ui_default.contextual_hints.undo.unwrap_or(true),
@@ -1425,8 +1440,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Plan mode",
-            description: "Suggest plan mode (Shift+Tab) when your prompt looks like a \
-                          planning request.",
+            description: tr!("Suggest plan mode (Shift+Tab) when your prompt looks like a \
+                          planning request."),
             keywords: &["plan", "mode", "nudge", "shift+tab", "hint"],
             kind: SettingKind::Bool {
                 default: ui_default.contextual_hints.plan_mode.unwrap_or(true),
@@ -1439,8 +1454,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Image input",
-            description: "Offer to paste an image when one is on the clipboard and the \
-                          model accepts images.",
+            description: tr!("Offer to paste an image when one is on the clipboard and the \
+                          model accepts images."),
             keywords: &["image", "clipboard", "paste", "input", "hint"],
             kind: SettingKind::Bool {
                 default: ui_default.contextual_hints.image_input.unwrap_or(true),
@@ -1453,8 +1468,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Send now",
-            description: "After you queue a follow-up mid-turn, remind you that Enter \
-                          on an empty prompt sends the top queued item now.",
+            description: tr!("After you queue a follow-up mid-turn, remind you that Enter \
+                          on an empty prompt sends the top queued item now."),
             keywords: &[
                 "send",
                 "now",
@@ -1476,8 +1491,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Small screen",
-            description: "Suggest /compact-mode once per run when the terminal \
-                          is short on rows.",
+            description: tr!("Suggest /compact-mode once per run when the terminal \
+                          is short on rows."),
             keywords: &["small", "screen", "compact", "space", "rows", "hint"],
             kind: SettingKind::Bool {
                 default: ui_default.contextual_hints.small_screen.unwrap_or(true),
@@ -1490,8 +1505,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "Word select",
-            description: "After double-clicking conversation text while Text selection \
-                          is fold/nav, remind you that Word select lives in Settings.",
+            description: tr!("After double-clicking conversation text while Text selection \
+                          is fold/nav, remind you that Word select lives in Settings."),
             keywords: &[
                 "word",
                 "select",
@@ -1514,8 +1529,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Advanced,
             owner: SettingOwner::Shell,
             label: "SSH wrap",
-            description: "At session load over SSH, recommend `grok wrap ssh` for \
-                          clipboard forwarding and terminal restore.",
+            description: tr!("At session load over SSH, recommend `grok wrap ssh` for \
+                          clipboard forwarding and terminal restore."),
             keywords: &[
                 "ssh",
                 "wrap",
@@ -1546,7 +1561,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Models,
             owner: SettingOwner::Shell,
             label: "Fork secondary model",
-            description: "Model used for the secondary agent when forking. Pick `(no override)` to clear.",
+            description: tr!("Model used for the secondary agent when forking. Pick `(no override)` to clear."),
             keywords: &[
                 "fork",
                 "secondary",

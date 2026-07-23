@@ -17,6 +17,7 @@ use crate::app::dispatch::modes::inherit_auto_mode;
 use crate::app::dispatch::prompt::{defer_to_open_reload_window, supersede_open_reload_window};
 use crate::app::dispatch::queue::{maybe_drain_queue, note_peek_page_flip};
 use crate::app::dispatch::router::dispatch;
+use xai_grok_i18n::tr;
 use crate::app::dispatch::status::notify_session_ready;
 use crate::app::dispatch::transcript::extensions_modal_tab_fetches;
 use crate::scrollback::block::RenderBlock;
@@ -136,9 +137,9 @@ fn dispatch_load_session_ungated(
     let mut scrollback = ScrollbackState::new();
     scrollback.set_appearance(app.appearance.clone());
     let loading_msg = if matches!(app.restore_code, Some(true)) {
-        format!("Restoring code for session {}...", &session_id)
+        format!("{} {}...", tr!("Restoring code for session"), &session_id)
     } else {
-        format!("Loading session {}...", &session_id)
+        format!("{} {}...", tr!("Loading session"), &session_id)
     };
     let loading_placeholder_id = scrollback.push_block(RenderBlock::system(loading_msg));
     let agent = AgentView::new(
@@ -327,10 +328,10 @@ pub(in crate::app::dispatch) fn dispatch_pick_session(
         if focus_if_session_already_open(app, &session_id, false).is_some() {
             return vec![];
         }
-        app.show_toast("Restoring session from remote...");
+        app.show_toast(tr!("Restoring session from remote..."));
         dispatch_load_session_with_restore(app, session_id, cwd)
     } else {
-        app.show_toast("Session not found locally");
+        app.show_toast(tr!("Session not found locally"));
         vec![]
     }
 }
@@ -358,7 +359,7 @@ pub(in crate::app::dispatch) fn dispatch_pick_session_in_worktree(
         })
         .is_some_and(|entry| crate::app::foreign_sessions::is_foreign_picker_source(&entry.source));
     if is_foreign {
-        app.show_toast("External sessions can't be resumed in a worktree");
+        app.show_toast(tr!("External sessions can't be resumed in a worktree"));
         return vec![];
     }
     let mut picker_dismissed = false;
@@ -403,7 +404,7 @@ pub(in crate::app::dispatch) fn dispatch_pick_session_in_worktree(
         }
     };
     if source == "conversation" {
-        app.show_toast("Chat conversations can't be resumed in a worktree");
+        app.show_toast(tr!("Chat conversations can't be resumed in a worktree"));
         return vec![];
     }
     dispatch_new_worktree_session(app, Some(session_id), None, None, None, None, None)
@@ -787,7 +788,7 @@ pub(in crate::app::dispatch) fn dispatch_load_session_with_restore(
     let mut scrollback = ScrollbackState::new();
     scrollback.set_appearance(app.appearance.clone());
     scrollback.push_block(RenderBlock::system(format!(
-        "Restoring session {session_id} from remote..."
+        "{} {session_id} {}...", tr!("Restoring session"), tr!("from remote")
     )));
     let agent = AgentView::new(
         AgentSession {
@@ -1241,7 +1242,7 @@ pub(in crate::app::dispatch) fn dispatch_pick_content_session_in_worktree(
         return vec![];
     }
     if session_picker_entry_is_conversation(app, &session_id) {
-        app.show_toast("Chat conversations can't be resumed in a worktree");
+        app.show_toast(tr!("Chat conversations can't be resumed in a worktree"));
         return vec![];
     }
     app.session_picker_entries = None;

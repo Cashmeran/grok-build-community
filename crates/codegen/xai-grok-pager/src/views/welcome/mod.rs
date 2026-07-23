@@ -18,6 +18,7 @@ use crate::app::app_view::{AuthMode, AuthState, SessionPickerEntry, TrustState};
 use crate::startup::StartupWarning;
 use crate::theme::Theme;
 use crate::views::prompt_widget::{PromptFlag, PromptInfo, PromptWidget};
+use xai_grok_i18n::tr;
 mod hero_box;
 pub(crate) mod logo;
 mod menu;
@@ -421,7 +422,7 @@ pub(super) fn render_version_badge(
         } = &mode
     {
         spans.push(Span::styled(
-            format!("Tier: {tier}"),
+            format!("{} {}", tr!("Tier:"), tier),
             Style::default().fg(theme.gray),
         ));
         spans.push(sep.clone());
@@ -688,8 +689,8 @@ pub fn render_welcome(
     let mut result = match params.auth_state {
         AuthState::Pending { error } => {
             let label = params.login_label.unwrap_or("grok.com");
-            let login_text = format!("Login with {}", label);
-            let menu = [("l", login_text.as_str()), ("q", "Quit")];
+            let login_text = format!("{} {}", tr!("Login with"), label);
+            let menu = [("l", login_text.as_str()), ("q", tr!("Quit"))];
             let msg = error.as_deref().map(|e| (e, theme.accent_error));
             let info = PromptInfo {
                 model_name: params.model_name,
@@ -759,7 +760,7 @@ pub fn render_welcome(
             }
         }
         AuthState::Done if params.is_zdr_blocked => {
-            let menu = [("l", "Switch account"), ("q", "Quit")];
+            let menu = [("l", tr!("Switch account")), ("q", tr!("Quit"))];
             let (menu_rects, post_flush_escapes) = render_welcome_blocked(
                 content_area,
                 buf,
@@ -935,7 +936,7 @@ fn render_welcome_trust(
     h_margin: u16,
     compact: bool,
 ) -> WelcomeRenderResult {
-    let menu_items = [("y", "Yes, proceed"), ("n", "No, quit")];
+    let menu_items = [("y", tr!("Yes, proceed")), ("n", tr!("No, quit"))];
     let lines = vec![
         Line::from(Span::styled(
             "Do you trust the contents of this directory?",
@@ -1564,7 +1565,7 @@ fn render_changelog_section(
             .fg(theme.gray_bright)
             .add_modifier(Modifier::DIM),
     );
-    let title = "Changelog";
+    let title = tr!("Changelog");
     buf.set_span(
         centered.x,
         centered.y,
@@ -1686,7 +1687,7 @@ fn render_welcome_done(
     let cta = p
         .gate
         .and_then(|g| g.label.as_deref())
-        .unwrap_or("Upgrade Subscription");
+        .unwrap_or(tr!("Upgrade Subscription"));
     let in_vscode_family = welcome_in_vscode_family();
     let (key_g, key_l, key_q) = (
         "ctrl+g",
@@ -1730,7 +1731,7 @@ fn render_welcome_done(
     let gate_menu;
     let owned_menu;
     let menu_items: &[(&str, &str)] = if !p.has_access {
-        gate_menu = [(key_g, cta), (key_l, "Logout"), (key_q, "Quit")];
+        gate_menu = [(key_g, cta), (key_l, tr!("Logout")), (key_q, tr!("Quit"))];
         &gate_menu
     } else {
         let (key_w, key_s, key_q, key_i_with_x) = (
@@ -1748,15 +1749,15 @@ fn render_welcome_done(
             // 3 cells of this row as dismiss instead of open. Keyboard:
             // ctrl-shift-i. The key string is right-aligned by render_menu,
             // so [x] sits at the very end of the row.
-            items.push((key_i_with_x, "Import Claude settings"));
+            items.push((key_i_with_x, tr!("Import Claude settings")));
         }
-        items.push((key_w, "New worktree"));
-        items.push((key_s, "Resume session"));
+        items.push((key_w, tr!("New worktree")));
+        items.push((key_s, tr!("Resume session")));
         // "Changelog" above Quit; no shortcut — opened by click (row or block).
         if show_changelog_action {
-            items.push(("", "Changelog"));
+            items.push(("", tr!("Changelog")));
         }
-        items.push((key_q, "Quit"));
+        items.push((key_q, tr!("Quit")));
         owned_menu = items;
         owned_menu.as_slice()
     };
@@ -1923,12 +1924,12 @@ fn render_welcome_done(
         .flex(Flex::Center)
         .areas(layout.prompt);
         // Show the user's current tier + clickable refresh button above the gate message.
-        let tier_label = p.subscription_tier.unwrap_or("Free");
+        let tier_label = p.subscription_tier.unwrap_or(tr!("Free"));
         let tier_prefix = format!("Tier: {tier_label}  ");
-        let refresh_text = "[Refresh]";
+        let refresh_text = tr!("[Refresh]");
         let total_width = tier_prefix.len() + refresh_text.len();
         let tier_line = Line::from(vec![
-            Span::styled("Tier: ", Style::default().fg(theme.gray)),
+            Span::styled(tr!("Tier: "), Style::default().fg(theme.gray)),
             Span::styled(
                 tier_label,
                 Style::default()
@@ -1962,7 +1963,7 @@ fn render_welcome_done(
         let gate_text = p
             .gate
             .map(|g| g.message.as_str())
-            .unwrap_or("SuperGrok subscription required");
+            .unwrap_or(tr!("SuperGrok subscription required"));
         let msg = Line::from(Span::styled(
             gate_text,
             Style::default().fg(theme.gray_bright),
@@ -2382,7 +2383,7 @@ pub(crate) fn render_session_picker(
     }
 
     let config = PickerConfig {
-        title: Some("Resume session"),
+        title: Some(tr!("Resume session")),
         show_search_hint: true,
         expandable: true,
         esc_clears_query: true,
@@ -3048,7 +3049,7 @@ mod tests {
 
     fn resume_picker_config() -> crate::views::picker::PickerConfig<'static> {
         crate::views::picker::PickerConfig {
-            title: Some("Resume session"),
+            title: Some(tr!("Resume session")),
             show_search_hint: true,
             expandable: true,
             esc_clears_query: true,

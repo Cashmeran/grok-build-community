@@ -33,6 +33,8 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::theme::Theme;
 
+use xai_grok_i18n::tr;
+
 // ── Enums ──────────────────────────────────────────────────────────────
 
 /// Interaction mode for the permission overlay.
@@ -555,9 +557,9 @@ pub fn render_permission_view(
             .fg(theme.text_secondary)
             .add_modifier(Modifier::DIM);
         let hint_line = Line::from(vec![
-            Span::styled("Use ", hint_style),
-            Span::styled("\u{2190} \u{2192}", hint_style),
-            Span::styled(" to choose permission scope", hint_style),
+            Span::styled(tr!("Use "), hint_style),
+            Span::styled(tr!("\u{2190} \u{2192}"), hint_style),
+            Span::styled(tr!(" to choose permission scope"), hint_style),
         ]);
         buf.set_line(content_x, y, &hint_line, content_width);
         y += 1;
@@ -1521,12 +1523,12 @@ fn build_mcp_args_lines(
 fn truncation_indicator_line(theme: &Theme) -> Line<'static> {
     let style = Style::default().fg(theme.gray).bg(theme.bg_light);
     Line::from(vec![
-        Span::styled("... ", style),
+        Span::styled(tr!("... "), style),
         Span::styled(
             "Ctrl-F",
             Style::default().fg(theme.accent_user).bg(theme.bg_light),
         ),
-        Span::styled(" to expand", style),
+        Span::styled(tr!(" to expand"), style),
     ])
 }
 
@@ -1736,7 +1738,7 @@ fn build_reject_once_line<'a>(
     } else {
         // Placeholder.
         (
-            "No, reject (type to add feedback)".to_string(),
+            tr!("No, reject (type to add feedback)").to_string(),
             Style::default().fg(theme.gray).bg(row_bg),
         )
     };
