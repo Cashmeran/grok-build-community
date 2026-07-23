@@ -1193,6 +1193,7 @@ mod platform {
 #[cfg(not(target_os = "macos"))]
 mod platform {
     use std::process::{Command, Stdio};
+
     use super::ImageData;
 
     /// No subprocess-free pasteboard probe exists off-macOS.
