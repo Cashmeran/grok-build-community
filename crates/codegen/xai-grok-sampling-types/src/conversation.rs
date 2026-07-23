@@ -55,6 +55,11 @@ pub enum ConversationItem {
     /// wrapping `rs::WebSearchToolCall` etc.) so no field is dropped on the
     /// way through.
     Reasoning(rs::ReasoningItem),
+    /// Catch-all for unknown/future variants, preserving forward compatibility
+    /// so older clients can read sessions written by newer versions without
+    /// crashing. Silently skipped during normal processing.
+    #[serde(other)]
+    Unknown,
 }
 
 /// System message content
@@ -1190,6 +1195,7 @@ impl ConversationItem {
             Self::BackendToolCall(_) => Role::Assistant,
             // Reasoning is semantically part of the assistant's turn.
             Self::Reasoning(_) => Role::Assistant,
+            Self::Unknown => Role::Assistant,
         }
     }
 
@@ -1219,6 +1225,7 @@ impl ConversationItem {
             Self::ToolResult(t) => t.content.as_ref().to_owned(),
             Self::BackendToolCall(b) => b.text_summary(),
             Self::Reasoning(r) => reasoning_item_text(r),
+            Self::Unknown => String::new(),
         }
     }
 }
@@ -1875,6 +1882,11 @@ pub fn conversation_item_to_chat_message(item: ConversationItem) -> ChatRequestM
             "conversation_to_chat_messages folds Reasoning siblings; \
                  conversation_item_to_chat_message is never called with one"
         ),
+        ConversationItem::Unknown => {
+            // Silently skip unknown variants — preserves forward compatibility
+            // with sessions written by newer versions.
+            ChatRequestMessage::system("")
+        }
     }
 }
 
@@ -2312,6 +2324,7 @@ fn conversation_item_to_input_items(item: &ConversationItem) -> Vec<rs::InputIte
             r.status = None;
             vec![rs::InputItem::Item(rs::Item::Reasoning(r))]
         }
+        ConversationItem::Unknown => vec![],
         ConversationItem::Assistant(a) => {
             let mut items = Vec::new();
 
@@ -2793,6 +2806,8 @@ pub fn transform_conversation_cwd(
                     }
                 }
             }
+            // Unknown/skipped variant — no paths to transform.
+            ConversationItem::Unknown => {}
         }
     }
 }
@@ -3248,6 +3263,8 @@ pub fn build_messages_request(req: &ConversationRequest) -> crate::messages::Mes
                     });
                 }
             }
+            // Unknown/skipped variant — no-op.
+            ConversationItem::Unknown => {}
         }
     }
 

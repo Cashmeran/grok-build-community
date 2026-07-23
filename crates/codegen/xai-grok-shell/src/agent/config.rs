@@ -2468,6 +2468,7 @@ impl Config {
             .requirement(self.requirements.web_fetch.pinned())
             .config(self.features.web_fetch)
             .feature_flag(ff)
+            .default(true)
             .resolve()
     }
     /// `ask_user_question` tool gate; default ON. remote settings

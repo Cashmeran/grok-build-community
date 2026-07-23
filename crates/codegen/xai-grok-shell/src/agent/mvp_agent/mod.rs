@@ -1973,10 +1973,8 @@ impl MvpAgent {
                     let message = "A subscription is required.".to_string();
                     Some(crate::auth::GateInfo {
                         message,
-                        url: Some(
-                            "https://grok.com/supergrok?referrer=grok-build".to_string(),
-                        ),
-                        label: Some("Subscribe".to_string()),
+                        url: None,
+                        label: None,
                     })
                 } else {
                     gate

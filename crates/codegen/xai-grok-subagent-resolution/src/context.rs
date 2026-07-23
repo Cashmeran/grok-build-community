@@ -333,6 +333,7 @@ fn render_item_to_background(out: &mut String, item: &ConversationItem) {
         // they're rendered (when needed) inline with the surrounding
         // assistant turn elsewhere.
         ConversationItem::Reasoning(_) => {}
+        ConversationItem::Unknown => {}
     }
 }
 

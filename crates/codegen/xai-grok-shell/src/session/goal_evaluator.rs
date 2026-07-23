@@ -123,7 +123,7 @@ pub(crate) fn bounded_goal_transcript(items: &[ConversationItem]) -> String {
             ConversationItem::User(_) => "user",
             ConversationItem::Assistant(_) => "assistant",
             ConversationItem::ToolResult(_) => "tool",
-            ConversationItem::BackendToolCall(_) | ConversationItem::Reasoning(_) => continue,
+            ConversationItem::BackendToolCall(_) | ConversationItem::Reasoning(_) | ConversationItem::Unknown => continue,
         };
         let text = item.text_content();
         let trimmed = text.trim();

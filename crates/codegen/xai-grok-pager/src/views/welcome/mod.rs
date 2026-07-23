@@ -1986,7 +1986,7 @@ fn render_welcome_done(
             let gate_link = p
                 .gate
                 .and_then(|g| g.url.as_deref())
-                .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
+                .unwrap_or("");
             let url = Line::from(Span::styled(
                 gate_link,
                 Style::default()
