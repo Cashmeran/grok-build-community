@@ -17,7 +17,6 @@ use crate::scrollback::text_selection::{
     render_block_drag_overlay, render_persistent_selection_overlay,
 };
 use crate::theme::Theme;
-use xai_grok_i18n::tr;
 use crate::views::btw_overlay::BTW_OVERLAY_ENTRY_IDX;
 use crate::views::modal;
 use crate::views::plan_approval_view::PlanApprovalFocus;
@@ -32,6 +31,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 use std::collections::HashSet;
 use std::time::Instant;
+use xai_grok_i18n::tr;
 impl AgentView {
     pub(crate) fn update_scrollback_selection_state(
         &mut self,

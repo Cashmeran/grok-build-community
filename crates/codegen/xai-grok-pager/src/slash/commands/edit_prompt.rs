@@ -13,7 +13,9 @@ impl SlashCommand for EditPromptCommand {
     }
 
     fn description(&self) -> &str {
-        tr!("Open an external editor for an empty prompt; use the command palette to preserve a draft")
+        tr!(
+            "Open an external editor for an empty prompt; use the command palette to preserve a draft"
+        )
     }
 
     fn usage(&self) -> &str {

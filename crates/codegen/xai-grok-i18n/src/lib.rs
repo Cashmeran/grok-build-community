@@ -175,11 +175,10 @@ fn load_translations(lang: &str) -> HashMap<&'static str, &'static str> {
 }
 
 fn parse_translations(json: &str) -> HashMap<&'static str, &'static str> {
-    let raw: HashMap<String, String> =
-        serde_json::from_str(json).unwrap_or_else(|e| {
-            tracing::warn!("Failed to parse translations: {e}");
-            HashMap::new()
-        });
+    let raw: HashMap<String, String> = serde_json::from_str(json).unwrap_or_else(|e| {
+        tracing::warn!("Failed to parse translations: {e}");
+        HashMap::new()
+    });
     // Leak all strings to make them 'static — the translations live for the
     // entire process lifetime, so this is intentional and not a leak.
     raw.into_iter()

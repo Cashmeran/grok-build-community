@@ -17,13 +17,13 @@ use crate::app::dispatch::modes::inherit_auto_mode;
 use crate::app::dispatch::prompt::{defer_to_open_reload_window, supersede_open_reload_window};
 use crate::app::dispatch::queue::{maybe_drain_queue, note_peek_page_flip};
 use crate::app::dispatch::router::dispatch;
-use xai_grok_i18n::tr;
 use crate::app::dispatch::status::notify_session_ready;
 use crate::app::dispatch::transcript::extensions_modal_tab_fetches;
 use crate::scrollback::block::RenderBlock;
 use crate::scrollback::blocks::SessionEvent;
 use crate::scrollback::state::ScrollbackState;
 use agent_client_protocol as acp;
+use xai_grok_i18n::tr;
 /// Create a placeholder agent and load an existing session by ID.
 ///
 /// `session_cwd` overrides the CWD in the `LoadSessionRequest`. This is needed
@@ -788,7 +788,9 @@ pub(in crate::app::dispatch) fn dispatch_load_session_with_restore(
     let mut scrollback = ScrollbackState::new();
     scrollback.set_appearance(app.appearance.clone());
     scrollback.push_block(RenderBlock::system(format!(
-        "{} {session_id} {}...", tr!("Restoring session"), tr!("from remote")
+        "{} {session_id} {}...",
+        tr!("Restoring session"),
+        tr!("from remote")
     )));
     let agent = AgentView::new(
         AgentSession {

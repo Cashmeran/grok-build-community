@@ -62,7 +62,9 @@ impl SlashCommand for ScreenModeSwitchCommand {
 
     fn description(&self) -> &str {
         if self.to_minimal {
-            tr!("Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen")
+            tr!(
+                "Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen"
+            )
         } else {
             tr!("Reopen this session in fullscreen mode — switch back with /minimal")
         }

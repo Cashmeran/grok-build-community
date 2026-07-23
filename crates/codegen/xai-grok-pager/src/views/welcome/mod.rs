@@ -1984,10 +1984,7 @@ fn render_welcome_done(
                 height: 1,
                 ..centered
             };
-            let gate_link = p
-                .gate
-                .and_then(|g| g.url.as_deref())
-                .unwrap_or("");
+            let gate_link = p.gate.and_then(|g| g.url.as_deref()).unwrap_or("");
             let url = Line::from(Span::styled(
                 gate_link,
                 Style::default()
