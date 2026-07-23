@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Start a new agent session, clearing the current conversation.
 pub struct NewCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for NewCommand {
     }
 
     fn description(&self) -> &str {
-        "Start a new session"
+        tr!("Start a new session")
     }
 
     fn usage(&self) -> &str {

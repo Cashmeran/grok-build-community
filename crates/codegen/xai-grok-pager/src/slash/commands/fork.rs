@@ -12,6 +12,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Parsed arguments for the `/fork` slash command.
 ///
@@ -104,7 +105,7 @@ impl SlashCommand for ForkCommand {
     }
 
     fn description(&self) -> &str {
-        "Branch the current session into a peer agent"
+        tr!("Branch the current session into a peer agent")
     }
 
     fn session_scoped(&self) -> bool {

@@ -5,6 +5,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open the settings modal.
 pub struct SettingsCommand;
@@ -19,7 +20,7 @@ impl SlashCommand for SettingsCommand {
     }
 
     fn description(&self) -> &str {
-        "Open the settings modal"
+        tr!("Open the settings modal")
     }
 
     fn usage(&self) -> &str {

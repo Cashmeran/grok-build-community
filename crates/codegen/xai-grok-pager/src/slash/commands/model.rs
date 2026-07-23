@@ -9,6 +9,7 @@ use crate::acp::model_state::ModelState;
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
 use crate::slash::commands::effort_levels::build_effort_arg_items;
+use xai_grok_i18n::tr;
 
 /// Switch the active model (and optionally its reasoning effort).
 pub struct ModelCommand;
@@ -23,7 +24,7 @@ impl SlashCommand for ModelCommand {
     }
 
     fn description(&self) -> &str {
-        "Switch the active model"
+        tr!("Switch the active model")
     }
 
     fn session_scoped(&self) -> bool {

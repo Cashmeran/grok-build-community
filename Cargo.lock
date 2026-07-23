@@ -13004,6 +13004,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "xai-grok-i18n"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "xai-grok-markdown"
 version = "0.1.0"
 dependencies = [
@@ -13200,6 +13211,7 @@ dependencies = [
  "xai-grok-agent",
  "xai-grok-announcements",
  "xai-grok-config",
+ "xai-grok-i18n",
  "xai-grok-markdown",
  "xai-grok-mermaid",
  "xai-grok-pager-pty-harness",

@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Quit the pager application.
 pub struct ExitCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for ExitCommand {
     }
 
     fn description(&self) -> &str {
-        "Quit the application"
+        tr!("Quit the application")
     }
 
     fn usage(&self) -> &str {

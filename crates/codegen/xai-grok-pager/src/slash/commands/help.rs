@@ -6,6 +6,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open the command palette.
 pub struct HelpCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for HelpCommand {
     }
 
     fn description(&self) -> &str {
-        "Browse commands and keyboard shortcuts"
+        tr!("Browse commands and keyboard shortcuts")
     }
 
     fn usage(&self) -> &str {

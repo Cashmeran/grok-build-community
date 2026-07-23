@@ -12,6 +12,7 @@
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
 use crate::theme::{Theme, ThemeKind, cache as theme_cache};
+use xai_grok_i18n::tr;
 
 /// Switch the pager color theme.
 pub struct ThemeCommand;
@@ -26,7 +27,7 @@ impl SlashCommand for ThemeCommand {
     }
 
     fn description(&self) -> &str {
-        "Switch the color theme"
+        tr!("Switch the color theme")
     }
 
     /// Minimal has no theming, so there is nothing for `/theme` to switch.

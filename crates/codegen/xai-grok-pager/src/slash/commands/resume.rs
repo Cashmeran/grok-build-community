@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct ResumeCommand;
 
@@ -11,7 +12,7 @@ impl SlashCommand for ResumeCommand {
     }
 
     fn description(&self) -> &str {
-        "Resume a previous session"
+        tr!("Resume a previous session")
     }
 
     fn usage(&self) -> &str {

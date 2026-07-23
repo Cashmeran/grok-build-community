@@ -18,6 +18,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open the Agent Dashboard view.
 pub struct DashboardCommand;
@@ -40,7 +41,7 @@ impl SlashCommand for DashboardCommand {
     }
 
     fn description(&self) -> &str {
-        "Open the Agent Dashboard — a fullscreen overview of every running session"
+        tr!("Open the Agent Dashboard — a fullscreen overview of every running session")
     }
 
     fn usage(&self) -> &str {

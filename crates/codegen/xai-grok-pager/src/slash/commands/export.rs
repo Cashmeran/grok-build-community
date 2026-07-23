@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Export the current conversation to a file or clipboard.
 pub struct ExportCommand;
@@ -21,7 +22,7 @@ impl SlashCommand for ExportCommand {
     }
 
     fn description(&self) -> &str {
-        "Export the current conversation to a file or clipboard"
+        tr!("Export the current conversation to a file or clipboard")
     }
 
     fn session_scoped(&self) -> bool {

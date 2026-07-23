@@ -7,6 +7,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open the prompt-history search overlay via `/history`.
 pub struct HistoryCommand;
@@ -17,7 +18,7 @@ impl SlashCommand for HistoryCommand {
     }
 
     fn description(&self) -> &str {
-        "Search prompt history"
+        tr!("Search prompt history")
     }
 
     fn session_scoped(&self) -> bool {

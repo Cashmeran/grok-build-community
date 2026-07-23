@@ -6,6 +6,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open scrollback search via `/find`.
 pub struct FindCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for FindCommand {
     }
 
     fn description(&self) -> &str {
-        "Search the conversation scrollback"
+        tr!("Search the conversation scrollback")
     }
 
     fn session_scoped(&self) -> bool {

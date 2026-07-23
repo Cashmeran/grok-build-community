@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Copy an assistant message to the clipboard (or an optional file).
 pub struct CopyCommand;
@@ -20,7 +21,7 @@ impl SlashCommand for CopyCommand {
     }
 
     fn description(&self) -> &str {
-        "Copy last response to clipboard or file (/copy [N] [file])"
+        tr!("Copy last response to clipboard or file (/copy [N] [file])")
     }
 
     fn session_scoped(&self) -> bool {
