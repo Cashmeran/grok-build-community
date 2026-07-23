@@ -232,3 +232,7 @@ mod tests {
         assert_eq!(normalize_lang("de"), "en"); // unknown → en
     }
 }
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod translation_integration_tests;

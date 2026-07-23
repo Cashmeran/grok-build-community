@@ -980,6 +980,8 @@ pub enum Action {
     JumpPickerSelect(EntryId),
     /// Close the picker and restore the stashed viewport.
     JumpDismiss,
+    /// Refresh the slash command registry to pick up language changes.
+    RefreshLanguage,
 }
 /// Persist-and-notify semantics for [`Effect::PersistPermissionMode`].
 ///

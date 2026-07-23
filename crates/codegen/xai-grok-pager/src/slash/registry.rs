@@ -306,6 +306,12 @@ impl CommandRegistry {
             .is_some_and(|s| *s == CommandSource::Builtin)
     }
 
+    /// Rebuild all triggers from the current command set, picking up any
+    /// runtime changes (e.g. i18n language switch).
+    pub fn refresh_triggers(&mut self) {
+        self.rebuild_triggers();
+    }
+
     /// All triggers (for fuzzy matching).
     pub fn triggers(&self) -> &[CommandTrigger] {
         &self.triggers

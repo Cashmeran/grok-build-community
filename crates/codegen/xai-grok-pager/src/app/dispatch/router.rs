@@ -1350,6 +1350,12 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
         Action::JumpShowPicker => dispatch_jump_show_picker(app),
         Action::JumpPickerSelect(turn_idx) => dispatch_jump_picker_select(app, turn_idx),
         Action::JumpDismiss => dispatch_jump_dismiss(app),
+        Action::RefreshLanguage => {
+            app.agents
+                .values_mut()
+                .for_each(|a| a.prompt.slash_controller.registry_mut().refresh_triggers());
+            vec![]
+        }
     };
     app.reconcile_foreign_resume_launch();
     sync_sleep_inhibitor(app);

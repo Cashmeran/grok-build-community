@@ -4,6 +4,7 @@
 //! with available languages. Selecting one switches immediately.
 //! Supported: en, zh-CN, ja, ko, ru, fr.
 
+use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
 use xai_grok_i18n::tr;
 
@@ -73,9 +74,6 @@ impl SlashCommand for LangCommand {
         }
 
         xai_grok_i18n::set_lang(code);
-        CommandResult::Message(format!(
-            "Language switched to: {}",
-            xai_grok_i18n::current_lang()
-        ))
+        CommandResult::Action(Action::RefreshLanguage)
     }
 }
