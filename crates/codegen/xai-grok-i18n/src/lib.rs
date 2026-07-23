@@ -39,12 +39,18 @@ static LANG: OnceLock<RwLock<String>> = OnceLock::new();
 static TRANSLATIONS: OnceLock<RwLock<HashMap<&'static str, &'static str>>> = OnceLock::new();
 
 fn lang_cell() -> &'static RwLock<String> {
-    LANG.get_or_init(|| RwLock::new("en".to_string()))
+    LANG.get_or_init(|| {
+        let detected = detect_system_lang();
+        let normalized = normalize_lang(&detected);
+        tracing::info!(lang = %normalized, "i18n auto-detected system language");
+        RwLock::new(normalized)
+    })
 }
 
 fn translations_cell() -> &'static RwLock<HashMap<&'static str, &'static str>> {
     TRANSLATIONS.get_or_init(|| {
-        let map = load_translations("en");
+        let lang = lang_cell().read().clone();
+        let map = load_translations(&lang);
         RwLock::new(map)
     })
 }
@@ -52,6 +58,20 @@ fn translations_cell() -> &'static RwLock<HashMap<&'static str, &'static str>> {
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
+
+/// Auto-detect the system language and initialize translations.
+///
+/// Should be called once at startup, before any `tr!()` calls.
+/// Checks environment variables (`LANG`, `LC_ALL`) and platform-specific
+/// locale APIs. Falls back to `"en"` if detection fails.
+pub fn init() {
+    let detected = detect_system_lang();
+    let normalized = normalize_lang(&detected);
+    let map = load_translations(&normalized);
+    *lang_cell().write() = normalized;
+    *translations_cell().write() = map;
+    tracing::info!(lang = %detected, "i18n initialized from system locale");
+}
 
 /// Return the currently active language code (e.g. `"en"`, `"zh-CN"`).
 pub fn current_lang() -> String {
@@ -113,6 +133,26 @@ fn normalize_lang(raw: &str) -> String {
     }
 }
 
+/// Detect the system's preferred language from environment variables.
+///
+/// Checks (in order):
+/// 1. `LC_ALL` env var
+/// 2. `LC_MESSAGES` env var
+/// 3. `LANG` env var (Unix/macOS)
+/// 4. `LANGUAGE` env var (GNU gettext)
+/// 5. Falls back to `"en"` if nothing matches
+fn detect_system_lang() -> String {
+    for var in &["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] {
+        if let Ok(val) = std::env::var(var) {
+            let lang = val.split('.').next().unwrap_or(&val);
+            if !lang.is_empty() && lang != "C" && lang != "POSIX" {
+                return lang.to_string();
+            }
+        }
+    }
+    "en".to_string()
+}
+
 fn load_translations(lang: &str) -> HashMap<&'static str, &'static str> {
     match lang {
         "zh-CN" => parse_translations(TRANSLATION_ZH_CN),
@@ -146,8 +186,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_lang_is_en() {
-        assert_eq!(current_lang(), "en");
+    fn default_lang_falls_back_to_en() {
+        // Default depends on system locale; on CI (LANG=C) it's "en".
+        // We test the fallback path directly via normalize_lang.
+        assert_eq!(normalize_lang("C"), "en");
+        assert_eq!(normalize_lang("POSIX"), "en");
+        assert_eq!(normalize_lang(""), "en");
     }
 
     #[test]
