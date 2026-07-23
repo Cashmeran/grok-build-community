@@ -125,6 +125,7 @@ impl ParentPlan {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(super) struct ParentAnchor {
     path: PathBuf,
     identity: FileIdentity,

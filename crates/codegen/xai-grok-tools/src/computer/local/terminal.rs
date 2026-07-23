@@ -459,6 +459,7 @@ struct CompletionWaiter {
 }
 
 /// The actor that owns all terminal state and processes commands
+#[allow(dead_code)]
 struct LocalTerminalActor {
     /// Command receiver
     cmd_rx: mpsc::Receiver<TerminalCommand>,
