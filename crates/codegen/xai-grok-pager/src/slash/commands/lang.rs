@@ -2,7 +2,7 @@
 //!
 //! When invoked with no arguments, the prompt widget shows a dropdown
 //! with available languages. Selecting one switches immediately.
-//! You can also type `/lang en` or `/lang zh-CN` directly.
+//! Supported: en, zh-CN, ja, ko, ru, fr.
 
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
 use xai_grok_i18n::tr;
@@ -23,7 +23,7 @@ impl SlashCommand for LangCommand {
     }
 
     fn usage(&self) -> &str {
-        "/lang [en|zh-CN]"
+        "/lang [en|zh-CN|ja|ko|ru|fr]"
     }
 
     fn takes_args(&self) -> bool {
@@ -40,28 +40,26 @@ impl SlashCommand for LangCommand {
 
     fn suggest_args(&self, _ctx: &AppCtx, _args_query: &str) -> Option<Vec<ArgItem>> {
         let current = xai_grok_i18n::current_lang();
-        let items = vec![
-            ArgItem {
-                display: format!(
-                    "{}  {}",
-                    if current == "en" { ">" } else { " " },
-                    tr!("English")
-                ),
-                match_text: "en".to_string(),
-                insert_text: "en".to_string(),
-                description: tr!("English").to_string(),
-            },
-            ArgItem {
-                display: format!(
-                    "{}  {}",
-                    if current == "zh-CN" { ">" } else { " " },
-                    tr!("中文")
-                ),
-                match_text: "zh-CN".to_string(),
-                insert_text: "zh-CN".to_string(),
-                description: tr!("中文").to_string(),
-            },
+        let entries: &[(&str, &str)] = &[
+            ("en", "English"),
+            ("zh-CN", "中文"),
+            ("ja", "日本語"),
+            ("ko", "한국어"),
+            ("ru", "Русский"),
+            ("fr", "Français"),
         ];
+        let items: Vec<ArgItem> = entries
+            .iter()
+            .map(|(code, name)| {
+                let marker = if current == *code { ">" } else { " " };
+                ArgItem {
+                    display: format!("{marker}  {name}"),
+                    match_text: code.to_string(),
+                    insert_text: code.to_string(),
+                    description: name.to_string(),
+                }
+            })
+            .collect();
         Some(items)
     }
 
@@ -69,7 +67,7 @@ impl SlashCommand for LangCommand {
         let code = args.trim();
         if code.is_empty() {
             return CommandResult::Message(format!(
-                "Current language: {}. Type /lang en or /lang zh-CN to switch, or press Tab to select.",
+                "Current language: {}. Type /lang <code> to switch, or press Tab to select.",
                 xai_grok_i18n::current_lang()
             ));
         }

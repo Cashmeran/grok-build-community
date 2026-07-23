@@ -30,6 +30,10 @@ use parking_lot::RwLock;
 // ---------------------------------------------------------------------------
 
 const TRANSLATION_ZH_CN: &str = include_str!("translations/zh-CN.json");
+const TRANSLATION_JA: &str = include_str!("translations/ja.json");
+const TRANSLATION_KO: &str = include_str!("translations/ko.json");
+const TRANSLATION_RU: &str = include_str!("translations/ru.json");
+const TRANSLATION_FR: &str = include_str!("translations/fr.json");
 
 // ---------------------------------------------------------------------------
 // Global state
@@ -129,6 +133,10 @@ fn normalize_lang(raw: &str) -> String {
     let t = raw.trim().to_lowercase();
     match t.as_str() {
         "zh" | "zh-cn" | "zh_cn" | "zhcn" | "chinese" => "zh-CN".to_string(),
+        "ja" | "ja-jp" | "japanese" => "ja".to_string(),
+        "ko" | "ko-kr" | "korean" => "ko".to_string(),
+        "ru" | "ru-ru" | "russian" => "ru".to_string(),
+        "fr" | "fr-fr" | "french" => "fr".to_string(),
         _ => "en".to_string(),
     }
 }
@@ -141,6 +149,8 @@ fn normalize_lang(raw: &str) -> String {
 /// 3. `LANG` env var (Unix/macOS)
 /// 4. `LANGUAGE` env var (GNU gettext)
 /// 5. Falls back to `"en"` if nothing matches
+///
+/// Supported auto-detected locales: zh, ja, ko, ru, fr. All others → en.
 fn detect_system_lang() -> String {
     for var in &["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] {
         if let Ok(val) = std::env::var(var) {
@@ -156,6 +166,10 @@ fn detect_system_lang() -> String {
 fn load_translations(lang: &str) -> HashMap<&'static str, &'static str> {
     match lang {
         "zh-CN" => parse_translations(TRANSLATION_ZH_CN),
+        "ja" => parse_translations(TRANSLATION_JA),
+        "ko" => parse_translations(TRANSLATION_KO),
+        "ru" => parse_translations(TRANSLATION_RU),
+        "fr" => parse_translations(TRANSLATION_FR),
         _ => HashMap::new(), // English = identity, empty map
     }
 }
@@ -214,6 +228,7 @@ mod tests {
         assert_eq!(normalize_lang("zh-cn"), "zh-CN");
         assert_eq!(normalize_lang("ZH_CN"), "zh-CN");
         assert_eq!(normalize_lang("en"), "en");
-        assert_eq!(normalize_lang("fr"), "en"); // unknown → en
+        assert_eq!(normalize_lang("fr"), "fr");
+        assert_eq!(normalize_lang("de"), "en"); // unknown → en
     }
 }
