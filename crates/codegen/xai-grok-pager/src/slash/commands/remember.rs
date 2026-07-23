@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Save a memory note inline or enter remember mode.
 pub struct RememberCommand;
@@ -12,11 +13,11 @@ impl SlashCommand for RememberCommand {
     }
 
     fn description(&self) -> &str {
-        "Save a memory note"
+        tr!("Save a memory note")
     }
 
     fn usage(&self) -> &str {
-        "/remember [text]"
+        tr!("/remember [text]")
     }
 
     fn takes_args(&self) -> bool {

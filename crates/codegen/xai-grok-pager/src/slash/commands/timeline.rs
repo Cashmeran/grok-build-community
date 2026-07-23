@@ -5,6 +5,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct TimelineCommand;
 
@@ -14,7 +15,7 @@ impl SlashCommand for TimelineCommand {
     }
 
     fn description(&self) -> &str {
-        "Toggle the timeline sidebar"
+        tr!("Toggle the timeline sidebar")
     }
 
     /// Minimal mode has no interactive scrollback pane for the rail.

@@ -7,6 +7,7 @@
 
 use crate::app::actions::{Action, PlanModeKind};
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Enter plan mode.
 pub struct PlanCommand;
@@ -17,7 +18,7 @@ impl SlashCommand for PlanCommand {
     }
 
     fn description(&self) -> &str {
-        "Enter plan mode"
+        tr!("Enter plan mode")
     }
 
     fn session_scoped(&self) -> bool {
@@ -31,7 +32,7 @@ impl SlashCommand for PlanCommand {
     }
 
     fn usage(&self) -> &str {
-        "/plan [description]"
+        tr!("/plan [description]")
     }
 
     fn takes_args(&self) -> bool {

@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct UsageCommand;
 
@@ -15,11 +16,11 @@ impl SlashCommand for UsageCommand {
     }
 
     fn description(&self) -> &str {
-        "View usage"
+        tr!("View usage")
     }
 
     fn usage(&self) -> &str {
-        "/usage [show|manage]"
+        tr!("/usage [show|manage]")
     }
 
     fn takes_args(&self) -> bool {

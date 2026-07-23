@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Show or toggle privacy and data retention status.
 ///
@@ -21,11 +22,11 @@ impl SlashCommand for PrivacyCommand {
     }
 
     fn description(&self) -> &str {
-        "Show or toggle privacy & data retention status"
+        tr!("Show or toggle privacy & data retention status")
     }
 
     fn usage(&self) -> &str {
-        "/privacy [opt-in|opt-out]"
+        tr!("/privacy [opt-in|opt-out]")
     }
 
     fn takes_args(&self) -> bool {

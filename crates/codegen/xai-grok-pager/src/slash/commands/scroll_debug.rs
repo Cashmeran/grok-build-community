@@ -8,6 +8,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Hidden toggle for the scroll-debug HUD.
 pub struct ScrollDebugCommand;
@@ -19,7 +20,7 @@ impl SlashCommand for ScrollDebugCommand {
 
     fn description(&self) -> &str {
         // Never shown: the command is hidden from the dropdown.
-        "Toggle the scroll-diagnostics HUD"
+        tr!("Toggle the scroll-diagnostics HUD")
     }
 
     fn usage(&self) -> &str {

@@ -5,6 +5,7 @@
 //! as `QueueEntryKind::Command`.
 
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Compact the conversation history, optionally with a focus context.
 pub struct CompactCommand;
@@ -15,7 +16,7 @@ impl SlashCommand for CompactCommand {
     }
 
     fn description(&self) -> &str {
-        "Compact conversation history"
+        tr!("Compact conversation history")
     }
 
     fn session_scoped(&self) -> bool {
@@ -23,7 +24,7 @@ impl SlashCommand for CompactCommand {
     }
 
     fn usage(&self) -> &str {
-        "/compact compaction instructions"
+        tr!("/compact compaction instructions")
     }
 
     fn takes_args(&self) -> bool {

@@ -9,6 +9,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Change the working directory for newly dispatched dashboard sessions.
 pub struct CdCommand;
@@ -19,11 +20,11 @@ impl SlashCommand for CdCommand {
     }
 
     fn description(&self) -> &str {
-        "Change the working directory for new agents"
+        tr!("Change the working directory for new agents")
     }
 
     fn usage(&self) -> &str {
-        "/cd [path]"
+        tr!("/cd [path]")
     }
 
     fn takes_args(&self) -> bool {

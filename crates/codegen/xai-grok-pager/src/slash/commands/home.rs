@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Exit the current session and return to the welcome screen.
 pub struct HomeCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for HomeCommand {
     }
 
     fn description(&self) -> &str {
-        "Return to the welcome screen"
+        tr!("Return to the welcome screen")
     }
 
     fn usage(&self) -> &str {

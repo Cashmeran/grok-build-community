@@ -10,6 +10,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Toggle multiline input mode via `/multiline`.
 pub struct MultilineCommand;
@@ -24,7 +25,7 @@ impl SlashCommand for MultilineCommand {
     }
 
     fn description(&self) -> &str {
-        "Toggle multiline input mode (swap Enter and Shift+Enter)"
+        tr!("Toggle multiline input mode (swap Enter and Shift+Enter)")
     }
 
     fn session_scoped(&self) -> bool {

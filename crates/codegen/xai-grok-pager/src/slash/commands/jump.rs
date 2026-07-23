@@ -1,5 +1,6 @@
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct JumpCommand;
 
@@ -9,7 +10,7 @@ impl SlashCommand for JumpCommand {
     }
 
     fn description(&self) -> &str {
-        "Jump to a turn in the conversation"
+        tr!("Jump to a turn in the conversation")
     }
 
     fn session_scoped(&self) -> bool {

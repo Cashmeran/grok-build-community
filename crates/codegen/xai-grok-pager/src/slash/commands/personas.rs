@@ -3,6 +3,7 @@
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
 use crate::views::agents_modal::AgentsTab;
+use xai_grok_i18n::tr;
 
 /// Open the agents modal directly on the Personas tab.
 pub struct PersonasCommand;
@@ -17,7 +18,7 @@ impl SlashCommand for PersonasCommand {
     }
 
     fn description(&self) -> &str {
-        "Manage personas (create, edit, delete)"
+        tr!("Manage personas (create, edit, delete)")
     }
 
     fn usage(&self) -> &str {

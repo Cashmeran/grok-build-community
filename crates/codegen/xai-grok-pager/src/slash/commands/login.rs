@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct LoginCommand;
 
@@ -11,7 +12,7 @@ impl SlashCommand for LoginCommand {
     }
 
     fn description(&self) -> &str {
-        "Log in or re-authenticate with your account"
+        tr!("Log in or re-authenticate with your account")
     }
 
     fn usage(&self) -> &str {

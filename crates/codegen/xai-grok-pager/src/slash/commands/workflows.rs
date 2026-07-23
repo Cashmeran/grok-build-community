@@ -1,5 +1,6 @@
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct WorkflowsCommand;
 
@@ -9,7 +10,7 @@ impl SlashCommand for WorkflowsCommand {
     }
 
     fn description(&self) -> &str {
-        "Show workflow runs (phases, agents, progress)"
+        tr!("Show workflow runs (phases, agents, progress)")
     }
 
     fn usage(&self) -> &str {

@@ -1,5 +1,6 @@
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct McpsCommand;
 
@@ -9,7 +10,7 @@ impl SlashCommand for McpsCommand {
     }
 
     fn description(&self) -> &str {
-        "Show MCP server status"
+        tr!("Show MCP server status")
     }
 
     fn usage(&self) -> &str {

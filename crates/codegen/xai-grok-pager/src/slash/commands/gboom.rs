@@ -7,6 +7,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Hidden GBOOM easter egg.
 pub struct GboomCommand;
@@ -18,7 +19,7 @@ impl SlashCommand for GboomCommand {
 
     fn description(&self) -> &str {
         // Never shown: the command is hidden from the dropdown.
-        "Hidden easter egg"
+        tr!("Hidden easter egg")
     }
 
     fn usage(&self) -> &str {

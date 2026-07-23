@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 const USAGE: &str = "Usage: /announcements hide | show";
 
@@ -14,11 +15,11 @@ impl SlashCommand for AnnouncementsCommand {
     }
 
     fn description(&self) -> &str {
-        "Show or hide announcements"
+        tr!("Show or hide announcements")
     }
 
     fn usage(&self) -> &str {
-        "/announcements hide | show"
+        tr!("/announcements hide | show")
     }
 
     fn takes_args(&self) -> bool {

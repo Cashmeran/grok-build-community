@@ -3,6 +3,7 @@
 use crate::app::ScreenMode;
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Reopen the active session in the other screen mode (`/minimal` ⇄ `/fullscreen`).
 pub struct ScreenModeSwitchCommand {
@@ -61,9 +62,9 @@ impl SlashCommand for ScreenModeSwitchCommand {
 
     fn description(&self) -> &str {
         if self.to_minimal {
-            "Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen"
+            tr!("Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen")
         } else {
-            "Reopen this session in fullscreen mode — switch back with /minimal"
+            tr!("Reopen this session in fullscreen mode — switch back with /minimal")
         }
     }
 

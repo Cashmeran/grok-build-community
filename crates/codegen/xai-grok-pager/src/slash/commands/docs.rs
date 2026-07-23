@@ -7,6 +7,7 @@
 use crate::app::actions::Action;
 use crate::docs::{all_titles, find_doc};
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Online Build docs landing page (hardcoded like other TUI deep-links; docs.x.ai can redirect if the path moves).
 pub const BUILD_DOCS_URL: &str = "https://docs.x.ai/build/overview";
@@ -24,11 +25,11 @@ impl SlashCommand for DocsCommand {
     }
 
     fn description(&self) -> &str {
-        "Open How-to Guides or online Build docs"
+        tr!("Open How-to Guides or online Build docs")
     }
 
     fn usage(&self) -> &str {
-        "/docs [web|title]"
+        tr!("/docs [web|title]")
     }
 
     fn takes_args(&self) -> bool {

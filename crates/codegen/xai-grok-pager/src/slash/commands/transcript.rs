@@ -8,6 +8,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// View the full conversation transcript in `$PAGER`.
 pub struct TranscriptCommand;
@@ -22,7 +23,7 @@ impl SlashCommand for TranscriptCommand {
     }
 
     fn description(&self) -> &str {
-        "View the full conversation transcript in your pager ($PAGER)"
+        tr!("View the full conversation transcript in your pager ($PAGER)")
     }
 
     fn session_scoped(&self) -> bool {

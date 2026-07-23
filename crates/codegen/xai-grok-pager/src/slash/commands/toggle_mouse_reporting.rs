@@ -11,6 +11,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Toggle terminal mouse reporting (mouse capture). Mirrors the `Ctrl+R`
 /// scrollback shortcut via the same `Action::ToggleMouseCapture` path.
@@ -22,7 +23,7 @@ impl SlashCommand for ToggleMouseReportingCommand {
     }
 
     fn description(&self) -> &str {
-        "Toggle terminal mouse reporting (native click-drag copy/paste)"
+        tr!("Toggle terminal mouse reporting (native click-drag copy/paste)")
     }
 
     fn usage(&self) -> &str {

@@ -20,6 +20,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Whether `/debug` is listed on completion surfaces. `visible()` returns
 /// this constant, so release invisibility is pinned by the constant's shape
@@ -44,11 +45,11 @@ impl SlashCommand for DebugCommand {
     }
 
     fn description(&self) -> &str {
-        "Toggle debug overlays"
+        tr!("Toggle debug overlays")
     }
 
     fn usage(&self) -> &str {
-        "/debug [scroll|fps|log]"
+        tr!("/debug [scroll|fps|log]")
     }
 
     fn takes_args(&self) -> bool {

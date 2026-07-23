@@ -8,6 +8,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// List background tasks, subagents, and scheduled tasks.
 pub struct TasksCommand;
@@ -18,7 +19,7 @@ impl SlashCommand for TasksCommand {
     }
 
     fn description(&self) -> &str {
-        "List background tasks, subagents, and scheduled tasks"
+        tr!("List background tasks, subagents, and scheduled tasks")
     }
 
     fn session_scoped(&self) -> bool {

@@ -4,6 +4,7 @@ use xai_grok_tools::implementations::grok_build::{
 };
 
 use crate::slash::command::{CommandExecCtx, CommandResult, ScheduledTaskPreview, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Pre-built slice for `LoopCommand::required_tools()`. Lifted to a
 /// module-level constant so the trait method can return a `'static`
@@ -85,11 +86,11 @@ impl SlashCommand for LoopCommand {
     }
 
     fn description(&self) -> &str {
-        "Run a prompt on a recurring interval"
+        tr!("Run a prompt on a recurring interval")
     }
 
     fn usage(&self) -> &str {
-        "/loop [interval] <prompt>"
+        tr!("/loop [interval] <prompt>")
     }
 
     fn takes_args(&self) -> bool {

@@ -7,6 +7,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct RecapCommand;
 
@@ -20,7 +21,7 @@ impl SlashCommand for RecapCommand {
     }
 
     fn description(&self) -> &str {
-        "Summarize the session so far"
+        tr!("Summarize the session so far")
     }
 
     fn session_scoped(&self) -> bool {

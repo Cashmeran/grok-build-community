@@ -5,6 +5,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct BtwCommand;
 
@@ -14,7 +15,7 @@ impl SlashCommand for BtwCommand {
     }
 
     fn description(&self) -> &str {
-        "Ask a side question without interrupting"
+        tr!("Ask a side question without interrupting")
     }
 
     fn session_scoped(&self) -> bool {
@@ -22,7 +23,7 @@ impl SlashCommand for BtwCommand {
     }
 
     fn usage(&self) -> &str {
-        "/btw <question>"
+        tr!("/btw <question>")
     }
 
     fn takes_args(&self) -> bool {

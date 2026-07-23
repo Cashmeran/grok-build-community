@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Show context usage breakdown (progress bar, token categories, stats).
 pub struct ContextCommand;
@@ -12,7 +13,7 @@ impl SlashCommand for ContextCommand {
     }
 
     fn description(&self) -> &str {
-        "View context usage"
+        tr!("View context usage")
     }
 
     fn session_scoped(&self) -> bool {

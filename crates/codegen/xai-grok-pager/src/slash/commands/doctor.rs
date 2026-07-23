@@ -4,6 +4,7 @@
 //! evidence that the standalone command cannot observe.
 
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct DoctorCommand;
 
@@ -17,7 +18,7 @@ impl SlashCommand for DoctorCommand {
     }
 
     fn description(&self) -> &str {
-        "Check terminal, color, clipboard, and voice input"
+        tr!("Check terminal, color, clipboard, and voice input")
     }
 
     fn usage(&self) -> &str {

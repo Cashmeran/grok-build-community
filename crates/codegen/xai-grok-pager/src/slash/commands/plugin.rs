@@ -7,6 +7,7 @@
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
 use crate::views::extensions_modal::ExtensionsTab;
+use xai_grok_i18n::tr;
 use xai_grok_telemetry::events::ExtensionsModalTrigger;
 
 /// Open the hooks/plugins modal on the Hooks tab.
@@ -18,7 +19,7 @@ impl SlashCommand for HooksCommand {
     }
 
     fn description(&self) -> &str {
-        "View hooks"
+        tr!("View hooks")
     }
 
     fn usage(&self) -> &str {
@@ -42,7 +43,7 @@ impl SlashCommand for PluginsCommand {
     }
 
     fn description(&self) -> &str {
-        "View plugins"
+        tr!("View plugins")
     }
 
     fn usage(&self) -> &str {
@@ -66,7 +67,7 @@ impl SlashCommand for MarketplaceCommand {
     }
 
     fn description(&self) -> &str {
-        "View marketplace"
+        tr!("View marketplace")
     }
 
     fn usage(&self) -> &str {
@@ -90,7 +91,7 @@ impl SlashCommand for SkillsCommand {
     }
 
     fn description(&self) -> &str {
-        "View skills"
+        tr!("View skills")
     }
 
     fn usage(&self) -> &str {

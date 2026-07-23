@@ -1,5 +1,6 @@
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct RewindCommand;
 
@@ -9,7 +10,7 @@ impl SlashCommand for RewindCommand {
     }
 
     fn description(&self) -> &str {
-        "Rewind to a previous turn"
+        tr!("Rewind to a previous turn")
     }
 
     fn session_scoped(&self) -> bool {

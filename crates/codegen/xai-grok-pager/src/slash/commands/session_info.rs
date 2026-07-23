@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Show session info (session ID, cwd, model, context usage).
 pub struct SessionInfoCommand;
@@ -12,7 +13,7 @@ impl SlashCommand for SessionInfoCommand {
     }
 
     fn description(&self) -> &str {
-        "Show session info"
+        tr!("Show session info")
     }
 
     fn session_scoped(&self) -> bool {

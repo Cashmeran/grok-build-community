@@ -9,6 +9,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Toggle always-approve (YOLO / `permission_mode`).
 pub struct AlwaysApproveCommand;
@@ -19,7 +20,7 @@ impl SlashCommand for AlwaysApproveCommand {
     }
 
     fn description(&self) -> &str {
-        "Toggle always-approve mode (skip all permission prompts)"
+        tr!("Toggle always-approve mode (skip all permission prompts)")
     }
 
     fn usage(&self) -> &str {

@@ -8,6 +8,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// List the queued prompts.
 pub struct QueueCommand;
@@ -18,7 +19,7 @@ impl SlashCommand for QueueCommand {
     }
 
     fn description(&self) -> &str {
-        "List the prompts queued behind the running turn"
+        tr!("List the prompts queued behind the running turn")
     }
 
     fn session_scoped(&self) -> bool {

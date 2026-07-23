@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Rename the current session's title/summary.
 pub struct RenameCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for RenameCommand {
     }
 
     fn description(&self) -> &str {
-        "Rename the current session"
+        tr!("Rename the current session")
     }
 
     fn session_scoped(&self) -> bool {
@@ -24,7 +25,7 @@ impl SlashCommand for RenameCommand {
     }
 
     fn usage(&self) -> &str {
-        "/rename <title>"
+        tr!("/rename <title>")
     }
 
     fn takes_args(&self) -> bool {

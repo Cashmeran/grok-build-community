@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Send session feedback inline or enter feedback mode.
 pub struct FeedbackCommand;
@@ -12,11 +13,11 @@ impl SlashCommand for FeedbackCommand {
     }
 
     fn description(&self) -> &str {
-        "Send feedback about the current session"
+        tr!("Send feedback about the current session")
     }
 
     fn usage(&self) -> &str {
-        "/feedback [text]"
+        tr!("/feedback [text]")
     }
 
     fn takes_args(&self) -> bool {

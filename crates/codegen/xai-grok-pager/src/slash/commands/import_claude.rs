@@ -9,6 +9,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open the interactive Claude settings import modal in the active session.
 pub struct ImportClaudeCommand;
@@ -19,7 +20,7 @@ impl SlashCommand for ImportClaudeCommand {
     }
 
     fn description(&self) -> &str {
-        "Open the Claude settings import modal"
+        tr!("Open the Claude settings import modal")
     }
 
     fn usage(&self) -> &str {

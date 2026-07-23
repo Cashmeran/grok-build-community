@@ -6,6 +6,7 @@
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
 use crate::slash::commands::effort_levels::build_effort_arg_items;
+use xai_grok_i18n::tr;
 
 /// Set reasoning effort for the active model.
 pub struct EffortCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for EffortCommand {
     }
 
     fn description(&self) -> &str {
-        "Set reasoning effort for the current model"
+        tr!("Set reasoning effort for the current model")
     }
 
     fn session_scoped(&self) -> bool {
@@ -26,7 +27,7 @@ impl SlashCommand for EffortCommand {
     fn usage(&self) -> &str {
         // Levels are model-specific; empty-args and UnknownToken errors list
         // the active model's offered option ids instead of a hardcoded set.
-        "/effort <level>"
+        tr!("/effort <level>")
     }
 
     fn takes_args(&self) -> bool {

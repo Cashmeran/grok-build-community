@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Show release notes for the current pager version.
 pub struct ReleaseNotesCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for ReleaseNotesCommand {
     }
 
     fn description(&self) -> &str {
-        "View release notes for the current version"
+        tr!("View release notes for the current version")
     }
 
     fn usage(&self) -> &str {

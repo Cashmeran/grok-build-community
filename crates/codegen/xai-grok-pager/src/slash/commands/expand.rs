@@ -10,6 +10,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Re-print the last collapsed/truncated block, fully expanded (minimal mode).
 pub struct ExpandCommand;
@@ -20,7 +21,7 @@ impl SlashCommand for ExpandCommand {
     }
 
     fn description(&self) -> &str {
-        "Re-print the last collapsed block, fully expanded (minimal mode)"
+        tr!("Re-print the last collapsed block, fully expanded (minimal mode)")
     }
 
     fn session_scoped(&self) -> bool {

@@ -5,6 +5,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct TimestampsCommand;
 
@@ -14,7 +15,7 @@ impl SlashCommand for TimestampsCommand {
     }
 
     fn description(&self) -> &str {
-        "Toggle message timestamps on/off"
+        tr!("Toggle message timestamps on/off")
     }
 
     fn usage(&self) -> &str {

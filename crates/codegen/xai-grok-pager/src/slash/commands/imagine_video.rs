@@ -5,6 +5,7 @@ use xai_grok_tools::implementations::grok_build::{
 };
 
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 const REQUIRED_TOOLS: &[&str] = &[IMAGE_TO_VIDEO_TOOL_NAME];
 
@@ -16,11 +17,11 @@ impl SlashCommand for ImagineVideoCommand {
     }
 
     fn description(&self) -> &str {
-        "Generate a video from a text description"
+        tr!("Generate a video from a text description")
     }
 
     fn usage(&self) -> &str {
-        "/imagine-video <description>"
+        tr!("/imagine-video <description>")
     }
 
     fn takes_args(&self) -> bool {

@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open the current session plan preview.
 pub struct ViewPlanCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for ViewPlanCommand {
     }
 
     fn description(&self) -> &str {
-        "View the current plan"
+        tr!("View the current plan")
     }
 
     fn session_scoped(&self) -> bool {

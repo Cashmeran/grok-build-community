@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Open the agents modal listing all agent definitions.
 pub struct ConfigAgentsCommand;
@@ -16,7 +17,7 @@ impl SlashCommand for ConfigAgentsCommand {
     }
 
     fn description(&self) -> &str {
-        "Manage agent definitions"
+        tr!("Manage agent definitions")
     }
 
     fn usage(&self) -> &str {

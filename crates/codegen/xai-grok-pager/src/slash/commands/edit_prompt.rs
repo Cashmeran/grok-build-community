@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Minimal-only fallback for terminals that reserve `Ctrl+G`.
 pub struct EditPromptCommand;
@@ -12,7 +13,7 @@ impl SlashCommand for EditPromptCommand {
     }
 
     fn description(&self) -> &str {
-        "Open an external editor for an empty prompt; use the command palette to preserve a draft"
+        tr!("Open an external editor for an empty prompt; use the command palette to preserve a draft")
     }
 
     fn usage(&self) -> &str {

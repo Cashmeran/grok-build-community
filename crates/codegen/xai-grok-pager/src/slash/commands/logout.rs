@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 pub struct LogoutCommand;
 
@@ -11,7 +12,7 @@ impl SlashCommand for LogoutCommand {
     }
 
     fn description(&self) -> &str {
-        "Log out and return to the login screen"
+        tr!("Log out and return to the login screen")
     }
 
     fn usage(&self) -> &str {

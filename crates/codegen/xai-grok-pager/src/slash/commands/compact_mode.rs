@@ -8,6 +8,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Toggle compact display mode via `/compact-mode`.
 pub struct CompactModeCommand;
@@ -18,7 +19,7 @@ impl SlashCommand for CompactModeCommand {
     }
 
     fn description(&self) -> &str {
-        "Toggle compact UI (less padding, more content)"
+        tr!("Toggle compact UI (less padding, more content)")
     }
 
     fn usage(&self) -> &str {

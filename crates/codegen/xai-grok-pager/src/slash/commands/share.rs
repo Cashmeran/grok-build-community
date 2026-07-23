@@ -2,6 +2,7 @@
 
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+use xai_grok_i18n::tr;
 
 /// Share the current session via a public URL.
 pub struct ShareCommand;
@@ -12,7 +13,7 @@ impl SlashCommand for ShareCommand {
     }
 
     fn description(&self) -> &str {
-        "Share this session via URL"
+        tr!("Share this session via URL")
     }
 
     fn session_scoped(&self) -> bool {
