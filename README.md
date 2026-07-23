@@ -46,6 +46,15 @@ Automatically selected based on your model:
 ### Prompt
 Optimized system prompt with communication style, accuracy, and execution discipline guidance. Less AI-cliché, fewer hallucinations.
 
+### Multi-Language (v0.2.109+)
+6 languages, auto-detected from system, switch with `/lang`:
+
+| `/lang en` | English | `/lang zh-CN` | 中文 |
+| `/lang ja` | 日本語 | `/lang ko` | 한국어 |
+| `/lang ru` | Русский | `/lang fr` | Français |
+
+278 translations covering the entire UI surface.
+
 ---
 
 ## Install

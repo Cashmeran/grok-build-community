@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.2.109-ce.1 (2026-07-23)
+
+### Multi-Language Support (i18n)
+- New `xai-grok-i18n` crate with lightweight translation engine
+- 6 languages: English, 中文, 日本語, 한국어, Русский, Français
+- Auto-detects system language on first startup (`LANG` / `LC_ALL` env vars)
+- `/lang` command: real-time switching, Tab dropdown picker, no restart needed
+- 278 translations: slash commands, shortcuts, settings, welcome screen, toasts, permissions
+
+### Bug Fixes
+- **WebFetch**: URL fetch tool now enabled by default (was invisible to Agent)
+- **Session compatibility**: `ConversationItem::Unknown` variant prevents old session crashes
+- **Build hygiene**: All compiler warnings fixed, zero-warning release build
+
+### De-branding
+- Third-party API errors no longer show "SuperGrok" promotional copy
+- All `grok.com/supergrok` hardcoded URLs removed
+- Image/video generation tier-restricted messages use generic wording
+
+### Upstream sync
+- Based on upstream v0.2.109
+
+---
+
 ## 0.2.105-ce.1 (2026-07-19)
 
 ### Upstream sync

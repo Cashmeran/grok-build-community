@@ -59,6 +59,38 @@ Backend is **auto-selected** based on the model's `api_backend` — no manual co
 
 The system prompt has been improved with additional guidance for communication style, accuracy, and execution discipline — reducing AI clichés and hallucinations.
 
+#### Multi-Language Support (new)
+
+| Language | Code |
+|----------|------|
+| English | `en` |
+| 中文 (Simplified) | `zh-CN` |
+| 日本語 | `ja` |
+| 한국어 | `ko` |
+| Русский | `ru` |
+| Français | `fr` |
+
+- **Auto-detect**: Matches system language on first startup
+- **Real-time switch**: `/lang zh-CN` takes effect immediately, no restart needed
+- **Dropdown picker**: `/lang` then press Tab for language selection
+- **Coverage**: 278 translations (slash commands, shortcuts, settings, welcome screen, toasts, permission modals)
+
+#### API Error Message De-branding
+
+- Third-party API quota errors no longer show "SuperGrok" promotional copy
+- All hardcoded `grok.com/supergrok` URLs removed
+- Error messages use generic wording ("API quota exhausted, check your API account")
+
+#### WebFetch Tool
+
+- WebFetch (URL content fetching) tool enabled by default
+- Set `GROK_DISABLE_WEB_FETCH=1` env var to disable
+
+#### Session Forward Compatibility
+
+- Added `ConversationItem::Unknown` variant — old sessions won't fail after version upgrades
+- Unknown message types are silently skipped instead of crashing
+
 ### Planned
 
 ## Build
