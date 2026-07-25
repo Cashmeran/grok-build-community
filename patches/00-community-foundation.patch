@@ -39450,6 +39450,62 @@ index b39d8da..26ba959 100644
 -// re-exported for the composition-root binary, which links the pager library
 -// rather than the voice crate. Called at the very top of `main`.
 -pub use xai_grok_voice::maybe_run_capture_subprocess;
+diff --git a/crates/codegen/xai-grok-shared/src/clipboard.rs b/crates/codegen/xai-grok-shared/src/clipboard.rs
+index b86f976..a0328d7 100644
+--- a/crates/codegen/xai-grok-shared/src/clipboard.rs
++++ b/crates/codegen/xai-grok-shared/src/clipboard.rs
+@@ -1192,9 +1192,10 @@ mod platform {
+ // ---------------------------------------------------------------------------
+ #[cfg(not(target_os = "macos"))]
+ mod platform {
+-    use super::ImageData;
+     use std::process::{Command, Stdio};
+ 
++    use super::ImageData;
++
+     /// No subprocess-free pasteboard probe exists off-macOS.
+     pub(super) fn clipboard_image_snapshot() -> (Option<u64>, bool) {
+         (None, false)
+@@ -1983,6 +1984,7 @@ mod platform {
+     // -- Public API ----------------------------------------------------------
+ 
+     pub fn get_text() -> anyhow::Result<Option<String>> {
++        #[allow(unused_assignments)]
+         let mut arboard_error = None;
+         match arboard_get_text() {
+             Ok(Some(text)) => return Ok(Some(text)),
+@@ -2096,6 +2098,7 @@ mod platform {
+     }
+ 
+     pub fn get_image() -> anyhow::Result<Option<ImageData>> {
++        #[allow(unused_assignments)]
+         let mut arboard_error = None;
+         match arboard_get_image() {
+             Ok(Some(image)) => return Ok(Some(image)),
+diff --git a/crates/codegen/xai-grok-shared/src/ui_config.rs b/crates/codegen/xai-grok-shared/src/ui_config.rs
+index c005b2f..1b5f6c7 100644
+--- a/crates/codegen/xai-grok-shared/src/ui_config.rs
++++ b/crates/codegen/xai-grok-shared/src/ui_config.rs
+@@ -92,11 +92,6 @@ pub struct UiConfig {
+     /// `[voice].language` for the session.
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     pub voice_stt_language: Option<String>,
+-    /// Whether the Ctrl+Space / F8 voice-dictation shortcut is active. Written
+-    /// by the settings modal; unset defaults to `true` (shortcut on). When
+-    /// `false` the chord is ignored — `/voice` still starts dictation.
+-    #[serde(default, skip_serializing_if = "Option::is_none")]
+-    pub voice_keybind_enabled: Option<bool>,
+     /// When `true`, registers `Ctrl+R` (while scrollback is focused) to toggle
+     /// terminal mouse reporting (mouse capture) so users can hand selection back
+     /// to the terminal for native click-drag copy/paste. Opt-in only; unset/false
+@@ -268,7 +263,6 @@ impl Default for UiConfig {
+             hunk_tracker_mode: None,
+             voice_capture_mode: None,
+             voice_stt_language: None,
+-            voice_keybind_enabled: None,
+             mouse_reporting_toggle: None,
+             remember_tool_approvals: None,
+             cancel_subagents_on_turn_cancel: None,
 diff --git a/crates/codegen/xai-grok-shell/src/agent/app.rs b/crates/codegen/xai-grok-shell/src/agent/app.rs
 index fb415b1..dfc8e8e 100644
 --- a/crates/codegen/xai-grok-shell/src/agent/app.rs
