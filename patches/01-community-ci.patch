@@ -1,0 +1,425 @@
+diff --git a/.github/ISSUE_TEMPLATE/bug_report.md b/.github/ISSUE_TEMPLATE/bug_report.md
+new file mode 100644
+index 0000000..621dd0b
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/bug_report.md
+@@ -0,0 +1,18 @@
++---
++name: Bug report
++about: Report a problem
++title: ''
++labels: bug
++assignees: ''
++---
++
++**Describe the bug**
++
++**Steps to reproduce**
++
++**Expected behavior**
++
++**Environment:**
++- OS: [e.g. Windows 11, macOS 15, Ubuntu 24.04]
++- Version: `grok --version`
++- Model provider: [e.g. DeepSeek, Claude, Grok]
+diff --git a/.github/ISSUE_TEMPLATE/feature_request.md b/.github/ISSUE_TEMPLATE/feature_request.md
+new file mode 100644
+index 0000000..7cfdd7d
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/feature_request.md
+@@ -0,0 +1,11 @@
++---
++name: Feature request
++about: Suggest an improvement
++title: ''
++labels: enhancement
++assignees: ''
++---
++
++**What would you like to see?**
++
++**Why is this useful?**
+diff --git a/.github/pull_request_template.md b/.github/pull_request_template.md
+new file mode 100644
+index 0000000..7cc162b
+--- /dev/null
++++ b/.github/pull_request_template.md
+@@ -0,0 +1,6 @@
++## Summary
++
++## Test plan
++- [ ] `cargo check` passes
++- [ ] `cargo test` passes for affected crates
++- [ ] Manual testing (if applicable)
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+new file mode 100644
+index 0000000..ae2f174
+--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,126 @@
++name: CI
++
++on:
++  workflow_dispatch:
++  push:
++    tags:
++      - 'v*'
++  pull_request:
++    branches: [main, community]
++
++jobs:
++  # ── Phase 1: 全平台快速检查 ──
++  check:
++    strategy:
++      matrix:
++        os: [ubuntu-latest, macos-latest, windows-latest]
++    runs-on: ${{ matrix.os }}
++    steps:
++      - uses: actions/checkout@v4
++      - uses: dtolnay/rust-toolchain@stable
++
++      # sccache: 没改的 crate 直接复用缓存，第二次起快 3-5x
++      - uses: Swatinem/rust-cache@v2
++        with:
++          shared-key: ci
++
++      - name: Install protoc (Linux)
++        if: runner.os == 'Linux'
++        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
++      - name: Install protoc (macOS)
++        if: runner.os == 'macOS'
++        run: brew install protobuf
++      - name: Install protoc (Windows)
++        if: runner.os == 'Windows'
++        run: |
++          Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-win64.zip -OutFile protoc.zip
++          Expand-Archive protoc.zip -DestinationPath protoc
++          echo "${{ github.workspace }}/protoc/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
++
++      - name: cargo check (workspace)
++        run: cargo check --workspace
++
++      - name: cargo fmt
++        run: cargo fmt
++
++      - name: cargo clippy (Linux only)
++        if: runner.os == 'Linux'
++        run: cargo clippy --workspace -- -D warnings
++
++  # ── Phase 2: 测试（Linux only）──
++  test:
++    needs: check
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: dtolnay/rust-toolchain@stable
++
++      - uses: Swatinem/rust-cache@v2
++        with:
++          shared-key: ci
++
++      - name: Install protoc
++        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
++
++      - name: cargo test (workspace)
++        run: cargo test --workspace
++
++  # ── Phase 3: 发布构建（仅 tag 触发）──
++  release:
++    if: startsWith(github.ref, 'refs/tags/v')
++    needs: test
++    permissions:
++      contents: write
++    strategy:
++      matrix:
++        include:
++          - os: ubuntu-latest
++            artifact: grokce-linux
++            ext: tar.gz
++          - os: macos-latest
++            artifact: grokce-macos
++            ext: tar.gz
++          - os: windows-latest
++            artifact: grokce-windows
++            ext: zip
++    runs-on: ${{ matrix.os }}
++    steps:
++      - uses: actions/checkout@v4
++      - uses: dtolnay/rust-toolchain@stable
++
++      - uses: Swatinem/rust-cache@v2
++        with:
++          shared-key: ci
++
++      - name: Install protoc (Linux)
++        if: runner.os == 'Linux'
++        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
++      - name: Install protoc (macOS)
++        if: runner.os == 'macOS'
++        run: brew install protobuf
++      - name: Install protoc (Windows)
++        if: runner.os == 'Windows'
++        run: |
++          Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-win64.zip -OutFile protoc.zip
++          Expand-Archive protoc.zip -DestinationPath protoc
++          echo "${{ github.workspace }}/protoc/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
++
++      - name: Build release
++        run: cargo build -p xai-grok-pager-bin --release
++
++      - name: Package (Windows)
++        if: runner.os == 'Windows'
++        run: |
++          mv target/release/xai-grok-pager.exe grokce.exe
++          7z a ${{ matrix.artifact }}.${{ matrix.ext }} grokce.exe
++
++      - name: Package (Linux/macOS)
++        if: runner.os != 'Windows'
++        run: |
++          mv target/release/xai-grok-pager grokce
++          tar -czf ${{ matrix.artifact }}.${{ matrix.ext }} grokce
++
++      - name: Upload to Release
++        uses: softprops/action-gh-release@v2
++        with:
++          files: ${{ matrix.artifact }}.${{ matrix.ext }}
+diff --git a/.github/workflows/generate-protos.yml b/.github/workflows/generate-protos.yml
+new file mode 100644
+index 0000000..f8a0683
+--- /dev/null
++++ b/.github/workflows/generate-protos.yml
+@@ -0,0 +1,22 @@
++name: Generate Proto
++
++on: workflow_dispatch
++
++jobs:
++  generate:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: dtolnay/rust-toolchain@stable
++      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
++      - name: Build (generate protos)
++        run: cargo build -p xai-grok-tools-api 2>&1
++      - name: Find generated file
++        run: |
++          find target -name "grok.tools*.rs" -o -name "*.proto.rs" 2>/dev/null | head -20
++          find target -path "*/xai-grok-tools-api*/out/*" -type f 2>/dev/null | head -20
++      - name: Upload generated code
++        uses: actions/upload-artifact@v4
++        with:
++          name: generated-protos
++          path: target/**/out/*.rs
+diff --git a/build.bat b/build.bat
+new file mode 100644
+index 0000000..acd893b
+--- /dev/null
++++ b/build.bat
+@@ -0,0 +1,74 @@
++@echo off
++chcp 65001 >nul
++setlocal enabledelayedexpansion
++
++echo.
++echo ============================================
++echo   Grok Build Community Edition - Build
++echo ============================================
++echo.
++
++if not exist "patches\" (
++    echo [ERROR] Run from project root directory
++    exit /b 1
++)
++
++where cargo >nul 2>&1
++if %errorlevel% neq 0 (
++    echo [ERROR] Rust not found. Install: https://rustup.rs
++    exit /b 1
++)
++
++echo [1/2] Applying community patches...
++set PATCH_DIR=patches
++set FAILED=0
++
++REM Apply patches in order. Add new patches here as they are created.
++git apply "%PATCH_DIR%\00-community-foundation.patch" 2>nul
++if !errorlevel! neq 0 (
++    echo   [FAILED] 00-community-foundation.patch - fix conflicts and retry
++    set FAILED=1
++    goto :done
++)
++git apply "%PATCH_DIR%\01-community-ci.patch" 2>nul
++if !errorlevel! neq 0 (
++    echo   [FAILED] 01-community-ci.patch - fix conflicts and retry
++    set FAILED=1
++    goto :done
++)
++git apply "%PATCH_DIR%\02-community-prompt.patch" 2>nul
++if !errorlevel! neq 0 (
++    echo   [FAILED] 02-community-prompt.patch - fix conflicts and retry
++    set FAILED=1
++    goto :done
++)
++git apply "%PATCH_DIR%\03-community-tools.patch" 2>nul
++if !errorlevel! neq 0 (
++    echo   [FAILED] 03-community-tools.patch - fix conflicts and retry
++    set FAILED=1
++    goto :done
++)
++git apply "%PATCH_DIR%\04-community-i18n.patch" 2>nul
++if !errorlevel! neq 0 (
++    echo   [FAILED] 04-community-i18n.patch - fix conflicts and retry
++    set FAILED=1
++    goto :done
++)
++
++:done
++if %FAILED% equ 1 (
++    echo.
++    echo Fix conflicts: manually edit code ^> git add ^> regenerate patch
++    exit /b 1
++)
++
++echo.
++echo [2/2] Building release...
++cargo build -p xai-grok-pager-bin --release
++if %errorlevel% neq 0 ( echo [ERROR] Build failed! & exit /b 1 )
++
++echo.
++echo ============================================
++echo   Done! Binary: target\release\xai-grok-pager.exe
++echo   Run: grokce
++echo ============================================
+diff --git a/install.ps1 b/install.ps1
+new file mode 100644
+index 0000000..29aa828
+--- /dev/null
++++ b/install.ps1
+@@ -0,0 +1,50 @@
++# Grok Build Community Edition - Windows Installer
++# Run: irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.ps1 | iex
++
++$ErrorActionPreference = "Stop"
++$Repo = "Cashmeran/grok-build-community"
++$InstallDir = "$env:USERPROFILE\.grok\bin"
++
++Write-Host "Grok Build Community Edition Installer" -ForegroundColor Cyan
++Write-Host "====================================="
++Write-Host ""
++
++# Create install directory
++New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
++
++# Get latest release
++Write-Host "Fetching latest release..."
++try {
++    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
++} catch {
++    Write-Host "GitHub API rate limited. Try again later or set GITHUB_TOKEN env var." -ForegroundColor Red
++    Write-Host "Manual download: https://github.com/$Repo/releases/latest"
++    exit 1
++}
++
++# Find Windows asset
++$asset = $release.assets | Where-Object { $_.name -match "windows|x86_64-pc-windows" } | Select-Object -First 1
++if (-not $asset) {
++    Write-Host "No Windows binary found in latest release." -ForegroundColor Red
++    exit 1
++}
++
++Write-Host "Downloading $($asset.name) ($([math]::Round($asset.size/1MB, 1)) MB)..."
++$outPath = Join-Path $InstallDir "grokce.exe"
++Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $outPath
++
++Write-Host "Installed to $outPath" -ForegroundColor Green
++
++# Add to PATH if needed
++$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
++if ($userPath -notlike "*$InstallDir*") {
++    Write-Host ""
++    Write-Host "Adding $InstallDir to your PATH..."
++    [Environment]::SetEnvironmentVariable("Path", "$userPath;$InstallDir", "User")
++    $env:Path = "$env:Path;$InstallDir"
++    Write-Host "Done. Restart your terminal for PATH to take effect." -ForegroundColor Yellow
++}
++
++Write-Host ""
++Write-Host "Grok Build Community Edition installed!" -ForegroundColor Green
++Write-Host "Run 'grokce' to start."
+diff --git a/install.sh b/install.sh
+new file mode 100644
+index 0000000..1991e7c
+--- /dev/null
++++ b/install.sh
+@@ -0,0 +1,70 @@
++#!/usr/bin/env bash
++# Grok Build Community Edition - macOS/Linux Installer
++# Run: curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.sh | bash
++
++set -e
++
++REPO="Cashmeran/grok-build-community"
++INSTALL_DIR="$HOME/.grok/bin"
++
++echo "Grok Build Community Edition Installer"
++echo "====================================="
++echo ""
++
++mkdir -p "$INSTALL_DIR"
++
++# Detect platform
++case "$(uname -s)" in
++    Linux)   PLATFORM="linux";;
++    Darwin)  PLATFORM="macos|darwin";;
++    *)       echo "Unsupported platform: $(uname -s)"; exit 1;;
++esac
++
++case "$(uname -m)" in
++    x86_64|amd64)  ARCH="x86_64|amd64";;
++    aarch64|arm64) ARCH="aarch64|arm64";;
++    *)             echo "Unsupported architecture: $(uname -m)"; exit 1;;
++esac
++
++echo "Fetching latest release..."
++RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null) || {
++    echo "GitHub API rate limited. Try again later or set GITHUB_TOKEN."
++    echo "Manual download: https://github.com/$REPO/releases/latest"
++    exit 1
++}
++
++DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*\"" | grep -iE "$PLATFORM" | grep -iE "$ARCH" | head -1 | cut -d'"' -f4)
++
++if [ -z "$DOWNLOAD_URL" ]; then
++    echo "No matching binary found for your platform."
++    exit 1
++fi
++
++FILENAME=$(basename "$DOWNLOAD_URL")
++echo "Downloading $FILENAME..."
++curl -fsSL -o "$INSTALL_DIR/$FILENAME" "$DOWNLOAD_URL"
++
++# Handle archive formats
++cd "$INSTALL_DIR"
++case "$FILENAME" in
++    *.tar.gz)  tar xzf "$FILENAME" && rm "$FILENAME";;
++    *.zip)     unzip -o "$FILENAME" && rm "$FILENAME";;
++esac
++
++# Rename binary to grokce and make executable
++mv "$INSTALL_DIR/grok-ce" "$INSTALL_DIR/grokce" 2>/dev/null || true
++chmod +x "$INSTALL_DIR/grokce" 2>/dev/null || true
++
++echo ""
++echo "Installed to $INSTALL_DIR" | GREP_COLORS='ms=32' grep --color=always "." 2>/dev/null || echo "Installed to $INSTALL_DIR"
++
++# PATH hint
++if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
++    echo ""
++    echo "Add this to your shell config (~/.bashrc / ~/.zshrc):"
++    echo "  export PATH=\"\$HOME/.grok/bin:\$PATH\""
++fi
++
++echo ""
++echo "Grok Build Community Edition installed!"
++echo "Run 'grokce' to start."

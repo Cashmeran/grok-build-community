@@ -1,8 +1,16 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index b65aab6..f39847b 100644
+index b65aab6..fb0985c 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -60,7 +60,6 @@ members = [
+@@ -26,6 +26,7 @@ members = [
+     "crates/codegen/xai-grok-env",
+     "crates/codegen/xai-grok-hooks",
+     "crates/codegen/xai-grok-http",
++    "crates/codegen/xai-grok-i18n",
+     "crates/codegen/xai-grok-markdown",
+     "crates/codegen/xai-grok-markdown-core",
+     "crates/codegen/xai-grok-mcp",
+@@ -60,7 +61,6 @@ members = [
      "crates/codegen/xai-grok-workspace-types",
      "crates/codegen/xai-hooks-plugins-types",
      "crates/codegen/xai-hunk-tracker",
@@ -10,7 +18,15 @@ index b65aab6..f39847b 100644
      "crates/codegen/xai-prompt-queue",
      "crates/codegen/xai-ratatui-inline",
      "crates/codegen/xai-ratatui-textarea",
-@@ -310,7 +309,6 @@ xai-grok-workspace = { path = "crates/codegen/xai-grok-workspace" }
+@@ -289,6 +289,7 @@ xai-grok-config = { path = "crates/codegen/xai-grok-config" }
+ xai-grok-config-types = { path = "crates/codegen/xai-grok-config-types" }
+ xai-grok-env = { path = "crates/codegen/xai-grok-env" }
+ xai-grok-http = { path = "crates/codegen/xai-grok-http" }
++xai-grok-i18n = { path = "crates/codegen/xai-grok-i18n" }
+ xai-grok-markdown = { path = "crates/codegen/xai-grok-markdown" }
+ xai-grok-markdown-core = { path = "crates/codegen/xai-grok-markdown-core" }
+ xai-grok-mcp = { path = "crates/codegen/xai-grok-mcp" }
+@@ -310,7 +311,6 @@ xai-grok-workspace = { path = "crates/codegen/xai-grok-workspace" }
  xai-grok-workspace-types = { path = "crates/codegen/xai-grok-workspace-types" }
  xai-hooks-plugins-types = { path = "crates/codegen/xai-hooks-plugins-types" }
  xai-interjection-core = { path = "crates/common/xai-interjection-core" }
@@ -18,6 +34,1344 @@ index b65aab6..f39847b 100644
  xai-prompt-queue = { path = "crates/codegen/xai-prompt-queue" }
  xai-proto-build = { path = "crates/build/xai-proto-build" }
  xai-ratatui-inline = { path = "crates/codegen/xai-ratatui-inline" }
+diff --git a/crates/codegen/xai-grok-announcements/src/lib.rs b/crates/codegen/xai-grok-announcements/src/lib.rs
+index c26a6ed..1e22684 100644
+--- a/crates/codegen/xai-grok-announcements/src/lib.rs
++++ b/crates/codegen/xai-grok-announcements/src/lib.rs
+@@ -303,13 +303,13 @@ mod tests {
+     #[test]
+     fn cta_parses_nested_partial_and_absent() {
+         let full: RemoteAnnouncement = serde_json::from_str(
+-            r#"{"id":"p","severity":"promo","cta":{"label":"Get SuperGrok","url":"https://x.ai/grok","caption":"or use Ctrl+O"}}"#,
++            r#"{"id":"p","severity":"info","cta":{"label":"Learn More","url":"https://example.com/info","caption":"press enter to open"}}"#,
+         )
+         .unwrap();
+         let cta = full.cta.as_ref().expect("cta present");
+-        assert_eq!(cta.label.as_deref(), Some("Get SuperGrok"));
+-        assert_eq!(cta.url.as_deref(), Some("https://x.ai/grok"));
+-        assert_eq!(cta.caption.as_deref(), Some("or use Ctrl+O"));
++        assert_eq!(cta.label.as_deref(), Some("Learn More"));
++        assert_eq!(cta.url.as_deref(), Some("https://example.com/info"));
++        assert_eq!(cta.caption.as_deref(), Some("press enter to open"));
+ 
+         let partial: RemoteAnnouncement =
+             serde_json::from_str(r#"{"cta":{"label":"only label"}}"#).unwrap();
+diff --git a/crates/codegen/xai-grok-config-types/src/lib.rs b/crates/codegen/xai-grok-config-types/src/lib.rs
+index 993e89a..14bd2e8 100644
+--- a/crates/codegen/xai-grok-config-types/src/lib.rs
++++ b/crates/codegen/xai-grok-config-types/src/lib.rs
+@@ -499,7 +499,7 @@ pub struct RemoteSettings {
+     pub subscription_watch_interval_secs: Option<u64>,
+     #[serde(default)]
+     pub writeback_enabled: Option<bool>,
+-    /// OAuth2 provider issuer URL (e.g., "https://auth.x.ai"). When present
++    /// OAuth2 provider issuer URL (e.g., "https://auth.example.com"). When present
+     /// together with `oauth2_client_id`, the client uses OAuth2 authorization code
+     /// flow. Controlled via remote settings for gradual rollout.
+     #[serde(default)]
+@@ -507,7 +507,7 @@ pub struct RemoteSettings {
+     /// OAuth2 client_id for the CLI. Paired with `oauth2_issuer`.
+     #[serde(default)]
+     pub oauth2_client_id: Option<String>,
+-    /// When `Some(true)`, enable grok's default OAuth2 (xAI auth.x.ai).
++    /// When `Some(true)`, enable default OAuth2.
+     /// Enterprise OIDC (user's own IdP via `oidc` config) always wins.
+     /// Controlled via remote settings; `--oauth` CLI flag overrides.
+     #[serde(default)]
+@@ -853,7 +853,7 @@ pub struct RemoteSettings {
+     pub sharing_enabled: Option<bool>,
+     /// Voice mode (STT dictation). Client default is **on** when absent.
+     /// `Some(false)` is a remote kill switch; `Some(true)` forces on.
+-    /// Overridable locally via `GROK_VOICE_MODE`. Free-tier SuperGrok upsell
++    /// Overridable locally via `GROK_VOICE_MODE`. Feature-gating upsell
+     /// is a separate client tier gate.
+     #[serde(default)]
+     pub voice_mode_enabled: Option<bool>,
+@@ -909,7 +909,7 @@ pub struct RemoteSettings {
+     #[serde(default)]
+     pub permission_mode: Option<String>,
+     /// User's subscription tier from remote settings `grok_build_access_gate`.
+-    /// E.g. "free", "premium", "supergrok", "supergrok_heavy".
++    /// E.g. "free", "premium".
+     /// Stamped on analytics events + user profile for filtering.
+     #[serde(default)]
+     pub subscription_tier: Option<String>,
+@@ -929,7 +929,7 @@ pub struct RemoteSettings {
+     #[serde(default)]
+     pub allow_access: Option<bool>,
+     /// User-friendly display name for the current subscription tier
+-    /// (e.g. "SuperGrok", "X Premium+", "Free", "API Key"). Set by CCP
++    /// (e.g. "Pro", "Free", "API Key"). Set by CCP
+     /// from the JWT tier claim (OAuth) or credential kind (API key).
+     /// Free/Invalid OAuth 鈫?`"Free"`; API keys 鈫?`"API Key"` (Mixpanel
+     /// `api_key`, never free).
+diff --git a/crates/codegen/xai-grok-env/src/lib.rs b/crates/codegen/xai-grok-env/src/lib.rs
+index 658fba3..fb0c329 100644
+--- a/crates/codegen/xai-grok-env/src/lib.rs
++++ b/crates/codegen/xai-grok-env/src/lib.rs
+@@ -21,10 +21,10 @@ pub struct GrokBuildEndpoints {
+ }
+ const PRODUCTION_ENDPOINTS: GrokBuildEndpoints = GrokBuildEndpoints {
+     cli_chat_proxy_base_url: "https://cli-chat-proxy.grok.com/v1",
+-    asset_server_url: "https://assets.grok.com",
+-    relay_ws_url: "wss://code.grok.com/ws/code-agent",
+-    gateway_ws_url: "wss://grok.com/ws/gw/",
+-    ws_origin: "https://grok.com",
++    asset_server_url: "https://assets.example.com",
++    relay_ws_url: "wss://code.example.com/ws/code-agent",
++    gateway_ws_url: "wss://example.com/ws/gw/",
++    ws_origin: "https://example.com",
+ };
+ pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = PRODUCTION_ENDPOINTS.cli_chat_proxy_base_url;
+ pub const PROD_ASSET_SERVER_URL: &str = PRODUCTION_ENDPOINTS.asset_server_url;
+diff --git a/crates/codegen/xai-grok-models/default_models.json b/crates/codegen/xai-grok-models/default_models.json
+index 7fcbeab..dff9953 100644
+--- a/crates/codegen/xai-grok-models/default_models.json
++++ b/crates/codegen/xai-grok-models/default_models.json
+@@ -1,42 +1,56 @@
+ {
+-  "default": "grok-4.5",
+-  "web_search": "grok-4.20-multi-agent",
+-  "image_description": "grok-4.5",
+-  "session_summary": "grok-4.5",
++  "default": "deepseek-v4-pro",
++  "web_search": "deepseek-v4-pro",
++  "image_description": "deepseek-v4-pro",
++  "session_summary": "deepseek-v4-pro",
+   "models": [
+     {
+-      "id": "grok-4.5",
+-      "model": "grok-4.5",
+-      "name": "Grok 4.5",
+-      "description": "SpaceXAI's new frontier model",
+-      "context_window": 500000,
++      "id": "deepseek-v4-pro",
++      "model": "deepseek-v4-pro",
++      "base_url": "https://api.deepseek.com/anthropic",
++      "name": "DeepSeek V4 Pro",
++      "description": "DeepSeek's flagship coding model (configure api key via DEEPSEEK_API_KEY env or ~/.grok/config.toml)",
++      "context_window": 1000000,
++      "api_backend": "messages",
++      "supports_backend_search": true,
++      "system_prompt_label": "Grok Build CE",
++      "show_model_fingerprint": false,
++      "auto_compact_threshold_percent": 80,
++      "compaction_at_tokens": true,
++      "compactions_remaining": 1,
++      "max_retries": 5
++    },
++    {
++      "id": "claude-sonnet-4-5",
++      "model": "claude-sonnet-4-5-20250929",
++      "base_url": "https://api.anthropic.com/v1",
++      "name": "Claude Sonnet 4.5",
++      "description": "Anthropic's coding model (set ANTHROPIC_API_KEY env var)",
++      "context_window": 200000,
++      "api_backend": "messages",
++      "supports_backend_search": true,
++      "system_prompt_label": "Grok Build CE",
++      "show_model_fingerprint": false,
++      "auto_compact_threshold_percent": 80,
++      "compaction_at_tokens": true,
++      "compactions_remaining": 1,
++      "max_retries": 5
++    },
++    {
++      "id": "gpt-5",
++      "model": "gpt-5",
++      "base_url": "https://api.openai.com/v1",
++      "name": "GPT-5",
++      "description": "OpenAI GPT-5 (set OPENAI_API_KEY env var)",
++      "context_window": 128000,
+       "api_backend": "responses",
+       "supports_backend_search": false,
+-      "system_prompt_label": "Grok 4.5",
+-      "show_model_fingerprint": true,
+-      "supports_reasoning_effort": true,
+-      "reasoning_effort": "high",
++      "system_prompt_label": "Grok Build CE",
++      "show_model_fingerprint": false,
+       "auto_compact_threshold_percent": 80,
+       "compaction_at_tokens": true,
+       "compactions_remaining": 1,
+-      "reasoning_efforts": [
+-        {
+-          "value": "high",
+-          "label": "High Effort",
+-          "description": "Highest implementation quality with extensive reasoning",
+-          "default": true
+-        },
+-        {
+-          "value": "medium",
+-          "label": "Medium Effort",
+-          "description": "Balanced effort with standard implementation and testing"
+-        },
+-        {
+-          "value": "low",
+-          "label": "Low Effort",
+-          "description": "Quick, fast implementations"
+-        }
+-      ]
++      "max_retries": 5
+     }
+   ]
+ }
+diff --git a/crates/codegen/xai-grok-pager/src/acp/tracker.rs b/crates/codegen/xai-grok-pager/src/acp/tracker.rs
+index c2834eb..32ac8f7 100644
+--- a/crates/codegen/xai-grok-pager/src/acp/tracker.rs
++++ b/crates/codegen/xai-grok-pager/src/acp/tracker.rs
+@@ -2050,7 +2050,7 @@ fn media_gen_block(tc: &acp::ToolCall, success: bool) -> RenderBlock {
+     RenderBlock::ToolCall(ToolCallBlock::Other(block))
+ }
+ /// Plain-text body of a media-variant tool that returned `ToolOutput::Text`
+-/// rather than a media file (the free / X Basic SuperGrok-upsell short-circuit).
++/// rather than a media file (the feature-gating upsell short-circuit).
+ /// `None` for real media outputs 鈥?including ZDR upload-only results 鈥?so their
+ /// typed rendering is untouched.
+ fn media_gen_text(tc: &acp::ToolCall) -> Option<String> {
+@@ -6619,14 +6619,14 @@ mod tests {
+             "uploaded_url-only media must not claim a local open path"
+         );
+     }
+-    /// A tier-restricted (free / X Basic) imagine call short-circuits with the
+-    /// SuperGrok upsell as `ToolOutput::Text` on a `Completed` status. The media
++    /// A tier-restricted imagine call short-circuits with a
++    /// feature-gating upsell as `ToolOutput::Text` on a `Completed` status. The media
+     /// renderer has no file to open, so it must surface the upsell text in the
+     /// card body (not a bare title) and must NOT mark the card as an error.
+     #[test]
+     fn tier_restricted_media_shows_upsell_text_not_error() {
+-        let upsell = "Image generation is a SuperGrok feature. Upgrade at \
+-             https://grok.com/supergrok?referrer=grok-build";
++        let upsell = "Image generation is not available in this edition. \
++             Please check your configuration.";
+         let output = ToolOutput::Text(xai_grok_tools::types::output::TextOutput::from(upsell));
+         let tc = acp::ToolCall::new(
+             acp::ToolCallId::new(Arc::from("tier-restricted-img")),
+@@ -6653,7 +6653,7 @@ mod tests {
+                 .output
+                 .as_deref()
+                 .unwrap_or_default()
+-                .contains("SuperGrok"),
++                .contains("not available"),
+             "upsell text must be shown in the card body, got: {:?}",
+             block.output
+         );
+diff --git a/crates/codegen/xai-grok-pager/src/app/actions.rs b/crates/codegen/xai-grok-pager/src/app/actions.rs
+index e5f176c..54338a3 100644
+--- a/crates/codegen/xai-grok-pager/src/app/actions.rs
++++ b/crates/codegen/xai-grok-pager/src/app/actions.rs
+@@ -56,7 +56,7 @@ pub enum Action {
+     ExitSession,
+     /// Exit session without double-press confirmation (e.g., from command palette).
+     ExitSessionConfirmed,
+-    /// Open grok.com in the browser for SuperGrok subscription upsell.
++    /// Open the access-gate URL in the system browser.
+     OpenSupergrokUrl,
+     /// Re-check subscription status via the shell's `x.ai/auth/check_subscription`.
+     CheckSubscription,
+@@ -980,6 +980,8 @@ pub enum Action {
+     JumpPickerSelect(EntryId),
+     /// Close the picker and restore the stashed viewport.
+     JumpDismiss,
++    /// Refresh the slash command registry to pick up language changes.
++    RefreshLanguage,
+ }
+ /// Persist-and-notify semantics for [`Effect::PersistPermissionMode`].
+ ///
+diff --git a/crates/codegen/xai-grok-pager/src/app/agent_view/links.rs b/crates/codegen/xai-grok-pager/src/app/agent_view/links.rs
+index c8e8cc1..77a104f 100644
+--- a/crates/codegen/xai-grok-pager/src/app/agent_view/links.rs
++++ b/crates/codegen/xai-grok-pager/src/app/agent_view/links.rs
+@@ -572,7 +572,7 @@ mod link_click_tests {
+             message: Some("ZZPROMO".into()),
+             cta: Some(xai_grok_announcements::AnnouncementCta {
+                 label: Some("Go".into()),
+-                url: Some("https://x.ai/promo".into()),
++                url: Some("https://example.com/promo".into()),
+                 caption: None,
+             }),
+             ..Default::default()
+@@ -732,7 +732,7 @@ mod link_click_tests {
+             dismissible: Some(false),
+             cta: Some(xai_grok_announcements::AnnouncementCta {
+                 label: Some("Upgrade Account".into()),
+-                url: Some("https://x.ai/promo".into()),
++                url: Some("https://example.com/promo".into()),
+                 caption: None,
+             }),
+             ..Default::default()
+@@ -847,7 +847,7 @@ mod link_click_tests {
+             message: Some("ZZPROMO".into()),
+             cta: Some(xai_grok_announcements::AnnouncementCta {
+                 label: Some("Go".into()),
+-                url: Some("https://x.ai/promo".into()),
++                url: Some("https://example.com/promo".into()),
+                 caption: None,
+             }),
+             ..Default::default()
+@@ -877,7 +877,7 @@ mod link_click_tests {
+         let cta = || {
+             Some(xai_grok_announcements::AnnouncementCta {
+                 label: Some("Upgrade Account".into()),
+-                url: Some("https://x.ai/promo".into()),
++                url: Some("https://example.com/promo".into()),
+                 caption: None,
+             })
+         };
+@@ -980,7 +980,7 @@ mod link_click_tests {
+             dismissible: Some(false),
+             cta: Some(xai_grok_announcements::AnnouncementCta {
+                 label: Some("Go".into()),
+-                url: Some("https://x.ai/promo".into()),
++                url: Some("https://example.com/promo".into()),
+                 caption: None,
+             }),
+             ..Default::default()
+@@ -1014,7 +1014,7 @@ mod link_click_tests {
+             message: Some("ZZPROMO".into()),
+             cta: Some(xai_grok_announcements::AnnouncementCta {
+                 label: Some("Go".into()),
+-                url: Some("https://x.ai/promo".into()),
++                url: Some("https://example.com/promo".into()),
+                 caption: None,
+             }),
+             ..Default::default()
+@@ -1052,7 +1052,7 @@ mod link_click_tests {
+             (cta.y, cta.x, cta.x + cta.width),
+             "span must cover exactly the [label] button cells"
+         );
+-        assert_eq!(&*spans[0].url, "https://x.ai/promo");
++        assert_eq!(&*spans[0].url, "https://example.com/promo");
+         let outcome = agent.handle_input(&Event::Mouse(mouse_down(cta.x + 1, cta.y)), &reg);
+         assert!(
+             matches!(
+diff --git a/crates/codegen/xai-grok-pager/src/app/agent_view/selection.rs b/crates/codegen/xai-grok-pager/src/app/agent_view/selection.rs
+index 6bc6cf1..8306c18 100644
+--- a/crates/codegen/xai-grok-pager/src/app/agent_view/selection.rs
++++ b/crates/codegen/xai-grok-pager/src/app/agent_view/selection.rs
+@@ -1341,7 +1341,7 @@ mod tests {
+             crate::scrollback::text_selection::ResolvedSelectionBoundaries::default();
+         for (entry_idx, text, hit_col, prefix, suffix, expected) in [
+             (0, "foo rest", 0, "   ", "", "foo"),
+-            (1, "rest https://x.ai", 5, "", "   ", "https://x.ai"),
++            (1, "rest https://x.ai", 5, "", "   ", "https://example.com"),
+         ] {
+             let line = ResolvedSelectableLine {
+                 entry_idx,
+diff --git a/crates/codegen/xai-grok-pager/src/app/app_view.rs b/crates/codegen/xai-grok-pager/src/app/app_view.rs
+index f59129f..37ab695 100644
+--- a/crates/codegen/xai-grok-pager/src/app/app_view.rs
++++ b/crates/codegen/xai-grok-pager/src/app/app_view.rs
+@@ -343,9 +343,9 @@ impl VoiceState {
+     /// it). `/voice` and toggle-style starts leave this false.
+     pub(crate) fn hold(&self) -> bool {
+         matches!(
+-            self, Self::ColdStart { hold, .. } | Self::Recording { hold, .. }
+-if * hold
+-        )
++                    self, Self::ColdStart { hold, .. } | Self::Recording { hold, .. }
++        if * hold
++                )
+     }
+ }
+ /// Entry in the session picker list on the welcome screen.
+@@ -561,13 +561,9 @@ pub(crate) const TIER_RESTRICTED_COMMANDS: &[&str] =
+ /// The string classification is shared with the shell's capability
+ /// (toolset) gate via [`xai_grok_shell::tier::is_restricted_tier_name`] so
+ /// the two can't drift. The pager's *cosmetic* slash-command gate treats an
+-/// absent tier (`None`) as restricted (it recovers live on the next settings
+-/// update); the shell's capability gate treats absence as unrestricted.
+-fn is_restricted_tier(tier: Option<&str>) -> bool {
+-    match tier {
+-        None => true,
+-        Some(t) => xai_grok_shell::tier::is_restricted_tier_name(t),
+-    }
++/// Community Edition: all tiers are unrestricted 鈥?no paywall.
++fn is_restricted_tier(_tier: Option<&str>) -> bool {
++    false
+ }
+ /// True for API-key labels from shell/CCP: `"ApiKey"`, `"API Key"`, `"api_key"`.
+ pub(crate) fn is_api_key_label(s: &str) -> bool {
+@@ -4106,19 +4102,6 @@ impl AppView {
+                                 &theme,
+                             );
+                         }
+-                        if !has_access && !self.access_gate_shown_logged {
+-                            self.access_gate_shown_logged = true;
+-                            xai_grok_telemetry::session_ctx::log_event(
+-                                xai_grok_telemetry::events::SuperGrokUpsellShown {
+-                                    source:
+-                                        xai_grok_telemetry::events::SuperGrokUpsell::WelcomeScreen,
+-                                    auth_method: self
+-                                        .login_method_id
+-                                        .as_ref()
+-                                        .map(|id| id.0.to_string()),
+-                                },
+-                            );
+-                        }
+                         if let Some(fps) = &fps_overlay {
+                             fps.render(full_area, f.buffer_mut());
+                         }
+@@ -6721,11 +6704,12 @@ pub(crate) mod tests {
+     }
+     #[test]
+     fn is_restricted_tier_classification() {
+-        assert!(is_restricted_tier(None));
+-        assert!(is_restricted_tier(Some("")));
+-        assert!(is_restricted_tier(Some("Free")));
+-        assert!(is_restricted_tier(Some("X Basic")));
+-        assert!(is_restricted_tier(Some("x_basic")));
++        // Community Edition: no tiers are restricted.
++        assert!(!is_restricted_tier(None));
++        assert!(!is_restricted_tier(Some("")));
++        assert!(!is_restricted_tier(Some("Free")));
++        assert!(!is_restricted_tier(Some("X Basic")));
++        assert!(!is_restricted_tier(Some("x_basic")));
+         assert!(!is_restricted_tier(Some("SuperGrok")));
+         assert!(!is_restricted_tier(Some("SuperGrok Heavy")));
+         assert!(!is_restricted_tier(Some("X Premium")));
+@@ -6753,8 +6737,8 @@ pub(crate) mod tests {
+     fn apply_auth_meta_clears_gate_on_subscription() {
+         let mut app = test_app();
+         app.gate = Some(xai_grok_shell::auth::GateInfo {
+-            message: "Subscribe to use Grok Build".into(),
+-            url: Some("https://grok.com/supergrok?referrer=grok-build".into()),
++            message: "Access restricted. Please check your account.".into(),
++            url: Some("https://example.com/account".into()),
+             label: None,
+         });
+         assert!(app.is_access_blocked());
+diff --git a/crates/codegen/xai-grok-pager/src/app/dispatch/billing.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/billing.rs
+index f528746..587878b 100644
+--- a/crates/codegen/xai-grok-pager/src/app/dispatch/billing.rs
++++ b/crates/codegen/xai-grok-pager/src/app/dispatch/billing.rs
+@@ -7,33 +7,19 @@ use crate::app::agent_view::AgentView;
+ use crate::app::app_view::AppView;
+ use crate::scrollback::block::RenderBlock;
+ use std::time::Duration;
+-use xai_grok_telemetry::events::{SuperGrokUpsell, SuperGrokUpsellClicked};
+ use xai_grok_telemetry::session_ctx::log_event;
+ 
+ /// How long the pager auto-checks subscription status before stopping.
+ /// After this, the user can still manually check via the [Refresh] button.
+ pub(super) const PAYWALL_AUTO_CHECK_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+ 
+-/// Whether the user is at the highest subscription tier (SuperGrok Heavy).
+-///
+-/// Returns `true` only when `subscription_tier` **positively matches** a
+-/// known max-tier identifier. When the tier is unknown (`None`) or any
+-/// other value, returns `false` 鈥?the user gets the Q&A modal so lower-
+-/// tier users always see the upgrade option.
+-pub(super) fn is_max_tier(subscription_tier: Option<&str>) -> bool {
+-    let Some(t) = subscription_tier else {
+-        return false; // Unknown 鈥?default to Q&A.
+-    };
+-    // Normalize: lowercase + spaces鈫抲nderscores to match both JWT-derived
+-    // keys ("supergrok_heavy") and CCP display names ("SuperGrok Heavy").
+-    t.to_ascii_lowercase().replace(' ', "_") == "supergrok_heavy"
+-}
+-
+ /// URL for upgrading the subscription tier.
+-pub(crate) const UPSELL_URL_UPGRADE: &str = "https://grok.com/supergrok?referrer=grok-build";
++/// Community Edition: empty; no xAI subscription tiers apply.
++pub(crate) const UPSELL_URL_UPGRADE: &str = "";
+ 
+ /// URL for managing pay-as-you-go / on-demand spending / purchasing credits.
+-pub(crate) const UPSELL_URL_PAYG: &str = "https://grok.com?_s=usage";
++/// Community Edition: empty; no xAI billing applies.
++pub(crate) const UPSELL_URL_PAYG: &str = "";
+ 
+ /// Billing mode for credit-limit upsell copy.
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+@@ -217,113 +203,6 @@ pub(super) fn open_credit_limit_upsell(
+     agent.prompt.set_text("");
+ }
+ 
+-/// Open the free-usage paywall on the given agent: a Q&A modal in the
+-/// [`open_credit_limit_upsell`] style with two upgrade options. Each
+-/// option's `id` carries its target URL so the submit handler is
+-/// position-independent.
+-///
+-/// Driver-only by construction (called from the PromptResponse handler,
+-/// which viewers never receive). `auth_method` feeds the
+-/// `SuperGrokUpsellShown` funnel event.
+-pub(super) fn open_free_usage_upsell(agent: &mut AgentView, auth_method: Option<String>) {
+-    open_supergrok_upsell(agent, UpsellReason::FreeUsageLimit, auth_method);
+-}
+-
+-/// Open the SuperGrok upsell for a tier-restricted slash command
+-/// (`/usage`, `/imagine`, 鈥?. Returns whether the modal opened (`false`
+-/// when another question modal is already up) so the caller can decide
+-/// whether to consume the input that triggered it.
+-pub(super) fn open_restricted_command_upsell(
+-    agent: &mut AgentView,
+-    auth_method: Option<String>,
+-) -> bool {
+-    open_supergrok_upsell(agent, UpsellReason::RestrictedCommand, auth_method)
+-}
+-
+-/// Which situation opened the SuperGrok upsell modal. Controls the heading
+-/// and the telemetry source.
+-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+-pub(super) enum UpsellReason {
+-    /// Free-usage quota exhausted (429 paywall).
+-    FreeUsageLimit,
+-    /// A tier-restricted slash command was invoked.
+-    RestrictedCommand,
+-}
+-
+-/// Shared builder behind [`open_free_usage_upsell`] /
+-/// [`open_restricted_command_upsell`]: a Q&A modal in the
+-/// [`open_credit_limit_upsell`] style. Upgrade options carry their target
+-/// URL in the option `id` (position-independent submit handling).
+-fn open_supergrok_upsell(
+-    agent: &mut AgentView,
+-    reason: UpsellReason,
+-    auth_method: Option<String>,
+-) -> bool {
+-    use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
+-    use xai_grok_tools::implementations::grok_build::ask_user_question::{
+-        Question, QuestionOption,
+-    };
+-
+-    // Never displace an already-open question modal. Callers that consume
+-    // input on open must check this `false` and keep the input instead.
+-    if agent.question_view.is_some() {
+-        return false;
+-    }
+-
+-    let (heading, source, modal_id_prefix) = match reason {
+-        UpsellReason::FreeUsageLimit => (
+-            "You hit your free usage limit.",
+-            SuperGrokUpsell::FreeUsagePaywall,
+-            "free-usage-upsell",
+-        ),
+-        UpsellReason::RestrictedCommand => (
+-            "Unlock all features with SuperGrok.",
+-            SuperGrokUpsell::RestrictedCommand,
+-            "restricted-command-upsell",
+-        ),
+-    };
+-
+-    log_event(xai_grok_telemetry::events::SuperGrokUpsellShown {
+-        source,
+-        auth_method,
+-    });
+-
+-    let options = vec![
+-        QuestionOption {
+-            label: "Upgrade to SuperGrok".into(),
+-            description: "For everyday coding and productivity tasks".into(),
+-            preview: None,
+-            id: Some(UPSELL_URL_UPGRADE.into()),
+-        },
+-        QuestionOption {
+-            label: "Upgrade to SuperGrok Heavy".into(),
+-            description: "Get the most out of Grok Build. Highest usage limits.".into(),
+-            preview: None,
+-            // No Heavy-specific URL exists; the /supergrok page lists
+-            // both plans, so both upgrade options land there.
+-            id: Some(UPSELL_URL_UPGRADE.into()),
+-        },
+-    ];
+-    let question = Question {
+-        question: heading.into(),
+-        options,
+-        multi_select: Some(false),
+-        id: None,
+-    };
+-
+-    let stashed = agent.prompt.stash();
+-    let state = QuestionViewState::new(
+-        format!("{modal_id_prefix}-{}", uuid::Uuid::new_v4()),
+-        vec![question],
+-        stashed,
+-    )
+-    .with_local_kind(LocalQuestionKind::FreeUsageUpsell { source })
+-    .with_no_freeform();
+-    agent.question_view = Some(state);
+-    agent.prompt.set_text("");
+-    true
+-}
+-
+ /// Apply an [`AutoTopupFetch`] outcome to a cached `auto_topup` slot: `Resolved`
+ /// sets it, `Cleared` resets it to "unknown" (no credits), and `Unchanged` keeps
+ /// the last-known-good value (the fetch failed).
+@@ -514,7 +393,7 @@ pub(super) fn handle_credit_limit_recheck_complete(
+             .as_ref()
+             .or(app.credit_balance.as_ref());
+         let mode = credit_limit_upsell_mode(balance);
+-        let max_tier = is_max_tier(app.subscription_tier.as_deref());
++        let max_tier = false;
+         open_credit_limit_upsell(agent, mode, max_tier);
+     }
+     // Either way, drop the stashed prompt.
+@@ -532,22 +411,12 @@ pub(super) fn handle_credit_limit_recheck_complete(
+ // Action handlers.
+ 
+ pub(super) fn dispatch_open_supergrok_url(app: &mut AppView) -> Vec<Effect> {
+-    log_event(SuperGrokUpsellClicked {
+-        source: SuperGrokUpsell::WelcomeScreen,
+-        auth_method: app.login_method_id.as_ref().map(|id| id.0.to_string()),
+-    });
+     let url = app
+         .gate
+         .as_ref()
+         .and_then(|g| g.url.as_deref())
+-        .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
+-    // Funnel attribution: tag CLI-originated SuperGrok upsell clicks
+-    // with `referrer=grok-build`, matching the OAuth consent flow and
+-    // x.ai/cli marketing links. Applied even when the URL came from
+-    // remote settings's `gate_url`, so we don't depend on the remote flag
+-    // being correctly configured. If the URL already specifies a
+-    // referrer it's left alone.
+-    let url = crate::app::link_opener::ensure_query_param(url, "referrer", "grok-build");
++        .unwrap_or("")
++        .to_owned();
+     super::ctx::open_url_or_show(app, &url);
+     vec![]
+ }
+diff --git a/crates/codegen/xai-grok-pager/src/app/dispatch/prompt.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/prompt.rs
+index 9e29fe4..ea38e49 100644
+--- a/crates/codegen/xai-grok-pager/src/app/dispatch/prompt.rs
++++ b/crates/codegen/xai-grok-pager/src/app/dispatch/prompt.rs
+@@ -367,7 +367,6 @@ pub(super) fn dispatch_send_prompt_inner(
+     // shown after the agent borrow ends so we can re-enter via the tip helper.
+     let mut tip_send_now_after_queue = false;
+     let voice_stt_language_from_app = app.voice_config.language.clone();
+-    let login_method_id_from_app = app.login_method_id.as_ref().map(|id| id.0.to_string());
+     let Some(agent) = app.agents.get_mut(&id) else {
+         return vec![];
+     };
+@@ -397,32 +396,6 @@ pub(super) fn dispatch_send_prompt_inner(
+     // through the unknown-command path below and leak to the model as a
+     // raw prompt. Upsell instead; genuinely unknown commands still pass
+     // through (shell/ACP commands depend on that).
+-    if !literal
+-        && trimmed.starts_with('/')
+-        && let Some(invocation) = crate::slash::parse_invocation(trimmed)
+-        && agent
+-            .prompt
+-            .slash_controller
+-            .registry()
+-            .is_restricted(invocation.token)
+-    {
+-        // Only consume the composer when the upsell can actually open: with
+-        // another question modal already up, `open_supergrok_upsell` would
+-        // no-op and wiping the composer here would silently drop the typed
+-        // text. Keep it instead so the user can resubmit after closing the
+-        // modal 鈥?and never fall through to passthrough for restricted
+-        // commands.
+-        if agent.question_view.is_none() {
+-            if consume_input {
+-                agent.prompt.set_text("");
+-            }
+-            let opened =
+-                super::billing::open_restricted_command_upsell(agent, login_method_id_from_app);
+-            debug_assert!(opened, "no modal was open, so the upsell must open");
+-        }
+-        return vec![];
+-    }
+-
+     // 鈹€鈹€ Registry-based slash command execution 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+     // If the text starts with `/`, run it through the slash registry.
+     // The registry resolves builtins, ACP-advertised commands, and
+@@ -1328,7 +1301,7 @@ pub(super) fn handle_prompt_response(
+                 // title into the body automatically.
+                 let notif_title = session_name
+                     .map(|s| s.to_string())
+-                    .unwrap_or_else(|| "Grok".into());
++                    .unwrap_or_else(|| "Grok Build CE".into());
+ 
+                 app.deferred_notification = Some((
+                     NotificationEvent {
+@@ -1404,20 +1377,6 @@ pub(super) fn handle_prompt_response(
+             return vec![Effect::CreditLimitRecheck { agent_id }];
+         }
+ 
+-        // Free-usage paywall (429 + subscription:free-usage-exhausted): the
+-        // RetryState handler set the flag and suppressed the generic
+-        // rate-limit block; show the upsell modal. Driver-only by
+-        // construction 鈥?viewers never receive a PromptResponse. No queue
+-        // drain: queued prompts would fail on the same exhausted quota.
+-        if free_usage_blocked {
+-            let auth_method = app.login_method_id.as_ref().map(|id| id.0.to_string());
+-            super::billing::open_free_usage_upsell(agent, auth_method);
+-            if let Some(p) = pending_adoption {
+-                agent.discard_pending_adoption_updates(&p.prompt_id);
+-            }
+-            return vec![];
+-        }
+-
+         // FIFO handoff: if a server-authoritative prompt drained
+         // into the running slot during this turn's teardown, adopt it
+         // now (finish_turn cleared current_prompt_id) and run the
+diff --git a/crates/codegen/xai-grok-pager/src/app/dispatch/status.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/status.rs
+index fd93b06..60dbd24 100644
+--- a/crates/codegen/xai-grok-pager/src/app/dispatch/status.rs
++++ b/crates/codegen/xai-grok-pager/src/app/dispatch/status.rs
+@@ -104,7 +104,6 @@ pub(super) fn dispatch_show_privacy_info(app: &mut AppView) -> Vec<Effect> {
+     lines.push("  - [telemetry] trace_upload / GROK_TELEMETRY_TRACE_UPLOAD");
+     lines.push("  - GROK_EXTERNAL_OTEL / OTEL_*");
+     lines.push("");
+-    lines.push("  Learn more: https://x.ai/legal");
+     let text = lines.join("\n");
+     push_system_to_any_agent(app, &text);
+     vec![]
+@@ -333,10 +332,8 @@ pub(super) fn dispatch_manage_billing(app: &mut AppView) -> Vec<Effect> {
+     if !app.usage_visible {
+         return vec![];
+     }
+-    super::router::dispatch(
+-        crate::app::actions::Action::OpenUrl("https://grok.com/?_s=usage".to_string()),
+-        app,
+-    )
++    app.show_toast("Usage management is not available in this edition.");
++    vec![]
+ }
+ 
+ /// Commit a one-line "update available" notice into the active agent's
+@@ -425,7 +422,7 @@ pub(super) fn notify_session_ready(
+ ) {
+     notification_service.notify(NotificationEvent {
+         kind: NotificationEventKind::SessionReady,
+-        title: "Grok".into(),
++        title: "Grok Build CE".into(),
+         body: NotificationEventKind::SessionReady.as_str().into(),
+         session_id: agent.session.session_id.as_ref().map(|s| s.0.to_string()),
+     });
+diff --git a/crates/codegen/xai-grok-pager/src/app/dispatch/tests/billing.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/tests/billing.rs
+index cb6c0c0..5e496f3 100644
+--- a/crates/codegen/xai-grok-pager/src/app/dispatch/tests/billing.rs
++++ b/crates/codegen/xai-grok-pager/src/app/dispatch/tests/billing.rs
+@@ -106,36 +106,6 @@ fn credit_limit_retry_preserves_image_submission_state() {
+     assert_eq!(in_flight.chip_elements.len(), 1);
+ }
+ 
+-#[test]
+-fn is_max_tier_positive_match() {
+-    assert!(is_max_tier(Some("supergrok_heavy")));
+-    assert!(is_max_tier(Some("SuperGrok Heavy")));
+-    assert!(is_max_tier(Some("SUPERGROK_HEAVY")));
+-}
+-
+-#[test]
+-fn is_max_tier_non_max_and_unknown() {
+-    assert!(!is_max_tier(Some("supergrok")));
+-    assert!(!is_max_tier(Some("premium")));
+-    assert!(!is_max_tier(Some("free")));
+-    // Unknown defaults to non-max 鈫?Q&A shown.
+-    assert!(!is_max_tier(None));
+-}
+-
+-#[test]
+-fn is_max_tier_handles_mixed_case_and_whitespace() {
+-    assert!(is_max_tier(Some("SuperGrok_Heavy")));
+-    assert!(is_max_tier(Some("supergrok heavy")));
+-    assert!(is_max_tier(Some("SUPERGROK HEAVY")));
+-}
+-
+-#[test]
+-fn is_max_tier_rejects_partial_matches() {
+-    assert!(!is_max_tier(Some("supergrok_heav")));
+-    assert!(!is_max_tier(Some("supergrok_heavy_plus")));
+-    assert!(!is_max_tier(Some("")));
+-}
+-
+ #[test]
+ fn upsell_non_max_shows_qa_with_two_options() {
+     let mut app = test_app_with_agent();
+@@ -991,234 +961,6 @@ fn free_usage_error_detected_by_embedded_code() {
+     ));
+ }
+ 
+-#[test]
+-fn free_usage_upsell_shows_two_options_with_exact_labels() {
+-    let mut app = test_app_with_agent();
+-    let agent = app.agents.get_mut(&AgentId(0)).unwrap();
+-    open_free_usage_upsell(agent, None);
+-
+-    let qv = agent_qv(&app);
+-    assert!(matches!(
+-        qv.local_kind,
+-        Some(
+-            crate::views::question_view::LocalQuestionKind::FreeUsageUpsell {
+-                source: xai_grok_telemetry::events::SuperGrokUpsell::FreeUsagePaywall,
+-            }
+-        )
+-    ));
+-    let q = &qv.questions[0];
+-    assert_eq!(q.question, "You hit your free usage limit.");
+-    let expected = [
+-        (
+-            "Upgrade to SuperGrok",
+-            "For everyday coding and productivity tasks",
+-            Some(UPSELL_URL_UPGRADE),
+-        ),
+-        (
+-            "Upgrade to SuperGrok Heavy",
+-            "Get the most out of Grok Build. Highest usage limits.",
+-            Some(UPSELL_URL_UPGRADE),
+-        ),
+-    ];
+-    assert_eq!(q.options.len(), expected.len());
+-    for (opt, (label, desc, id)) in q.options.iter().zip(expected) {
+-        assert_eq!(opt.label, label);
+-        assert_eq!(opt.description, desc);
+-        assert_eq!(opt.id.as_deref(), id);
+-    }
+-}
+-
+-/// Replay the REAL free-usage sequence 鈥?send 鈫?`RetryState::Retrying` 鈫?-/// `Exhausted` 鈫?PromptResponse error 鈥?through the production handlers:
+-/// the paywall modal must open on the turn-end error.
+-#[test]
+-fn free_usage_failure_opens_paywall_modal() {
+-    use crate::app::acp_handler::apply_session_event_for_test;
+-    use xai_grok_shell::extensions::notification::{RetryState, SessionUpdate};
+-
+-    let mut app = test_app_with_agent();
+-    let id = AgentId(0);
+-
+-    // 1. Real send.
+-    let effects = dispatch(Action::SendPrompt("draw me a cat".into()), &mut app);
+-    assert!(
+-        matches!(&effects[0], Effect::SendPrompt { text, .. } if text == "draw me a cat"),
+-        "send must dispatch: {effects:?}"
+-    );
+-    let prompt_id = app.agents[&id].session.current_prompt_id.clone();
+-    assert!(prompt_id.is_some(), "send must mint a prompt id");
+-
+-    // 2+3. Real notification sequence through the production handler.
+-    {
+-        let agent = app.agents.get_mut(&id).unwrap();
+-        apply_session_event_for_test(
+-            &SessionUpdate::RetryState(RetryState::Retrying {
+-                attempt: 1,
+-                max_retries: 2,
+-                reason: "429 Too Many Requests".into(),
+-            }),
+-            &mut agent.session,
+-            &mut agent.scrollback,
+-        );
+-        apply_session_event_for_test(
+-            &SessionUpdate::RetryState(RetryState::Exhausted {
+-                attempts: 2,
+-                reason: "API error (status 429 Too Many Requests): \
+-                         subscription:free-usage-exhausted: You have used all your free usage."
+-                    .into(),
+-                is_rate_limited: true,
+-            }),
+-            &mut agent.session,
+-            &mut agent.scrollback,
+-        );
+-        assert!(agent.session.free_usage_blocked);
+-    }
+-
+-    // 4. Turn-end RPC error opens the upsell modal.
+-    let _ = dispatch(
+-        Action::TaskComplete(TaskResult::PromptResponse {
+-            agent_id: id,
+-            result: Err("rate limited".into()),
+-            http_status: Some(429),
+-            prompt_id,
+-        }),
+-        &mut app,
+-    );
+-    assert!(
+-        app.agents[&id].question_view.is_some(),
+-        "paywall modal must open"
+-    );
+-}
+-
+-/// Answer translation: both upgrade options open their URL.
+-#[test]
+-fn free_usage_translate_local_submit_maps_options() {
+-    use crate::app::agent_view::translate_local_submit_for_test;
+-    use crate::app::app_view::InputOutcome;
+-    use crate::views::question_view::{LocalQuestionKind, QuestionSelection};
+-
+-    let mut app = test_app_with_agent();
+-    let agent = app.agents.get_mut(&AgentId(0)).unwrap();
+-    open_free_usage_upsell(agent, None);
+-    let mut qv = agent.question_view.take().unwrap();
+-    let kind = || LocalQuestionKind::FreeUsageUpsell {
+-        source: xai_grok_telemetry::events::SuperGrokUpsell::FreeUsagePaywall,
+-    };
+-
+-    for idx in [0, 1] {
+-        qv.selections[0] = QuestionSelection::Single(Some(idx));
+-        match translate_local_submit_for_test(&qv, kind(), false) {
+-            InputOutcome::Action(Action::OpenUrl(url)) => assert_eq!(url, UPSELL_URL_UPGRADE),
+-            other => panic!("expected OpenUrl for option {idx}, got {other:?}"),
+-        }
+-    }
+-}
+-
+-// 鈹€鈹€ Restricted-command upsell tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+-
+-/// Submitting a tier-restricted command opens the two-option SuperGrok
+-/// upsell and neither runs the command nor leaks the text to the model.
+-#[test]
+-fn restricted_command_submit_opens_two_option_upsell() {
+-    let mut app = test_app_with_agent();
+-    let id = AgentId(0);
+-    app.agents
+-        .get_mut(&id)
+-        .unwrap()
+-        .set_restricted_commands(&["imagine".to_string()]);
+-
+-    let effects = dispatch(Action::SendPrompt("/imagine a sunset".into()), &mut app);
+-
+-    assert!(
+-        effects.is_empty(),
+-        "restricted command must not produce a SendPrompt: {effects:?}"
+-    );
+-    let agent = &app.agents[&id];
+-    assert!(
+-        agent.session.pending_prompts.is_empty(),
+-        "restricted command must not be enqueued"
+-    );
+-    assert!(agent.prompt.text().is_empty(), "composer consumed");
+-
+-    let qv = agent_qv(&app);
+-    assert!(matches!(
+-        qv.local_kind,
+-        Some(
+-            crate::views::question_view::LocalQuestionKind::FreeUsageUpsell {
+-                source: xai_grok_telemetry::events::SuperGrokUpsell::RestrictedCommand,
+-            }
+-        )
+-    ));
+-    let q = &qv.questions[0];
+-    assert_eq!(q.question, "Unlock all features with SuperGrok.");
+-    assert_eq!(q.options.len(), 2);
+-    assert_eq!(q.options[0].label, "Upgrade to SuperGrok");
+-    assert_eq!(q.options[0].id.as_deref(), Some(UPSELL_URL_UPGRADE));
+-    assert_eq!(q.options[1].label, "Upgrade to SuperGrok Heavy");
+-    assert_eq!(q.options[1].id.as_deref(), Some(UPSELL_URL_UPGRADE));
+-}
+-
+-/// Aliases of a restricted command hit the same upsell (deny-list
+-/// matching covers aliases via the registry).
+-#[test]
+-fn restricted_command_alias_also_upsells() {
+-    let mut app = test_app_with_agent();
+-    let id = AgentId(0);
+-    app.agents
+-        .get_mut(&id)
+-        .unwrap()
+-        .set_restricted_commands(&["usage".to_string()]);
+-
+-    let effects = dispatch(Action::SendPrompt("/cost".into()), &mut app);
+-
+-    assert!(effects.is_empty());
+-    assert!(app.agents[&id].question_view.is_some(), "upsell must open");
+-}
+-
+-/// A restricted submit while ANOTHER question modal is already open
+-/// must not silently drop the typed text 鈥?the upsell can't open (the guard
+-/// never displaces a modal), so the composer keeps the text for a resubmit
+-/// after the modal closes. No passthrough, nothing enqueued, and the
+-/// existing modal survives untouched.
+-#[test]
+-fn restricted_command_with_open_modal_keeps_composer_text() {
+-    let mut app = test_app_with_agent();
+-    let id = AgentId(0);
+-    {
+-        let agent = app.agents.get_mut(&id).unwrap();
+-        agent.set_restricted_commands(&["imagine".to_string()]);
+-        // A question modal is already up (credit-limit upsell).
+-        open_credit_limit_upsell(agent, CreditLimitUpsellMode::UnifiedCredits, false);
+-        assert!(agent.question_view.is_some());
+-        // The user typed the restricted command into the composer.
+-        agent.prompt.set_text("/imagine a sunset");
+-    }
+-
+-    let effects = dispatch(Action::SendPrompt("/imagine a sunset".into()), &mut app);
+-
+-    assert!(effects.is_empty(), "no passthrough / send: {effects:?}");
+-    let agent = &app.agents[&id];
+-    assert_eq!(
+-        agent.prompt.text(),
+-        "/imagine a sunset",
+-        "composer text must be preserved for a later resubmit"
+-    );
+-    assert!(
+-        matches!(
+-            agent
+-                .question_view
+-                .as_ref()
+-                .and_then(|qv| qv.local_kind.as_ref()),
+-            Some(crate::views::question_view::LocalQuestionKind::CreditLimitUpsell { .. })
+-        ),
+-        "the pre-existing modal must survive (no second modal)"
+-    );
+-    assert!(
+-        agent.session.pending_prompts.is_empty(),
+-        "nothing may be enqueued"
+-    );
+-}
+-
+ /// Regression: genuinely unknown (non-restricted) commands keep the
+ /// PassThrough behavior shell/ACP commands rely on.
+ #[test]
+diff --git a/crates/codegen/xai-grok-pager/src/app/dispatch/tests/mod.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/tests/mod.rs
+index 9e743bb..ef6290b 100644
+--- a/crates/codegen/xai-grok-pager/src/app/dispatch/tests/mod.rs
++++ b/crates/codegen/xai-grok-pager/src/app/dispatch/tests/mod.rs
+@@ -18,8 +18,7 @@ mod transcript;
+ mod turn;
+ mod voice;
+ use super::billing::{
+-    CreditLimitUpsellMode, credit_limit_upsell_mode, is_max_tier, open_credit_limit_upsell,
+-    open_free_usage_upsell,
++    CreditLimitUpsellMode, credit_limit_upsell_mode, open_credit_limit_upsell,
+ };
+ use super::cta::{
+     CTA_MCP_ABSENT_MAX_ATTEMPTS, CTA_MCP_POLL_MAX_ATTEMPTS, cta_impression_plugin_name,
+diff --git a/crates/codegen/xai-grok-pager/src/app/dispatch/voice.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/voice.rs
+index 7ddbde9..b3d86ce 100644
+--- a/crates/codegen/xai-grok-pager/src/app/dispatch/voice.rs
++++ b/crates/codegen/xai-grok-pager/src/app/dispatch/voice.rs
+@@ -41,34 +41,6 @@ fn voice_target_for_view(app: &AppView) -> Option<VoiceTarget> {
+ }
+ 
+ /// Show the SuperGrok upsell when a tier-restricted (free / X Basic) user tries
+-/// to start voice via the Ctrl+Space / F8 keybinding, which bypasses the slash
+-/// registry (`/voice` is instead hidden + upsold via the deny list). Mirrors the
+-/// slash-command upsell surfaces: a Q&A modal on an agent screen
+-/// ([`super::billing::open_restricted_command_upsell`]), the feedback toast on
+-/// the dashboard (which has no modal surface), and a silent no-op elsewhere
+-/// (e.g. the welcome screen, which has no agent to host the modal). Never starts
+-/// voice; always returns no effects.
+-fn open_voice_tier_upsell(app: &mut AppView) -> Vec<Effect> {
+-    let login_method = app.login_method_id.as_ref().map(|id| id.0.to_string());
+-    match app.active_view {
+-        ActiveView::Agent(id) => {
+-            if let Some(agent) = app.agents.get_mut(&id) {
+-                super::billing::open_restricted_command_upsell(agent, login_method);
+-            }
+-        }
+-        ActiveView::AgentDashboard => {
+-            if let Some(d) = app.dashboard.as_mut() {
+-                d.set_error_toast(&format!(
+-                    "/voice requires SuperGrok 鈥?upgrade at {}",
+-                    super::billing::UPSELL_URL_UPGRADE
+-                ));
+-            }
+-        }
+-        _ => {}
+-    }
+-    vec![]
+-}
+-
+ /// Enable session voice mode and start recording. The start primitive reached
+ /// by the toggle ([`dispatch_voice_toggle`], i.e. `/voice` / Ctrl+Space when
+ /// idle) and the Ctrl+Space hold-to-talk key-press.
+@@ -95,14 +67,6 @@ pub(super) fn dispatch_enable_voice_mode(app: &mut AppView, from_hold: bool) ->
+     if !app.voice_mode_enabled || !xai_grok_voice::AUDIO_SUPPORTED {
+         return vec![];
+     }
+-    // Tier gate: free / X Basic personal users can't use voice (the server
+-    // zero-limits these tiers). The Ctrl+Space / F8 keybinding bypasses the
+-    // slash registry, so this is the enforcement point for it 鈥?show the
+-    // SuperGrok upsell instead of starting a doomed session (`/voice` itself is
+-    // separately hidden + upsold via the deny list).
+-    if app.is_voice_tier_restricted() {
+-        return open_voice_tier_upsell(app);
+-    }
+     // The session-less welcome screen (first launch) has no prompt box, so create
+     // a session there 鈥?via the gated `dispatch_new_session`, so auth + folder-trust
+     // hold 鈥?letting voice dictate into it from a cold start. `switch_to_agent`
+diff --git a/crates/codegen/xai-grok-pager/src/scrollback/block.rs b/crates/codegen/xai-grok-pager/src/scrollback/block.rs
+index 52ee1a8..0870766 100644
+--- a/crates/codegen/xai-grok-pager/src/scrollback/block.rs
++++ b/crates/codegen/xai-grok-pager/src/scrollback/block.rs
+@@ -1580,11 +1580,11 @@ mod searchable_text_tests {
+         let block = RenderBlock::credit_limit_card(
+             "credit limit reached",
+             crate::scrollback::blocks::CreditLimitCardAction::EnablePayg,
+-            "https://grok.com?_s=usage",
++            "https://example.com/usage",
+         );
+         let text = block.searchable_text().expect("credit limit text");
+         assert!(text.contains("credit limit reached"), "got: {text:?}");
+-        assert!(text.contains("https://grok.com?_s=usage"), "got: {text:?}");
++        assert!(text.contains("https://example.com/usage"), "got: {text:?}");
+     }
+ 
+     #[test]
+diff --git a/crates/codegen/xai-grok-pager/src/scrollback/blocks/credit_limit.rs b/crates/codegen/xai-grok-pager/src/scrollback/blocks/credit_limit.rs
+index 9ffc4e4..2e95a73 100644
+--- a/crates/codegen/xai-grok-pager/src/scrollback/blocks/credit_limit.rs
++++ b/crates/codegen/xai-grok-pager/src/scrollback/blocks/credit_limit.rs
+@@ -141,7 +141,7 @@ mod tests {
+         let block = CreditLimitBlock::new(
+             "You\u{2019}ve hit your credit limit.",
+             CreditLimitCardAction::EnablePayg,
+-            "https://grok.com?_s=usage",
++            "https://example.com/usage",
+         );
+         let output = block.output(&ctx());
+         let all_text: String = output
+@@ -159,7 +159,7 @@ mod tests {
+         let block = CreditLimitBlock::new(
+             "You\u{2019}ve hit your spending cap.",
+             CreditLimitCardAction::IncreasePaygLimit,
+-            "https://grok.com?_s=usage",
++            "https://example.com/usage",
+         );
+         let output = block.output(&ctx());
+         let all_text: String = output
+@@ -177,7 +177,7 @@ mod tests {
+         let block = CreditLimitBlock::new(
+             "You hit your weekly limit.",
+             CreditLimitCardAction::PurchaseCredits,
+-            "https://grok.com?_s=usage",
++            "https://example.com/usage",
+         );
+         let output = block.output(&ctx());
+         let all_text: String = output
+@@ -215,7 +215,7 @@ mod tests {
+ 
+     #[test]
+     fn output_structure_and_content() {
+-        let url = "https://grok.com?_s=usage";
++        let url = "https://example.com/usage";
+         let block = CreditLimitBlock::new("Test heading", CreditLimitCardAction::EnablePayg, url);
+         let output = block.output(&ctx());
+ 
+diff --git a/crates/codegen/xai-grok-pager/src/views/announcements.rs b/crates/codegen/xai-grok-pager/src/views/announcements.rs
+index 57e04ba..9b086de 100644
+--- a/crates/codegen/xai-grok-pager/src/views/announcements.rs
++++ b/crates/codegen/xai-grok-pager/src/views/announcements.rs
+@@ -834,7 +834,7 @@ mod tests {
+                 ..Default::default()
+             },
+             ann(Some("critical"), None), // no message 鈫?not visible
+-            promo("promo-1", "upsell", Some(("Go", "https://x.ai"))),
++            promo("promo-1", "upsell", Some(("Go", "https://example.com"))),
+             expired_promo,
+         ];
+         let now = chrono::DateTime::parse_from_rfc3339("2020-01-01T00:00:00Z")
+@@ -1060,7 +1060,7 @@ mod tests {
+         let list = vec![
+             ann(Some("info"), Some("info only")),
+             ann(Some("promo"), None), // no message 鈫?not visible
+-            promo("p-a", "A promo", Some(("Go", "https://x.ai"))),
++            promo("p-a", "A promo", Some(("Go", "https://example.com"))),
+             promo("p-b", "B promo", None),
+         ];
+         assert_eq!(
+@@ -1118,7 +1118,7 @@ mod tests {
+     #[test]
+     fn first_session_announcement_prefers_critical_over_promo() {
+         let list = vec![
+-            promo("p", "upsell", Some(("Go", "https://x.ai"))),
++            promo("p", "upsell", Some(("Go", "https://example.com"))),
+             RemoteAnnouncement {
+                 id: Some("c".into()),
+                 severity: Some("critical".into()),
+@@ -1214,7 +1214,7 @@ mod tests {
+     /// stays the button only (the caption is not clickable).
+     #[test]
+     fn render_promo_row_non_dismissible_shows_configured_caption() {
+-        let mut ann = promo("p", &"M".repeat(60), Some(("Go", "https://x.ai")));
++        let mut ann = promo("p", &"M".repeat(60), Some(("Go", "https://example.com")));
+         ann.dismissible = Some(false);
+         ann.cta.as_mut().unwrap().caption = Some("or use Ctrl+O".into());
+         let anns = [ann];
+@@ -1251,7 +1251,7 @@ mod tests {
+ 
+         // No caption configured: the pinned row stays a bare button even with
+         // `caption_allowed` (nothing hardcoded fills in).
+-        let mut bare = promo("p", &"M".repeat(60), Some(("Go", "https://x.ai")));
++        let mut bare = promo("p", &"M".repeat(60), Some(("Go", "https://example.com")));
+         bare.dismissible = Some(false);
+         let mut buf = Buffer::empty(area);
+         let hits = render_banner(area, &mut buf, &[bare], &no_hidden(), false, false, true);
+@@ -1296,7 +1296,7 @@ mod tests {
+     /// its caption can never surface on the promo row either.
+     #[test]
+     fn usable_cta_caption_trims_and_never_resurrects_unusable_cta() {
+-        let mut p = promo("p", "msg", Some(("Go", "https://x.ai")));
++        let mut p = promo("p", "msg", Some(("Go", "https://example.com")));
+         assert_eq!(usable_cta_caption(&p), None, "absent caption");
+         p.cta.as_mut().unwrap().caption = Some("  or use Ctrl+O  ".into());
+         assert_eq!(usable_cta_caption(&p), Some("or use Ctrl+O"), "trimmed");
+@@ -1351,7 +1351,7 @@ mod tests {
+             "pinned promo drives the Ctrl+O override"
+         );
+ 
+-        let dismissible = [promo("d", "msg", Some(("Go", "https://x.ai")))];
++        let dismissible = [promo("d", "msg", Some(("Go", "https://example.com")))];
+         let (owner, label, _) = promo_cta(&dismissible, &no_hidden()).expect("usable cta");
+         assert_eq!(label, "Go");
+         assert!(
+@@ -1541,7 +1541,7 @@ mod tests {
+ 
+     #[test]
+     fn render_promo_row_hover_styles() {
+-        let anns = [promo("p", "msg", Some(("Go", "https://x.ai")))];
++        let anns = [promo("p", "msg", Some(("Go", "https://example.com")))];
+         let area = Rect::new(0, 0, 80, 1);
+         let theme = Theme::current();
+ 
+@@ -1570,7 +1570,7 @@ mod tests {
+             "msg",
+             Some((
+                 "Upgrade to SuperGrok Heavy for the exclusive preview",
+-                "https://x.ai",
++                "https://example.com",
+             )),
+         )];
+         let area = Rect::new(0, 0, 50, 1);
+@@ -1608,7 +1608,7 @@ mod tests {
+     /// [hide]) instead of painting a clipped fragment; nothing panics.
+     #[test]
+     fn render_promo_row_narrow_width_drops_hide_cta_text() {
+-        let anns = [promo("p", "msg body", Some(("Go", "https://x.ai")))];
++        let anns = [promo("p", "msg body", Some(("Go", "https://example.com")))];
+         let area = Rect::new(0, 0, 20, 1);
+         let mut buf = Buffer::empty(area);
+         let hits = render_banner(area, &mut buf, &anns, &no_hidden(), false, false, true);
+diff --git a/crates/codegen/xai-grok-shell/src/agent/config.rs b/crates/codegen/xai-grok-shell/src/agent/config.rs
+index ff855b0..a4e2246 100644
+--- a/crates/codegen/xai-grok-shell/src/agent/config.rs
++++ b/crates/codegen/xai-grok-shell/src/agent/config.rs
+@@ -2468,6 +2468,7 @@ impl Config {
+             .requirement(self.requirements.web_fetch.pinned())
+             .config(self.features.web_fetch)
+             .feature_flag(ff)
++            .default(true)
+             .resolve()
+     }
+     /// `ask_user_question` tool gate; default ON. remote settings
+@@ -3346,6 +3347,7 @@ pub(crate) fn resolve_external_otel_config_with(
+ pub fn apply_external_otel_remote_policy(settings: Option<&crate::util::config::RemoteSettings>) {
+     let Some(settings) = settings else { return };
+     let policy = xai_grok_telemetry::external::ExternalOtelRemotePolicy {
++        disabled: None,
+         force_disable: settings.external_otel_disabled.unwrap_or(false),
+         lock_content_gates: settings.external_otel_content_gates_locked.unwrap_or(false),
+     };
+@@ -3429,8 +3431,33 @@ pub fn resolve_model_list(
+         resolved = prefetched;
+     }
+     for (key, model_override) in &cfg.config_models {
+-        let had_base = resolved.contains_key(key);
+-        let base = resolved.shift_remove(key);
++        // When the user's model override specifies a `model` field (the API model
++        // name) that matches an existing default entry's `info.model`, also
++        // consume that default entry so its base (context_window, api_backend,
++        // etc.) feeds into the merged result.  This fixes session resume for
++        // users whose config.toml key differs from the default-model key
++        // (e.g. `[model.deepseek]` overriding the `deepseek-v4-pro` default).
++        let model_name_match = model_override.model.as_deref().and_then(|model_name| {
++            resolved
++                .iter()
++                .find(|(k, v)| k.as_str() != key.as_str() && v.info.model == model_name)
++                .map(|(k, _)| k.clone())
++        });
++
++        let had_base_by_key = resolved.contains_key(key);
++        let base_by_key = resolved.shift_remove(key);
++        let base_by_model = model_name_match
++            .as_ref()
++            .and_then(|matched_key| resolved.shift_remove(matched_key));
++
++        // Prefer the model-name-matched default as the base (it carries the
++        // correct context_window, api_backend, etc. from defaults).  If both are
++        // present the user's own key wins any explicitly-set fields (via
++        // `ModelOverrideConfig::apply`), and the model-name-matched default
++        // is used for the remaining inherited fields.
++        let base = base_by_model.or(base_by_key);
++        let had_base = had_base_by_key || base.is_some();
++
+         if !had_base {
+             tracing::debug!(
+                 model_key = % key,
+@@ -3472,6 +3499,20 @@ pub fn resolve_model_list(
+             model_override.model_provider.as_deref(), had_base,
+             "config model override applied"
+         );
++
++        // Insert under the user's key AND under the matched model-name key (if
++        // different) so that old sessions saved with the default key still
++        // resolve to the user's updated configuration.
++        if let Some(ref matched_key) = model_name_match
++            && matched_key != key
++        {
++            let alias = entry.clone();
++            resolved.insert(matched_key.clone(), alias);
++            tracing::debug!(
++                user_key = % key, matched_key = % matched_key,
++                "user model config also registered under default key (session resume compat)"
++            );
++        }
+         resolved.insert(key.clone(), entry);
+     }
+     for (key, entry) in resolved.iter_mut() {
+@@ -5114,7 +5155,7 @@ fn resolve_hidden_default_web_search_sampling_config(
+             reasoning_effort: None,
+             supports_reasoning_effort: false,
+             reasoning_efforts: Vec::new(),
+-            supports_backend_search: false,
++            supports_backend_search: true,
+             compactions_remaining: None,
+             compaction_at_tokens: None,
+             show_model_fingerprint: false,
+@@ -5145,7 +5186,9 @@ pub fn resolve_web_search_sampling_config(
+     client_version: Option<String>,
+     endpoints: &EndpointsConfig,
+ ) -> Option<SamplerConfig> {
+-    let resolved = if let Some(entry) = find_model_by_id(models, model_id).cloned() {
++    let resolved = if let Some(mut entry) = find_model_by_id(models, model_id).cloned() {
++        // Force backend search on so the model can use native web search when available.
++        entry.info.supports_backend_search = true;
+         let credentials = resolve_credentials_enforced(&entry, session_key, disable_api_key_auth);
+         if credentials.api_key.is_none() && entry.effective_auth_provider().is_some() {
+             tracing::warn!(
+diff --git a/crates/codegen/xai-grok-shell/src/agent/mvp_agent/acp_agent.rs b/crates/codegen/xai-grok-shell/src/agent/mvp_agent/acp_agent.rs
+index d58f618..9f93b33 100644
+--- a/crates/codegen/xai-grok-shell/src/agent/mvp_agent/acp_agent.rs
++++ b/crates/codegen/xai-grok-shell/src/agent/mvp_agent/acp_agent.rs
+@@ -3441,9 +3441,12 @@ impl acp::Agent for MvpAgent {
+                     })?;
+                 crate::extensions::to_raw_response(&serde_json::json!({ "ok" : true }))
+             }
+-            "x.ai/billing" => crate::extensions::billing::handle(self, &args).await,
+-            "x.ai/auto-topup-rule" => {
+-                crate::extensions::billing::handle(self, &args).await
++            "x.ai/billing" | "x.ai/auto-topup-rule" => {
++                // Community Edition: billing is not available.
++                crate::extensions::to_raw_response(&serde_json::json!({
++                    "available": false,
++                    "message": "Billing is not available in Community Edition."
++                }))
+             }
+             "x.ai/share_session" => crate::extensions::share::handle(self, &args).await,
+             "x.ai/privacy/setCodingDataRetention" => {
+diff --git a/crates/codegen/xai-grok-shell/src/session/acp_session_impl/sampler_turn.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_impl/sampler_turn.rs
+index 19e3d6c..b1713b7 100644
+--- a/crates/codegen/xai-grok-shell/src/session/acp_session_impl/sampler_turn.rs
++++ b/crates/codegen/xai-grok-shell/src/session/acp_session_impl/sampler_turn.rs
+@@ -873,7 +873,13 @@ impl SessionActor {
+                 None,
+             );
+         }
+-        if let Some(ref provider) = auth_provider
++        // Provider-backed auth recovery: only applicable when the session is
++        // eligible for auth recovery (session-based auth, not api-key).
++        // Without this guard api-key users would attempt recovery that is
++        // guaranteed to fail, producing a silent no-op that delays surfacing
++        // the real error to the user.
++        if auth_recovery_eligible
++            && let Some(ref provider) = auth_provider
+             && self.try_provider_401_recovery(provider).await
+         {
+             self.prepare_sampler_for_turn().await;
 diff --git a/crates/codegen/xai-grok-telemetry/Cargo.toml b/crates/codegen/xai-grok-telemetry/Cargo.toml
 index 04b543c..e4d0d40 100644
 --- a/crates/codegen/xai-grok-telemetry/Cargo.toml
@@ -8029,3 +9383,2652 @@ index afec720..0000000
 -
 -    server.abort();
 -}
+diff --git a/crates/codegen/xai-grok-update/src/auto_update.rs b/crates/codegen/xai-grok-update/src/auto_update.rs
+index 415fae3..5d00d3e 100644
+--- a/crates/codegen/xai-grok-update/src/auto_update.rs
++++ b/crates/codegen/xai-grok-update/src/auto_update.rs
+@@ -29,9 +29,9 @@ const MSG_RUN_UPDATE_MANUAL: &str = "Run `grok update` to get the latest version
+ /// Manual-install one-liner for this platform's bootstrap installer.
+ fn manual_install_cmd() -> &'static str {
+     if cfg!(windows) {
+-        "irm https://x.ai/cli/install.ps1 | iex"
++        "irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/community/install.ps1 | iex"
+     } else {
+-        "curl -fsSL https://x.ai/cli/install.sh | bash"
++        "curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/community/install.sh | bash"
+     }
+ }
+ 
+@@ -397,6 +397,11 @@ pub async fn check_update_background(update_config: &UpdateConfig) -> Background
+         return BackgroundUpdateCheck::none();
+     }
+ 
++    // Community Edition: auto-update is permanently disabled
++    if xai_grok_version::IS_COMMUNITY_EDITION {
++        return BackgroundUpdateCheck::none();
++    }
++
+     let current_config = config::load_config().await;
+     if current_config.cli.auto_update == Some(false) {
+         return BackgroundUpdateCheck::none();
+diff --git a/crates/codegen/xai-grok-update/src/version.rs b/crates/codegen/xai-grok-update/src/version.rs
+index 3aa8fbb..fb79050 100644
+--- a/crates/codegen/xai-grok-update/src/version.rs
++++ b/crates/codegen/xai-grok-update/src/version.rs
+@@ -15,7 +15,7 @@ pub const GH_RELEASE_REPO: &str = "xai-org-shared/grok-build";
+ 
+ /// Primary CLI base URL: Cloudflare-fronted x.ai endpoint with edge caching
+ /// for binaries and origin-respecting no-cache for channel pointers.
+-pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://x.ai/cli";
++pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://github.com/Cashmeran/grok-build-community/releases/latest/download";
+ 
+ /// Fallback CLI base URL: direct GCS, used when the primary is unreachable
+ /// (Cloudflare outage, regional CF egress issue, DNS hijack, etc.).
+diff --git a/crates/codegen/xai-mixpanel/Cargo.toml b/crates/codegen/xai-mixpanel/Cargo.toml
+deleted file mode 100644
+index 059f28b..0000000
+--- a/crates/codegen/xai-mixpanel/Cargo.toml
++++ /dev/null
+@@ -1,16 +0,0 @@
+-[package]
+-license = "Apache-2.0"
+-name = "xai-mixpanel"
+-version = "0.1.0"
+-edition.workspace = true
+-description = "Lightweight Mixpanel HTTP tracking client (replaces mixpanel-rs to avoid pulling reqwest 0.11)"
+-
+-[dependencies]
+-reqwest = { workspace = true }
+-serde_json = { workspace = true }
+-base64 = { workspace = true }
+-thiserror = { workspace = true }
+-xai-grok-secrets = { workspace = true }
+-
+-[dev-dependencies]
+-serde_json = { workspace = true }
+diff --git a/crates/codegen/xai-mixpanel/src/lib.rs b/crates/codegen/xai-mixpanel/src/lib.rs
+deleted file mode 100644
+index 94a1a83..0000000
+--- a/crates/codegen/xai-mixpanel/src/lib.rs
++++ /dev/null
+@@ -1,141 +0,0 @@
+-//! Lightweight Mixpanel HTTP tracking client.
+-//!
+-//! This is a minimal replacement for `mixpanel-rs` that uses `reqwest 0.12`
+-//! instead of `reqwest 0.11`, avoiding a duplicate HTTP stack in the binary.
+-//!
+-//! Only the `track` API is implemented since that's all we use.
+-
+-use base64::Engine;
+-use std::collections::HashMap;
+-
+-/// Mixpanel client for sending track events.
+-#[derive(Clone)]
+-pub struct Mixpanel {
+-    token: String,
+-    client: reqwest::Client,
+-}
+-
+-/// Error type for Mixpanel operations.
+-#[derive(Debug, thiserror::Error)]
+-pub enum Error {
+-    #[error("HTTP request failed: {0}")]
+-    Http(#[from] reqwest::Error),
+-    #[error("JSON serialization failed: {0}")]
+-    Json(#[from] serde_json::Error),
+-}
+-
+-impl Mixpanel {
+-    /// Create a new Mixpanel client with the given project token.
+-    pub fn new(token: impl Into<String>) -> Self {
+-        Self {
+-            token: token.into(),
+-            client: reqwest::Client::new(),
+-        }
+-    }
+-
+-    /// Create a new Mixpanel client with a shared reqwest client.
+-    pub fn with_client(token: impl Into<String>, client: reqwest::Client) -> Self {
+-        Self {
+-            token: token.into(),
+-            client,
+-        }
+-    }
+-
+-    /// Scrub property string values in place, then inject the project
+-    /// token. Split out from [`Self::track`] so the scrub-then-inject
+-    /// ordering is testable.
+-    fn prepare_properties(
+-        &self,
+-        mut properties: HashMap<String, serde_json::Value>,
+-    ) -> HashMap<String, serde_json::Value> {
+-        for v in properties.values_mut() {
+-            xai_grok_secrets::redact_json_string_values(v);
+-        }
+-        properties.insert("token".to_owned(), serde_json::json!(self.token));
+-        properties
+-    }
+-
+-    /// Track an event. Properties should include `distinct_id`. The
+-    /// project `token` is injected after scrubbing, so it isn't redacted.
+-    pub async fn track(
+-        &self,
+-        event: &str,
+-        properties: Option<HashMap<String, serde_json::Value>>,
+-    ) -> Result<(), Error> {
+-        let props = self.prepare_properties(properties.unwrap_or_default());
+-
+-        let payload = serde_json::json!([{
+-            "event": event,
+-            "properties": props,
+-        }]);
+-
+-        let json_bytes = serde_json::to_vec(&payload)?;
+-        let encoded = base64::engine::general_purpose::STANDARD.encode(&json_bytes);
+-
+-        self.client
+-            .post("https://api.mixpanel.com/track")
+-            .form(&[("data", &encoded)])
+-            .send()
+-            .await?;
+-
+-        Ok(())
+-    }
+-
+-    /// Create or update a user profile via Mixpanel's Engage API.
+-    /// String values in `set` are scrubbed for secrets before sending.
+-    /// The project `token` is injected automatically.
+-    pub async fn engage(
+-        &self,
+-        distinct_id: &str,
+-        set: HashMap<String, serde_json::Value>,
+-    ) -> Result<(), Error> {
+-        let mut scrubbed = set;
+-        for v in scrubbed.values_mut() {
+-            xai_grok_secrets::redact_json_string_values(v);
+-        }
+-
+-        let payload = serde_json::json!([{
+-            "$token": self.token,
+-            "$distinct_id": distinct_id,
+-            "$set": scrubbed,
+-        }]);
+-
+-        let json_bytes = serde_json::to_vec(&payload)?;
+-        let encoded = base64::engine::general_purpose::STANDARD.encode(&json_bytes);
+-
+-        self.client
+-            .post("https://api.mixpanel.com/engage")
+-            .form(&[("data", &encoded)])
+-            .send()
+-            .await?;
+-
+-        Ok(())
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    /// Project token is deliberately Bearer-shaped: it would be redacted
+-    /// if `prepare_properties` ran the scrubber after token injection.
+-    /// The `error` value catches the inverse regression: if the scrub
+-    /// loop is dropped, the user-supplied Bearer leaks.
+-    #[test]
+-    fn prepare_properties_scrubs_then_injects_token() {
+-        let project_token = "Bearer fake-project-token-abcdef0123456789";
+-        let mp = Mixpanel::new(project_token);
+-
+-        let mut props = HashMap::new();
+-        props.insert("error".into(), "Bearer abcdef0123456789abcdef".into());
+-
+-        let prepared = mp.prepare_properties(props);
+-
+-        assert_eq!(prepared["token"], project_token, "project token redacted");
+-        let error = prepared["error"].as_str().unwrap();
+-        assert!(
+-            !error.contains("abcdef0123456789abcdef"),
+-            "secret leaked: {error}"
+-        );
+-    }
+-}
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/grok_build/image_gen/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/image_gen/mod.rs
+index 6808719..2d82be6 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/grok_build/image_gen/mod.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/grok_build/image_gen/mod.rs
+@@ -44,9 +44,9 @@ pub use xai_grok_tools_api::slash_commands::{
+ 
+ /// Prose returned to the model (as a normal, successful tool result) when a
+ /// free / X Basic user calls `image_gen` or `image_edit`. The model relays it
+-/// to the user. The deliberate `/imagine` slash command shows the richer
+-/// SuperGrok upsell modal instead; this covers the natural-language path.
+-pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Image generation is a SuperGrok feature and isn't available on the free or X Basic tier. Let the user know they can unlock image and video generation by upgrading to SuperGrok: https://grok.com/supergrok?referrer=grok-build. Do not retry this tool.";
++/// to the user.
++/// Community Edition: generic message; no provider-specific upsell.
++pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Image generation is not available with your current API configuration. Check your API provider's capabilities or use a provider that supports image generation. Do not retry this tool.";
+ 
+ /// HTTP client for xAI Imagine API. Cloned per-request; shares `Arc` state.
+ #[derive(Clone)]
+diff --git a/crates/codegen/xai-grok-tools/src/implementations/grok_build/video_gen/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/video_gen/mod.rs
+index f84ad66..804dd41 100644
+--- a/crates/codegen/xai-grok-tools/src/implementations/grok_build/video_gen/mod.rs
++++ b/crates/codegen/xai-grok-tools/src/implementations/grok_build/video_gen/mod.rs
+@@ -694,10 +694,9 @@ impl VideoGenConfig {
+ }
+ 
+ /// Prose returned to the model (as a normal, successful tool result) when a
+-/// free / X Basic user calls a video tool. The model relays it to the user;
+-/// the deliberate `/imagine-video` slash command shows the SuperGrok upsell
+-/// modal instead.
+-pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is a SuperGrok feature and isn't available on the free or X Basic tier. Let the user know they can unlock image and video generation by upgrading to SuperGrok: https://grok.com/supergrok?referrer=grok-build. Do not retry this tool.";
++/// free / X Basic user calls a video tool. The model relays it to the user.
++/// Community Edition: generic message; no provider-specific upsell.
++pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is not available with your current API configuration. Check your API provider's capabilities or use a provider that supports video generation. Do not retry this tool.";
+ 
+ fn default_resolution_name() -> String {
+     DEFAULT_RESOLUTION.to_owned()
+diff --git a/crates/codegen/xai-grok-pager/src/app/cli.rs b/crates/codegen/xai-grok-pager/src/app/cli.rs
+index c68a066..4d390f0 100644
+--- a/crates/codegen/xai-grok-pager/src/app/cli.rs
++++ b/crates/codegen/xai-grok-pager/src/app/cli.rs
+@@ -7,9 +7,9 @@ use std::path::PathBuf;
+ /// Top-level commands for the pager binary.
+ #[derive(Debug, Clone, Subcommand)]
+ pub enum Command {
+-    /// Run Grok without the interactive UI
++    /// Run Grok Build CE without the interactive UI
+     Agent(Box<AgentArgs>),
+-    /// Show the configuration Grok discovers for this directory
++    /// Show the configuration discovered for this directory
+     Inspect {
+         /// Emit machine-readable JSON output.
+         #[arg(long)]
+@@ -19,9 +19,11 @@ pub enum Command {
+     Doctor(crate::doctor_cmd::DoctorArgs),
+     /// Manage running leader processes
+     Leader(LeaderMgmtArgs),
+-    /// Sign out and clear cached credentials
++    /// Sign out and clear cached credentials (not needed for community edition)
++    #[command(hide = true)]
+     Logout,
+-    /// Sign in to Grok
++    /// Sign in to xAI (not needed for community edition; configure API keys via env/config instead)
++    #[command(hide = true)]
+     Login {
+         /// Ignored (kept for backwards compatibility). OAuth2 is now the only auth method.
+         #[arg(long, hide = true)]
+@@ -54,7 +56,8 @@ pub enum Command {
+     Models,
+     /// List, search, or restore sessions
+     Sessions(crate::sessions_cmd::SessionsArgs),
+-    /// Fetch and install managed configuration
++    /// Fetch and install managed configuration (xAI-specific; not needed for community edition)
++    #[command(hide = true)]
+     Setup {
+         /// Print the fetched configuration as JSON instead of installing it;
+         /// writes nothing to ~/.grok.
+@@ -78,8 +81,8 @@ clipboard (containers, SSH) and your terminal does not handle OSC 52 itself
+ sync with your window size.
+ 
+ Examples:
+-  grok wrap docker exec -it my-container bash
+-  grok wrap kubectl exec -it my-pod -- bash
++  grokce wrap docker exec -it my-container bash
++  grokce wrap kubectl exec -it my-pod -- bash
+ 
+ See ~/.grok/README.md for more information.
+ ")]
+@@ -88,7 +91,8 @@ See ~/.grok/README.md for more information.
+     Export(crate::export_cmd::ExportArgs),
+     /// Export or upload session trace data
+     Trace(crate::trace_cmd::TraceArgs),
+-    /// Check for updates or install a specific version
++    /// Check for updates (community edition auto-update is disabled)
++    #[command(hide = true)]
+     Update {
+         /// Check for updates without installing.
+         #[arg(long)]
+@@ -155,10 +159,10 @@ pub struct WrapArgs {
+     )]
+     pub command: Vec<String>,
+ }
+-/// Targets a running leader process by PID (used by `grok leader` / `grok workspace`).
++/// Targets a running leader process by PID (used by `grokce leader` / `grokce workspace`).
+ #[derive(Debug, clap::Args, Clone, Default)]
+ pub struct LeaderTargetArgs {
+-    /// Leader process ID from `grok leader list`.
++    /// Leader process ID from `grokce leader list`.
+     #[arg(long)]
+     pub pid: Option<u32>,
+ }
+@@ -313,13 +317,13 @@ impl AgentArgs {
+                 Ok(canonical) if canonical.is_dir() => Some(canonical),
+                 Ok(_) => {
+                     eprintln!(
+-                        "grok: --plugin-dir {}: not a directory; skipping",
++                        "grokce: --plugin-dir {}: not a directory; skipping",
+                         p.display()
+                     );
+                     None
+                 }
+                 Err(e) => {
+-                    eprintln!("grok: --plugin-dir {}: {e}; skipping", p.display());
++                    eprintln!("grokce: --plugin-dir {}: {e}; skipping", p.display());
+                     None
+                 }
+             })
+@@ -398,9 +402,9 @@ pub struct LeaderArgs {
+ }
+ #[derive(Debug, Clone, Parser)]
+ #[command(
+-    name = "grok",
++    name = "grokce",
+     version = env!("VERSION_WITH_COMMIT"),
+-    about = "Grok Build TUI",
++    about = "Grok Build CE TUI",
+     disable_version_flag = true,
+     next_display_order = None,
+     help_template = "\
+@@ -633,7 +637,7 @@ pub struct PagerArgs {
+     pub disable_web_search: bool,
+     /// Exit as soon as the first agent turn ends, without waiting for pending
+     /// background bash/monitor tasks or background subagents (headless only).
+-    /// Default for all `grok -p` runs is to wait (up to `--background-wait-timeout`)
++    /// Default for all `grokce -p` runs is to wait (up to `--background-wait-timeout`)
+     /// so eval harnesses see full task completion. Use this for fast scripts that
+     /// only need the first turn's text. Does not wait for server-side auto-wake
+     /// output or persistent monitors (those hit the timeout).
+@@ -720,7 +724,7 @@ pub struct PagerArgs {
+     /// Run standalone even when leader mode is configured.
+     #[arg(long, conflicts_with = "leader", hide = true)]
+     pub no_leader: bool,
+-    /// Initial prompt for the interactive session, e.g. `grok "fix the bug"` or `grok --worktree=feat "create this feature"`.
++    /// Initial prompt for the interactive session, e.g. `grokce "fix the bug"` or `grokce --worktree=feat "create this feature"`.
+     #[arg(
+         value_name = "PROMPT",
+         conflicts_with_all = &["single",
+@@ -776,8 +780,8 @@ impl PagerArgs {
+             .map(std::path::Path::new)
+             .and_then(|p| p.file_name())
+             .and_then(|n| n.to_str())
+-            .filter(|n| *n == "grok" || *n == "agent")
+-            .unwrap_or("grok")
++            .filter(|n| *n == "grokce" || *n == "grok" || *n == "agent")
++            .unwrap_or("grokce")
+             .to_owned();
+         Self::parse_from(std::iter::once(bin_name).chain(std::env::args().skip(1)))
+     }
+@@ -898,7 +902,7 @@ impl PagerArgs {
+     /// The initial interactive prompt from the positional argument, trimmed.
+     ///
+     /// Returns `None` when no positional prompt was given or it is only
+-    /// whitespace. This is the `grok "<prompt>"` launch form; the headless
++    /// whitespace. This is the `grokce "<prompt>"` launch form; the headless
+     /// `-p`/`--single` path is handled separately.
+     pub fn initial_prompt(&self) -> Option<&str> {
+         self.prompt
+diff --git a/crates/codegen/xai-grok-pager/src/completions_cmd.rs b/crates/codegen/xai-grok-pager/src/completions_cmd.rs
+index 176f49d..05e8853 100644
+--- a/crates/codegen/xai-grok-pager/src/completions_cmd.rs
++++ b/crates/codegen/xai-grok-pager/src/completions_cmd.rs
+@@ -10,16 +10,15 @@ use crate::app::PagerArgs;
+ 
+ /// Generate and print the completion script for the given shell.
+ pub fn run(shell: Shell) {
+-    // Ensure the script always uses the public "grok" name (matches historical
+-    // behavior and what the installers + docs expect).
+-    let mut cmd = PagerArgs::command().name("grok");
++    // Ensure the script always uses "grokce" (Community Edition binary name).
++    let mut cmd = PagerArgs::command().name("grokce");
+     if shell != Shell::Zsh {
+-        generate(shell, &mut cmd, "grok", &mut std::io::stdout());
++        generate(shell, &mut cmd, "grokce", &mut std::io::stdout());
+         return;
+     }
+     // zsh needs post-processing (see fix_zsh_root_prompt_positional).
+     let mut buf = Vec::new();
+-    generate(shell, &mut cmd, "grok", &mut buf);
++    generate(shell, &mut cmd, "grokce", &mut buf);
+     match String::from_utf8(buf) {
+         Ok(script) => print!("{}", fix_zsh_root_prompt_positional(&script)),
+         // clap_complete output is generated from Rust strings, so this arm is
+@@ -64,8 +63,8 @@ fn fix_zsh_root_prompt_positional(script: &str) -> String {
+             r#"words=($line[1] "${words[@]}")"#,
+         ),
+         (
+-            r#"curcontext="${curcontext%:*:*}:grok-command-$line[2]:""#,
+-            r#"curcontext="${curcontext%:*:*}:grok-command-$line[1]:""#,
++            r#"curcontext="${curcontext%:*:*}:grokce-command-$line[2]:""#,
++            r#"curcontext="${curcontext%:*:*}:grokce-command-$line[1]:""#,
+         ),
+         (r#"case $line[2] in"#, r#"case $line[1] in"#),
+     ] {
+@@ -80,15 +79,15 @@ mod tests {
+ 
+     /// Generate the zsh completion script exactly like `run` does.
+     fn zsh_script() -> String {
+-        let mut cmd = PagerArgs::command().name("grok");
++        let mut cmd = PagerArgs::command().name("grokce");
+         let mut buf = Vec::new();
+-        generate(Shell::Zsh, &mut cmd, "grok", &mut buf);
++        generate(Shell::Zsh, &mut cmd, "grokce", &mut buf);
+         String::from_utf8(buf).expect("completion script is UTF-8")
+     }
+ 
+     // The optional `[PROMPT]` positional (app/cli.rs) makes clap_complete emit
+     // a `::prompt` slot before the subcommand slot and dispatch on `$line[2]`,
+-    // so `grok worktree <TAB>` re-offered every top-level command (upstream
++    // so `grokce worktree <TAB>` re-offered every top-level command (upstream
+     // clap-rs/clap#6282).
+     #[test]
+     fn zsh_completions_drop_prompt_slot_and_dispatch_on_line_1() {
+@@ -112,15 +111,18 @@ mod tests {
+             "root dispatch must be shifted to $line[1]"
+         );
+         assert!(
+-            fixed.contains(r#"curcontext="${curcontext%:*:*}:grok-command-$line[1]:""#),
++            fixed.contains(r#"curcontext="${curcontext%:*:*}:grokce-command-$line[1]:""#),
+             "root dispatch context must use $line[1]"
+         );
+         // Subcommand dispatch blocks (already on $line[1]) must survive.
+         assert!(
+-            fixed.contains("grok-worktree-command-$line[1]"),
++            fixed.contains("grokce-worktree-command-$line[1]"),
+             "nested subcommand dispatch must be untouched"
+         );
+         // The subcommand list itself must still be offered at the root.
+-        assert!(fixed.contains("_grok_commands"), "root command list intact");
++        assert!(
++            fixed.contains("_grokce_commands"),
++            "root command list intact"
++        );
+     }
+ }
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/always_approve.rs b/crates/codegen/xai-grok-pager/src/slash/commands/always_approve.rs
+index 914f351..43a5439 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/always_approve.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/always_approve.rs
+@@ -9,6 +9,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Toggle always-approve (YOLO / `permission_mode`).
+ pub struct AlwaysApproveCommand;
+@@ -19,7 +20,7 @@ impl SlashCommand for AlwaysApproveCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle always-approve mode (skip all permission prompts)"
++        tr!("Toggle always-approve mode (skip all permission prompts)")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/announcements.rs b/crates/codegen/xai-grok-pager/src/slash/commands/announcements.rs
+index 7ffacc3..467e810 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/announcements.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/announcements.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ const USAGE: &str = "Usage: /announcements hide | show";
+ 
+@@ -14,11 +15,11 @@ impl SlashCommand for AnnouncementsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Show or hide announcements"
++        tr!("Show or hide announcements")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/announcements hide | show"
++        tr!("/announcements hide | show")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/auto.rs b/crates/codegen/xai-grok-pager/src/slash/commands/auto.rs
+index 1d98aa2..15888ef 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/auto.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/auto.rs
+@@ -10,6 +10,7 @@
+ 
+ use crate::app::actions::{Action, PermissionModeKind};
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Toggle auto permission mode (LLM classifier).
+ pub struct AutoCommand;
+@@ -20,7 +21,7 @@ impl SlashCommand for AutoCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle auto mode (classifier approves safe tools)"
++        tr!("Toggle auto mode (classifier approves safe tools)")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/btw.rs b/crates/codegen/xai-grok-pager/src/slash/commands/btw.rs
+index cfed6d6..fa2158d 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/btw.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/btw.rs
+@@ -5,6 +5,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct BtwCommand;
+ 
+@@ -14,7 +15,7 @@ impl SlashCommand for BtwCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Ask a side question without interrupting"
++        tr!("Ask a side question without interrupting")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+@@ -22,7 +23,7 @@ impl SlashCommand for BtwCommand {
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/btw <question>"
++        tr!("/btw <question>")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/cd.rs b/crates/codegen/xai-grok-pager/src/slash/commands/cd.rs
+index 402357d..4bba77a 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/cd.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/cd.rs
+@@ -9,6 +9,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Change the working directory for newly dispatched dashboard sessions.
+ pub struct CdCommand;
+@@ -19,11 +20,11 @@ impl SlashCommand for CdCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Change the working directory for new agents"
++        tr!("Change the working directory for new agents")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/cd [path]"
++        tr!("/cd [path]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/compact.rs b/crates/codegen/xai-grok-pager/src/slash/commands/compact.rs
+index e69d25d..5774830 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/compact.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/compact.rs
+@@ -5,6 +5,7 @@
+ //! as `QueueEntryKind::Command`.
+ 
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Compact the conversation history, optionally with a focus context.
+ pub struct CompactCommand;
+@@ -15,7 +16,7 @@ impl SlashCommand for CompactCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Compact conversation history"
++        tr!("Compact conversation history")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+@@ -23,7 +24,7 @@ impl SlashCommand for CompactCommand {
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/compact compaction instructions"
++        tr!("/compact compaction instructions")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/compact_mode.rs b/crates/codegen/xai-grok-pager/src/slash/commands/compact_mode.rs
+index 2d88238..1d383f7 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/compact_mode.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/compact_mode.rs
+@@ -8,6 +8,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Toggle compact display mode via `/compact-mode`.
+ pub struct CompactModeCommand;
+@@ -18,7 +19,7 @@ impl SlashCommand for CompactModeCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle compact UI (less padding, more content)"
++        tr!("Toggle compact UI (less padding, more content)")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/config_agents.rs b/crates/codegen/xai-grok-pager/src/slash/commands/config_agents.rs
+index 6b4c40c..33db01b 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/config_agents.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/config_agents.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open the agents modal listing all agent definitions.
+ pub struct ConfigAgentsCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for ConfigAgentsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Manage agent definitions"
++        tr!("Manage agent definitions")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/context.rs b/crates/codegen/xai-grok-pager/src/slash/commands/context.rs
+index 705332a..69ea726 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/context.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/context.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Show context usage breakdown (progress bar, token categories, stats).
+ pub struct ContextCommand;
+@@ -12,7 +13,7 @@ impl SlashCommand for ContextCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View context usage"
++        tr!("View context usage")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/copy.rs b/crates/codegen/xai-grok-pager/src/slash/commands/copy.rs
+index 4d146fd..664d01c 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/copy.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/copy.rs
+@@ -10,6 +10,7 @@ use std::path::PathBuf;
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Copy an assistant message to the clipboard (or an optional file).
+ pub struct CopyCommand;
+@@ -20,7 +21,7 @@ impl SlashCommand for CopyCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Copy last response to clipboard or file (/copy [N] [file])"
++        tr!("Copy last response to clipboard or file (/copy [N] [file])")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/dashboard.rs b/crates/codegen/xai-grok-pager/src/slash/commands/dashboard.rs
+index 2d5ef6c..1745082 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/dashboard.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/dashboard.rs
+@@ -18,6 +18,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open the Agent Dashboard view.
+ pub struct DashboardCommand;
+@@ -40,7 +41,7 @@ impl SlashCommand for DashboardCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Open the Agent Dashboard 鈥?a fullscreen overview of every running session"
++        tr!("Open the Agent Dashboard 鈥?a fullscreen overview of every running session")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/debug.rs b/crates/codegen/xai-grok-pager/src/slash/commands/debug.rs
+index 22eed88..bac3be5 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/debug.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/debug.rs
+@@ -20,6 +20,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Whether `/debug` is listed on completion surfaces. `visible()` returns
+ /// this constant, so release invisibility is pinned by the constant's shape
+@@ -44,11 +45,11 @@ impl SlashCommand for DebugCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle debug overlays"
++        tr!("Toggle debug overlays")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/debug [scroll|fps|log]"
++        tr!("/debug [scroll|fps|log]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/docs.rs b/crates/codegen/xai-grok-pager/src/slash/commands/docs.rs
+index 6d43e0c..0fbad7e 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/docs.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/docs.rs
+@@ -7,6 +7,7 @@
+ use crate::app::actions::Action;
+ use crate::docs::{all_titles, find_doc};
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Online Build docs landing page (hardcoded like other TUI deep-links; docs.x.ai can redirect if the path moves).
+ pub const BUILD_DOCS_URL: &str = "https://docs.x.ai/build/overview";
+@@ -24,11 +25,11 @@ impl SlashCommand for DocsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Open How-to Guides or online Build docs"
++        tr!("Open How-to Guides or online Build docs")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/docs [web|title]"
++        tr!("/docs [web|title]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/doctor.rs b/crates/codegen/xai-grok-pager/src/slash/commands/doctor.rs
+index a1d8edd..fd937ec 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/doctor.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/doctor.rs
+@@ -4,6 +4,7 @@
+ //! evidence that the standalone command cannot observe.
+ 
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct DoctorCommand;
+ 
+@@ -17,7 +18,7 @@ impl SlashCommand for DoctorCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Check terminal, color, clipboard, and voice input"
++        tr!("Check terminal, color, clipboard, and voice input")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/edit_prompt.rs b/crates/codegen/xai-grok-pager/src/slash/commands/edit_prompt.rs
+index 34c8398..1b2d7f0 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/edit_prompt.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/edit_prompt.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Minimal-only fallback for terminals that reserve `Ctrl+G`.
+ pub struct EditPromptCommand;
+@@ -12,7 +13,9 @@ impl SlashCommand for EditPromptCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Open an external editor for an empty prompt; use the command palette to preserve a draft"
++        tr!(
++            "Open an external editor for an empty prompt; use the command palette to preserve a draft"
++        )
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs b/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs
+index 7992647..063baf4 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs
+@@ -6,6 +6,7 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+ use crate::slash::commands::effort_levels::build_effort_arg_items;
++use xai_grok_i18n::tr;
+ 
+ /// Set reasoning effort for the active model.
+ pub struct EffortCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for EffortCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Set reasoning effort for the current model"
++        tr!("Set reasoning effort for the current model")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+@@ -26,7 +27,7 @@ impl SlashCommand for EffortCommand {
+     fn usage(&self) -> &str {
+         // Levels are model-specific; empty-args and UnknownToken errors list
+         // the active model's offered option ids instead of a hardcoded set.
+-        "/effort <level>"
++        tr!("/effort <level>")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/exit.rs b/crates/codegen/xai-grok-pager/src/slash/commands/exit.rs
+index cab50af..3afbfd1 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/exit.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/exit.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Quit the pager application.
+ pub struct ExitCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for ExitCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Quit the application"
++        tr!("Quit the application")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/expand.rs b/crates/codegen/xai-grok-pager/src/slash/commands/expand.rs
+index 59b80d7..7e3db28 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/expand.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/expand.rs
+@@ -10,6 +10,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Re-print the last collapsed/truncated block, fully expanded (minimal mode).
+ pub struct ExpandCommand;
+@@ -20,7 +21,7 @@ impl SlashCommand for ExpandCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Re-print the last collapsed block, fully expanded (minimal mode)"
++        tr!("Re-print the last collapsed block, fully expanded (minimal mode)")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/export.rs b/crates/codegen/xai-grok-pager/src/slash/commands/export.rs
+index 8feeb64..8b7cf7b 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/export.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/export.rs
+@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Export the current conversation to a file or clipboard.
+ pub struct ExportCommand;
+@@ -21,7 +22,7 @@ impl SlashCommand for ExportCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Export the current conversation to a file or clipboard"
++        tr!("Export the current conversation to a file or clipboard")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/feedback.rs b/crates/codegen/xai-grok-pager/src/slash/commands/feedback.rs
+index eca6bcc..e351be7 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/feedback.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/feedback.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Send session feedback inline or enter feedback mode.
+ pub struct FeedbackCommand;
+@@ -12,11 +13,11 @@ impl SlashCommand for FeedbackCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Send feedback about the current session"
++        tr!("Send feedback about the current session")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/feedback [text]"
++        tr!("/feedback [text]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/find.rs b/crates/codegen/xai-grok-pager/src/slash/commands/find.rs
+index e6e8574..d20c180 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/find.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/find.rs
+@@ -6,6 +6,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open scrollback search via `/find`.
+ pub struct FindCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for FindCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Search the conversation scrollback"
++        tr!("Search the conversation scrollback")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/fork.rs b/crates/codegen/xai-grok-pager/src/slash/commands/fork.rs
+index 340dd57..a150729 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/fork.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/fork.rs
+@@ -12,6 +12,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Parsed arguments for the `/fork` slash command.
+ ///
+@@ -104,7 +105,7 @@ impl SlashCommand for ForkCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Branch the current session into a peer agent"
++        tr!("Branch the current session into a peer agent")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/gboom.rs b/crates/codegen/xai-grok-pager/src/slash/commands/gboom.rs
+index 1256722..8208ba7 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/gboom.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/gboom.rs
+@@ -7,6 +7,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Hidden GBOOM easter egg.
+ pub struct GboomCommand;
+@@ -18,7 +19,7 @@ impl SlashCommand for GboomCommand {
+ 
+     fn description(&self) -> &str {
+         // Never shown: the command is hidden from the dropdown.
+-        "Hidden easter egg"
++        tr!("Hidden easter egg")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/help.rs b/crates/codegen/xai-grok-pager/src/slash/commands/help.rs
+index 03dfca2..4fc8d7f 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/help.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/help.rs
+@@ -6,6 +6,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open the command palette.
+ pub struct HelpCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for HelpCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Browse commands and keyboard shortcuts"
++        tr!("Browse commands and keyboard shortcuts")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/history.rs b/crates/codegen/xai-grok-pager/src/slash/commands/history.rs
+index 91f9019..8fe7e4d 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/history.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/history.rs
+@@ -7,6 +7,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open the prompt-history search overlay via `/history`.
+ pub struct HistoryCommand;
+@@ -17,7 +18,7 @@ impl SlashCommand for HistoryCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Search prompt history"
++        tr!("Search prompt history")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/home.rs b/crates/codegen/xai-grok-pager/src/slash/commands/home.rs
+index 4252a17..6fe700a 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/home.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/home.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Exit the current session and return to the welcome screen.
+ pub struct HomeCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for HomeCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Return to the welcome screen"
++        tr!("Return to the welcome screen")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/imagine.rs b/crates/codegen/xai-grok-pager/src/slash/commands/imagine.rs
+index f54408a..5a16778 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/imagine.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/imagine.rs
+@@ -4,6 +4,7 @@ use xai_grok_tools::implementations::grok_build::{
+ };
+ 
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ const REQUIRED_TOOLS: &[&str] = &[IMAGE_GEN_TOOL_NAME];
+ 
+@@ -15,11 +16,11 @@ impl SlashCommand for ImagineCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Generate an image from a text description"
++        tr!("Generate an image from a text description")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/imagine <description>"
++        tr!("/imagine <description>")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/imagine_video.rs b/crates/codegen/xai-grok-pager/src/slash/commands/imagine_video.rs
+index 4d24c01..f235a02 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/imagine_video.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/imagine_video.rs
+@@ -5,6 +5,7 @@ use xai_grok_tools::implementations::grok_build::{
+ };
+ 
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ const REQUIRED_TOOLS: &[&str] = &[IMAGE_TO_VIDEO_TOOL_NAME];
+ 
+@@ -16,11 +17,11 @@ impl SlashCommand for ImagineVideoCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Generate a video from a text description"
++        tr!("Generate a video from a text description")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/imagine-video <description>"
++        tr!("/imagine-video <description>")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/import_claude.rs b/crates/codegen/xai-grok-pager/src/slash/commands/import_claude.rs
+index 2854820..b293317 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/import_claude.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/import_claude.rs
+@@ -9,6 +9,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open the interactive Claude settings import modal in the active session.
+ pub struct ImportClaudeCommand;
+@@ -19,7 +20,7 @@ impl SlashCommand for ImportClaudeCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Open the Claude settings import modal"
++        tr!("Open the Claude settings import modal")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/jump.rs b/crates/codegen/xai-grok-pager/src/slash/commands/jump.rs
+index 716707f..6e2c9a1 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/jump.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/jump.rs
+@@ -1,5 +1,6 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct JumpCommand;
+ 
+@@ -9,7 +10,7 @@ impl SlashCommand for JumpCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Jump to a turn in the conversation"
++        tr!("Jump to a turn in the conversation")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/login.rs b/crates/codegen/xai-grok-pager/src/slash/commands/login.rs
+index 9c6234a..241c209 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/login.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/login.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct LoginCommand;
+ 
+@@ -11,7 +12,7 @@ impl SlashCommand for LoginCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Log in or re-authenticate with your account"
++        tr!("Log in or re-authenticate with your account")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/logout.rs b/crates/codegen/xai-grok-pager/src/slash/commands/logout.rs
+index 61c1a5b..1bbf9db 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/logout.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/logout.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct LogoutCommand;
+ 
+@@ -11,7 +12,7 @@ impl SlashCommand for LogoutCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Log out and return to the login screen"
++        tr!("Log out and return to the login screen")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/loop_cmd.rs b/crates/codegen/xai-grok-pager/src/slash/commands/loop_cmd.rs
+index 0b69813..d3c0724 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/loop_cmd.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/loop_cmd.rs
+@@ -4,6 +4,7 @@ use xai_grok_tools::implementations::grok_build::{
+ };
+ 
+ use crate::slash::command::{CommandExecCtx, CommandResult, ScheduledTaskPreview, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Pre-built slice for `LoopCommand::required_tools()`. Lifted to a
+ /// module-level constant so the trait method can return a `'static`
+@@ -85,11 +86,11 @@ impl SlashCommand for LoopCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Run a prompt on a recurring interval"
++        tr!("Run a prompt on a recurring interval")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/loop [interval] <prompt>"
++        tr!("/loop [interval] <prompt>")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/mcps.rs b/crates/codegen/xai-grok-pager/src/slash/commands/mcps.rs
+index db2db19..2efff77 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/mcps.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/mcps.rs
+@@ -1,5 +1,6 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct McpsCommand;
+ 
+@@ -9,7 +10,7 @@ impl SlashCommand for McpsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Show MCP server status"
++        tr!("Show MCP server status")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs b/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
+index 9dae92b..fd2253c 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
+@@ -34,6 +34,7 @@ pub mod imagine;
+ pub mod imagine_video;
+ pub mod import_claude;
+ pub mod jump;
++pub mod lang;
+ pub mod login;
+ pub mod logout;
+ pub mod loop_cmd;
+@@ -81,7 +82,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(docs::DocsCommand),
+         Arc::new(home::HomeCommand),
+         Arc::new(new::NewCommand),
+-        
+         Arc::new(fork::ForkCommand),
+         Arc::new(compact::CompactCommand),
+         Arc::new(copy::CopyCommand),
+@@ -121,7 +121,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(workflows::WorkflowsCommand),
+         Arc::new(btw::BtwCommand),
+         Arc::new(recap::RecapCommand),
+-        
+         Arc::new(doctor::DoctorCommand),
+         Arc::new(voice::VoiceCommand),
+         Arc::new(loop_cmd::LoopCommand),
+@@ -137,6 +136,7 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(login::LoginCommand),
+         Arc::new(logout::LogoutCommand),
+         Arc::new(import_claude::ImportClaudeCommand),
++        Arc::new(lang::LangCommand),
+         Arc::new(usage::UsageCommand),
+         Arc::new(queue::QueueCommand),
+         Arc::new(tasks::TasksCommand),
+@@ -282,6 +282,7 @@ mod tests {
+             "imagine-video",
+             "import-claude",
+             "jump",
++            "lang",
+             "login",
+             "logout",
+             "log",
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/model.rs b/crates/codegen/xai-grok-pager/src/slash/commands/model.rs
+index f8ff8c5..2217b9f 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/model.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/model.rs
+@@ -9,6 +9,7 @@ use crate::acp::model_state::ModelState;
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+ use crate::slash::commands::effort_levels::build_effort_arg_items;
++use xai_grok_i18n::tr;
+ 
+ /// Switch the active model (and optionally its reasoning effort).
+ pub struct ModelCommand;
+@@ -23,7 +24,7 @@ impl SlashCommand for ModelCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Switch the active model"
++        tr!("Switch the active model")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/multiline.rs b/crates/codegen/xai-grok-pager/src/slash/commands/multiline.rs
+index 3cc314b..ed30fcc 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/multiline.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/multiline.rs
+@@ -10,6 +10,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Toggle multiline input mode via `/multiline`.
+ pub struct MultilineCommand;
+@@ -24,7 +25,7 @@ impl SlashCommand for MultilineCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle multiline input mode (swap Enter and Shift+Enter)"
++        tr!("Toggle multiline input mode (swap Enter and Shift+Enter)")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/new.rs b/crates/codegen/xai-grok-pager/src/slash/commands/new.rs
+index e0eaca8..bc9cf3c 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/new.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/new.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Start a new agent session, clearing the current conversation.
+ pub struct NewCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for NewCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Start a new session"
++        tr!("Start a new session")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/personas.rs b/crates/codegen/xai-grok-pager/src/slash/commands/personas.rs
+index 15afba7..0f5afe9 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/personas.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/personas.rs
+@@ -3,6 +3,7 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+ use crate::views::agents_modal::AgentsTab;
++use xai_grok_i18n::tr;
+ 
+ /// Open the agents modal directly on the Personas tab.
+ pub struct PersonasCommand;
+@@ -17,7 +18,7 @@ impl SlashCommand for PersonasCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Manage personas (create, edit, delete)"
++        tr!("Manage personas (create, edit, delete)")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/plan.rs b/crates/codegen/xai-grok-pager/src/slash/commands/plan.rs
+index c506f72..05df4f4 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/plan.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/plan.rs
+@@ -7,6 +7,7 @@
+ 
+ use crate::app::actions::{Action, PlanModeKind};
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Enter plan mode.
+ pub struct PlanCommand;
+@@ -17,7 +18,7 @@ impl SlashCommand for PlanCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Enter plan mode"
++        tr!("Enter plan mode")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+@@ -31,7 +32,7 @@ impl SlashCommand for PlanCommand {
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/plan [description]"
++        tr!("/plan [description]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/plugin.rs b/crates/codegen/xai-grok-pager/src/slash/commands/plugin.rs
+index 5589be6..7e0ce36 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/plugin.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/plugin.rs
+@@ -7,6 +7,7 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
+ use crate::views::extensions_modal::ExtensionsTab;
++use xai_grok_i18n::tr;
+ use xai_grok_telemetry::events::ExtensionsModalTrigger;
+ 
+ /// Open the hooks/plugins modal on the Hooks tab.
+@@ -18,7 +19,7 @@ impl SlashCommand for HooksCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View hooks"
++        tr!("View hooks")
+     }
+ 
+     fn usage(&self) -> &str {
+@@ -42,7 +43,7 @@ impl SlashCommand for PluginsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View plugins"
++        tr!("View plugins")
+     }
+ 
+     fn usage(&self) -> &str {
+@@ -66,7 +67,7 @@ impl SlashCommand for MarketplaceCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View marketplace"
++        tr!("View marketplace")
+     }
+ 
+     fn usage(&self) -> &str {
+@@ -90,7 +91,7 @@ impl SlashCommand for SkillsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View skills"
++        tr!("View skills")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/privacy.rs b/crates/codegen/xai-grok-pager/src/slash/commands/privacy.rs
+index b2eaa15..7e11c09 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/privacy.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/privacy.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Show or toggle privacy and data retention status.
+ ///
+@@ -21,11 +22,11 @@ impl SlashCommand for PrivacyCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Show or toggle privacy & data retention status"
++        tr!("Show or toggle privacy & data retention status")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/privacy [opt-in|opt-out]"
++        tr!("/privacy [opt-in|opt-out]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/queue.rs b/crates/codegen/xai-grok-pager/src/slash/commands/queue.rs
+index 9a3094f..60174fd 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/queue.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/queue.rs
+@@ -8,6 +8,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// List the queued prompts.
+ pub struct QueueCommand;
+@@ -18,7 +19,7 @@ impl SlashCommand for QueueCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "List the prompts queued behind the running turn"
++        tr!("List the prompts queued behind the running turn")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/recap.rs b/crates/codegen/xai-grok-pager/src/slash/commands/recap.rs
+index ab7fc1c..1e529df 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/recap.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/recap.rs
+@@ -7,6 +7,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct RecapCommand;
+ 
+@@ -20,7 +21,7 @@ impl SlashCommand for RecapCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Summarize the session so far"
++        tr!("Summarize the session so far")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/release_notes.rs b/crates/codegen/xai-grok-pager/src/slash/commands/release_notes.rs
+index 17d3cb2..f770e03 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/release_notes.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/release_notes.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Show release notes for the current pager version.
+ pub struct ReleaseNotesCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for ReleaseNotesCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View release notes for the current version"
++        tr!("View release notes for the current version")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/remember.rs b/crates/codegen/xai-grok-pager/src/slash/commands/remember.rs
+index 5dc55cf..d2a72b5 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/remember.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/remember.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Save a memory note inline or enter remember mode.
+ pub struct RememberCommand;
+@@ -12,11 +13,11 @@ impl SlashCommand for RememberCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Save a memory note"
++        tr!("Save a memory note")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/remember [text]"
++        tr!("/remember [text]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/rename.rs b/crates/codegen/xai-grok-pager/src/slash/commands/rename.rs
+index 434bb59..7a20cf3 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/rename.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/rename.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Rename the current session's title/summary.
+ pub struct RenameCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for RenameCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Rename the current session"
++        tr!("Rename the current session")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+@@ -24,7 +25,7 @@ impl SlashCommand for RenameCommand {
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/rename <title>"
++        tr!("/rename <title>")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/resume.rs b/crates/codegen/xai-grok-pager/src/slash/commands/resume.rs
+index 1ecb707..6f76467 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/resume.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/resume.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct ResumeCommand;
+ 
+@@ -11,7 +12,7 @@ impl SlashCommand for ResumeCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Resume a previous session"
++        tr!("Resume a previous session")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/rewind.rs b/crates/codegen/xai-grok-pager/src/slash/commands/rewind.rs
+index 1013084..affee69 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/rewind.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/rewind.rs
+@@ -1,5 +1,6 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct RewindCommand;
+ 
+@@ -9,7 +10,7 @@ impl SlashCommand for RewindCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Rewind to a previous turn"
++        tr!("Rewind to a previous turn")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/screen_mode_switch.rs b/crates/codegen/xai-grok-pager/src/slash/commands/screen_mode_switch.rs
+index 15cc4a0..11a06c3 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/screen_mode_switch.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/screen_mode_switch.rs
+@@ -3,6 +3,7 @@
+ use crate::app::ScreenMode;
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Reopen the active session in the other screen mode (`/minimal` 鈬?`/fullscreen`).
+ pub struct ScreenModeSwitchCommand {
+@@ -61,9 +62,11 @@ impl SlashCommand for ScreenModeSwitchCommand {
+ 
+     fn description(&self) -> &str {
+         if self.to_minimal {
+-            "Reopen this session in minimal (scrollback-native) mode 鈥?switch back with /fullscreen"
++            tr!(
++                "Reopen this session in minimal (scrollback-native) mode 鈥?switch back with /fullscreen"
++            )
+         } else {
+-            "Reopen this session in fullscreen mode 鈥?switch back with /minimal"
++            tr!("Reopen this session in fullscreen mode 鈥?switch back with /minimal")
+         }
+     }
+ 
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/scroll_debug.rs b/crates/codegen/xai-grok-pager/src/slash/commands/scroll_debug.rs
+index a2e9614..088220d 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/scroll_debug.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/scroll_debug.rs
+@@ -8,6 +8,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Hidden toggle for the scroll-debug HUD.
+ pub struct ScrollDebugCommand;
+@@ -19,7 +20,7 @@ impl SlashCommand for ScrollDebugCommand {
+ 
+     fn description(&self) -> &str {
+         // Never shown: the command is hidden from the dropdown.
+-        "Toggle the scroll-diagnostics HUD"
++        tr!("Toggle the scroll-diagnostics HUD")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/session_info.rs b/crates/codegen/xai-grok-pager/src/slash/commands/session_info.rs
+index bf0e996..37d1070 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/session_info.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/session_info.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Show session info (session ID, cwd, model, context usage).
+ pub struct SessionInfoCommand;
+@@ -12,7 +13,7 @@ impl SlashCommand for SessionInfoCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Show session info"
++        tr!("Show session info")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/settings_cmd.rs b/crates/codegen/xai-grok-pager/src/slash/commands/settings_cmd.rs
+index f758568..b48b565 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/settings_cmd.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/settings_cmd.rs
+@@ -5,6 +5,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open the settings modal.
+ pub struct SettingsCommand;
+@@ -19,7 +20,7 @@ impl SlashCommand for SettingsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Open the settings modal"
++        tr!("Open the settings modal")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/share.rs b/crates/codegen/xai-grok-pager/src/slash/commands/share.rs
+index 247907e..7db3dce 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/share.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/share.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Share the current session via a public URL.
+ pub struct ShareCommand;
+@@ -12,7 +13,7 @@ impl SlashCommand for ShareCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Share this session via URL"
++        tr!("Share this session via URL")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/tasks.rs b/crates/codegen/xai-grok-pager/src/slash/commands/tasks.rs
+index 1f1eef2..27461d2 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/tasks.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/tasks.rs
+@@ -8,6 +8,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// List background tasks, subagents, and scheduled tasks.
+ pub struct TasksCommand;
+@@ -18,7 +19,7 @@ impl SlashCommand for TasksCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "List background tasks, subagents, and scheduled tasks"
++        tr!("List background tasks, subagents, and scheduled tasks")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/theme.rs b/crates/codegen/xai-grok-pager/src/slash/commands/theme.rs
+index c7b340e..2240792 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/theme.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/theme.rs
+@@ -12,6 +12,7 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+ use crate::theme::{Theme, ThemeKind, cache as theme_cache};
++use xai_grok_i18n::tr;
+ 
+ /// Switch the pager color theme.
+ pub struct ThemeCommand;
+@@ -26,7 +27,7 @@ impl SlashCommand for ThemeCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Switch the color theme"
++        tr!("Switch the color theme")
+     }
+ 
+     /// Minimal has no theming, so there is nothing for `/theme` to switch.
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/timeline.rs b/crates/codegen/xai-grok-pager/src/slash/commands/timeline.rs
+index 265a3e3..a66ebbb 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/timeline.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/timeline.rs
+@@ -5,6 +5,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct TimelineCommand;
+ 
+@@ -14,7 +15,7 @@ impl SlashCommand for TimelineCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle the timeline sidebar"
++        tr!("Toggle the timeline sidebar")
+     }
+ 
+     /// Minimal mode has no interactive scrollback pane for the rail.
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/timestamps.rs b/crates/codegen/xai-grok-pager/src/slash/commands/timestamps.rs
+index e222d7c..096d2a5 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/timestamps.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/timestamps.rs
+@@ -5,6 +5,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct TimestampsCommand;
+ 
+@@ -14,7 +15,7 @@ impl SlashCommand for TimestampsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle message timestamps on/off"
++        tr!("Toggle message timestamps on/off")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/toggle_mouse_reporting.rs b/crates/codegen/xai-grok-pager/src/slash/commands/toggle_mouse_reporting.rs
+index 5713d73..9bf3c8b 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/toggle_mouse_reporting.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/toggle_mouse_reporting.rs
+@@ -11,6 +11,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Toggle terminal mouse reporting (mouse capture). Mirrors the `Ctrl+R`
+ /// scrollback shortcut via the same `Action::ToggleMouseCapture` path.
+@@ -22,7 +23,7 @@ impl SlashCommand for ToggleMouseReportingCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle terminal mouse reporting (native click-drag copy/paste)"
++        tr!("Toggle terminal mouse reporting (native click-drag copy/paste)")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/transcript.rs b/crates/codegen/xai-grok-pager/src/slash/commands/transcript.rs
+index e2e43a3..b5af871 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/transcript.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/transcript.rs
+@@ -8,6 +8,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// View the full conversation transcript in `$PAGER`.
+ pub struct TranscriptCommand;
+@@ -22,7 +23,7 @@ impl SlashCommand for TranscriptCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View the full conversation transcript in your pager ($PAGER)"
++        tr!("View the full conversation transcript in your pager ($PAGER)")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/usage.rs b/crates/codegen/xai-grok-pager/src/slash/commands/usage.rs
+index 6944f89..5262615 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/usage.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/usage.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct UsageCommand;
+ 
+@@ -15,11 +16,11 @@ impl SlashCommand for UsageCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View usage"
++        tr!("View usage")
+     }
+ 
+     fn usage(&self) -> &str {
+-        "/usage [show|manage]"
++        tr!("/usage [show|manage]")
+     }
+ 
+     fn takes_args(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/view_plan.rs b/crates/codegen/xai-grok-pager/src/slash/commands/view_plan.rs
+index 02d23ca..7438b5f 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/view_plan.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/view_plan.rs
+@@ -2,6 +2,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Open the current session plan preview.
+ pub struct ViewPlanCommand;
+@@ -16,7 +17,7 @@ impl SlashCommand for ViewPlanCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "View the current plan"
++        tr!("View the current plan")
+     }
+ 
+     fn session_scoped(&self) -> bool {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/vim_mode.rs b/crates/codegen/xai-grok-pager/src/slash/commands/vim_mode.rs
+index f5d4a70..81c1751 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/vim_mode.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/vim_mode.rs
+@@ -8,6 +8,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Toggle vim-style scrollback keybindings via `/vim-mode`.
+ pub struct VimModeCommand;
+@@ -18,7 +19,7 @@ impl SlashCommand for VimModeCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Toggle vim-style scrollback keybindings (j/k, h/l, g/G, y/Y, 鈥?"
++        tr!("Toggle vim-style scrollback keybindings (j/k, h/l, g/G, y/Y, 鈥?")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/voice.rs b/crates/codegen/xai-grok-pager/src/slash/commands/voice.rs
+index 64082c1..1468fef 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/voice.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/voice.rs
+@@ -16,6 +16,7 @@
+ 
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ /// Session voice mode enable via `/voice`.
+ pub struct VoiceCommand;
+@@ -31,9 +32,9 @@ impl SlashCommand for VoiceCommand {
+         // it's configurable (toggle or hold via `voice_capture_mode`), so leave
+         // the behavior unspecified.
+         if crate::app::kitty_flags_pushed() {
+-            "Dictation (Ctrl+Space/F8; Esc/Enter to stop)"
++            tr!("Dictation (Ctrl+Space/F8; Esc/Enter to stop)")
+         } else {
+-            "Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop)"
++            tr!("Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop)")
+         }
+     }
+ 
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/workflows.rs b/crates/codegen/xai-grok-pager/src/slash/commands/workflows.rs
+index 6e9d975..d238924 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/workflows.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/workflows.rs
+@@ -1,5 +1,6 @@
+ use crate::app::actions::Action;
+ use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
+ 
+ pub struct WorkflowsCommand;
+ 
+@@ -9,7 +10,7 @@ impl SlashCommand for WorkflowsCommand {
+     }
+ 
+     fn description(&self) -> &str {
+-        "Show workflow runs (phases, agents, progress)"
++        tr!("Show workflow runs (phases, agents, progress)")
+     }
+ 
+     fn usage(&self) -> &str {
+diff --git a/crates/codegen/xai-grok-pager/src/views/welcome/hero_box.rs b/crates/codegen/xai-grok-pager/src/views/welcome/hero_box.rs
+index 527ab7c..e470a0c 100644
+--- a/crates/codegen/xai-grok-pager/src/views/welcome/hero_box.rs
++++ b/crates/codegen/xai-grok-pager/src/views/welcome/hero_box.rs
+@@ -8,6 +8,8 @@ use ratatui::widgets::{Block, BorderType, Borders, Widget};
+ 
+ use crate::theme::Theme;
+ 
++use xai_grok_i18n::tr;
++
+ use super::WelcomeLayout;
+ 
+ /// Minimum terminal width for the side-by-side hero box layout.
+@@ -28,7 +30,9 @@ const LOGO_H_PAD: u16 = 3;
+ /// message never paints over the button.
+ const UPGRADE_CTA_ROWS: u16 = 2;
+ 
+-const HERO_SUBTITLE: &str = "Thanks for trying Grok Build, give feedback with /feedback!";
++fn hero_subtitle() -> &'static str {
++    tr!("Welcome to Grok Build CE 鈥?give feedback with /feedback!")
++}
+ 
+ use super::{PROMPT_HEIGHT, VERSION_GAP};
+ 
+@@ -334,7 +338,7 @@ pub(super) fn render_hero_box(
+         buf.set_span(
+             layout.hero_subtitle.x,
+             layout.hero_subtitle.y,
+-            &Span::styled(HERO_SUBTITLE, subtitle_style),
++            &Span::styled(hero_subtitle(), subtitle_style),
+             layout.hero_subtitle.width,
+         );
+     }
+diff --git a/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs b/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
+index 7491581..3a74f08 100644
+--- a/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
++++ b/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
+@@ -18,6 +18,7 @@ use crate::app::app_view::{AuthMode, AuthState, SessionPickerEntry, TrustState};
+ use crate::startup::StartupWarning;
+ use crate::theme::Theme;
+ use crate::views::prompt_widget::{PromptFlag, PromptInfo, PromptWidget};
++use xai_grok_i18n::tr;
+ mod hero_box;
+ pub(crate) mod logo;
+ mod menu;
+@@ -421,7 +422,7 @@ pub(super) fn render_version_badge(
+         } = &mode
+     {
+         spans.push(Span::styled(
+-            format!("Tier: {tier}"),
++            format!("{} {}", tr!("Tier:"), tier),
+             Style::default().fg(theme.gray),
+         ));
+         spans.push(sep.clone());
+@@ -688,8 +689,8 @@ pub fn render_welcome(
+     let mut result = match params.auth_state {
+         AuthState::Pending { error } => {
+             let label = params.login_label.unwrap_or("grok.com");
+-            let login_text = format!("Login with {}", label);
+-            let menu = [("l", login_text.as_str()), ("q", "Quit")];
++            let login_text = format!("{} {}", tr!("Login with"), label);
++            let menu = [("l", login_text.as_str()), ("q", tr!("Quit"))];
+             let msg = error.as_deref().map(|e| (e, theme.accent_error));
+             let info = PromptInfo {
+                 model_name: params.model_name,
+@@ -759,7 +760,7 @@ pub fn render_welcome(
+             }
+         }
+         AuthState::Done if params.is_zdr_blocked => {
+-            let menu = [("l", "Switch account"), ("q", "Quit")];
++            let menu = [("l", tr!("Switch account")), ("q", tr!("Quit"))];
+             let (menu_rects, post_flush_escapes) = render_welcome_blocked(
+                 content_area,
+                 buf,
+@@ -935,7 +936,7 @@ fn render_welcome_trust(
+     h_margin: u16,
+     compact: bool,
+ ) -> WelcomeRenderResult {
+-    let menu_items = [("y", "Yes, proceed"), ("n", "No, quit")];
++    let menu_items = [("y", tr!("Yes, proceed")), ("n", tr!("No, quit"))];
+     let lines = vec![
+         Line::from(Span::styled(
+             "Do you trust the contents of this directory?",
+@@ -1564,7 +1565,7 @@ fn render_changelog_section(
+             .fg(theme.gray_bright)
+             .add_modifier(Modifier::DIM),
+     );
+-    let title = "Changelog";
++    let title = tr!("Changelog");
+     buf.set_span(
+         centered.x,
+         centered.y,
+@@ -1686,7 +1687,7 @@ fn render_welcome_done(
+     let cta = p
+         .gate
+         .and_then(|g| g.label.as_deref())
+-        .unwrap_or("Upgrade Subscription");
++        .unwrap_or(tr!("Upgrade Subscription"));
+     let in_vscode_family = welcome_in_vscode_family();
+     let (key_g, key_l, key_q) = (
+         "ctrl+g",
+@@ -1730,7 +1731,7 @@ fn render_welcome_done(
+     let gate_menu;
+     let owned_menu;
+     let menu_items: &[(&str, &str)] = if !p.has_access {
+-        gate_menu = [(key_g, cta), (key_l, "Logout"), (key_q, "Quit")];
++        gate_menu = [(key_g, cta), (key_l, tr!("Logout")), (key_q, tr!("Quit"))];
+         &gate_menu
+     } else {
+         let (key_w, key_s, key_q, key_i_with_x) = (
+@@ -1748,15 +1749,15 @@ fn render_welcome_done(
+             // 3 cells of this row as dismiss instead of open. Keyboard:
+             // ctrl-shift-i. The key string is right-aligned by render_menu,
+             // so [x] sits at the very end of the row.
+-            items.push((key_i_with_x, "Import Claude settings"));
++            items.push((key_i_with_x, tr!("Import Claude settings")));
+         }
+-        items.push((key_w, "New worktree"));
+-        items.push((key_s, "Resume session"));
++        items.push((key_w, tr!("New worktree")));
++        items.push((key_s, tr!("Resume session")));
+         // "Changelog" above Quit; no shortcut 鈥?opened by click (row or block).
+         if show_changelog_action {
+-            items.push(("", "Changelog"));
++            items.push(("", tr!("Changelog")));
+         }
+-        items.push((key_q, "Quit"));
++        items.push((key_q, tr!("Quit")));
+         owned_menu = items;
+         owned_menu.as_slice()
+     };
+@@ -1923,12 +1924,12 @@ fn render_welcome_done(
+         .flex(Flex::Center)
+         .areas(layout.prompt);
+         // Show the user's current tier + clickable refresh button above the gate message.
+-        let tier_label = p.subscription_tier.unwrap_or("Free");
++        let tier_label = p.subscription_tier.unwrap_or(tr!("Free"));
+         let tier_prefix = format!("Tier: {tier_label}  ");
+-        let refresh_text = "[Refresh]";
++        let refresh_text = tr!("[Refresh]");
+         let total_width = tier_prefix.len() + refresh_text.len();
+         let tier_line = Line::from(vec![
+-            Span::styled("Tier: ", Style::default().fg(theme.gray)),
++            Span::styled(tr!("Tier: "), Style::default().fg(theme.gray)),
+             Span::styled(
+                 tier_label,
+                 Style::default()
+@@ -1962,7 +1963,7 @@ fn render_welcome_done(
+         let gate_text = p
+             .gate
+             .map(|g| g.message.as_str())
+-            .unwrap_or("SuperGrok subscription required");
++            .unwrap_or(tr!("SuperGrok subscription required"));
+         let msg = Line::from(Span::styled(
+             gate_text,
+             Style::default().fg(theme.gray_bright),
+@@ -1983,10 +1984,7 @@ fn render_welcome_done(
+                 height: 1,
+                 ..centered
+             };
+-            let gate_link = p
+-                .gate
+-                .and_then(|g| g.url.as_deref())
+-                .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
++            let gate_link = p.gate.and_then(|g| g.url.as_deref()).unwrap_or("");
+             let url = Line::from(Span::styled(
+                 gate_link,
+                 Style::default()
+@@ -2382,7 +2380,7 @@ pub(crate) fn render_session_picker(
+     }
+ 
+     let config = PickerConfig {
+-        title: Some("Resume session"),
++        title: Some(tr!("Resume session")),
+         show_search_hint: true,
+         expandable: true,
+         esc_clears_query: true,
+@@ -3048,7 +3046,7 @@ mod tests {
+ 
+     fn resume_picker_config() -> crate::views::picker::PickerConfig<'static> {
+         crate::views::picker::PickerConfig {
+-            title: Some("Resume session"),
++            title: Some(tr!("Resume session")),
+             show_search_hint: true,
+             expandable: true,
+             esc_clears_query: true,
+diff --git a/crates/codegen/xai-grok-mcp/src/oauth.rs b/crates/codegen/xai-grok-mcp/src/oauth.rs
+index ba1c35d..f3c14d4 100644
+--- a/crates/codegen/xai-grok-mcp/src/oauth.rs
++++ b/crates/codegen/xai-grok-mcp/src/oauth.rs
+@@ -22,7 +22,7 @@ use crate::rmcp::transport::auth::{AuthorizationManager, OAuthClientConfig};
+ /// Client name advertised to MCP servers during Dynamic Client Registration
+ /// (RFC 7591). Surfaces as the application name on third-party OAuth consent
+ /// screens (e.g. Linear, GitHub), so keep this human-recognizable.
+-const MCP_OAUTH_CLIENT_NAME: &str = "Grok";
++const MCP_OAUTH_CLIENT_NAME: &str = "Grok Build CE";
+ 
+ /// How often the interactive OAuth flow polls the credential store to detect
+ /// a login completed in another window or process.
+diff --git a/crates/codegen/xai-grok-shell/src/agent/app.rs b/crates/codegen/xai-grok-shell/src/agent/app.rs
+index e9daa4c..dfc8e8e 100644
+--- a/crates/codegen/xai-grok-shell/src/agent/app.rs
++++ b/crates/codegen/xai-grok-shell/src/agent/app.rs
+@@ -564,7 +564,7 @@ async fn run_headless_inner(
+             // Print to stderr (not logger) so user sees it
+             eprintln!();
+             eprintln!(
+-                "Open Grok Build: {} (press Enter to open in browser)",
++                "Open Grok Build Community Edition: {} (press Enter to open in browser)",
+                 grok_code_url
+             );
+             eprintln!();
+diff --git a/crates/codegen/xai-grok-shell/src/auth/credential_provider.rs b/crates/codegen/xai-grok-shell/src/auth/credential_provider.rs
+index 2ff55a0..0de5f39 100644
+--- a/crates/codegen/xai-grok-shell/src/auth/credential_provider.rs
++++ b/crates/codegen/xai-grok-shell/src/auth/credential_provider.rs
+@@ -409,7 +409,7 @@ pub fn build_default_otel_layer_config() -> xai_grok_telemetry::otel_layer::Otel
+     let provider = Arc::new(OtelAuthCredentialProvider::new(bootstrap));
+     let _ = OTEL_PROVIDER.set(provider.clone());
+     xai_grok_telemetry::otel_layer::OtelLayerConfig {
+-        credentials: provider as Arc<dyn AuthCredentialProvider>,
++        credentials: (),
+         token_header_value,
+         alpha_test_key: None,
+         exporter,
+diff --git a/COMMUNITY.md b/COMMUNITY.md
+new file mode 100644
+index 0000000..bff0bde
+--- /dev/null
++++ b/COMMUNITY.md
+@@ -0,0 +1,113 @@
++# Grok Build Community Edition
++
++An independent, community-maintained fork of [SpaceXAI Grok Build](https://github.com/xai-org/grok-build).
++
++**Positioning**: Grok Build Community Edition is to official Grok Build what VSCodium is to VS Code.
++
++## Core Principles
++
++- **Privacy First**: All telemetry and user behavior tracking removed. Data stays local.
++- **Model Freedom**: No vendor lock-in. Works with any OpenAI-compatible or Anthropic-compatible API.
++- **Developer Friendly**: Missing tools and capabilities added. Community PRs welcome.
++
++## Key Differences from Official
++
++### Completed Changes
++
++#### Privacy & Security
++
++| Official | Community Edition |
++|----------|-------------------|
++| Mixpanel user analytics | 鉁?Removed |
++| Sentry crash reporting | 鉁?Removed |
++| GCS session upload | 鉁?Removed |
++| OpenTelemetry data export | 鉁?Stubbed (local-only) |
++| Hook event logging | 鉁?Removed |
++
++All telemetry data is now **written to local files** (`~/.grok/logs/events.log`).
++
++#### Web Search
++
++| Official | Community Edition |
++|----------|-------------------|
++| Grok-only Responses API search | 鉁?4 backends with auto-routing |
++| No search for other models | 鉁?DuckDuckGo free fallback |
++
++Search backends:
++
++| Backend | Works With | Notes |
++|---------|-----------|-------|
++| Responses API | Grok, GPT-4 | Original, preserved |
++| Messages API (new) | DeepSeek, Claude | Anthropic web_search tool |
++| Chat Completions (new) | OpenAI search models | web_search_options |
++| DuckDuckGo (new) | All models | Free, zero-config fallback |
++
++Backend is **auto-selected** based on the model's `api_backend` 鈥?no manual config needed.
++
++#### New Tools
++
++| Tool | Description |
++|------|-------------|
++| `glob` | File pattern matching (`*`, `**`, `?`), sorted by modification time |
++| `calculator` | Math expressions, statistics (mean/median/stdev), multi-step variables |
++| `json_query` | JSON path navigation, filtering, aggregation (sum/avg/min/max) |
++| `csv_ops` | CSV/TSV schema inference, filtering, sorting, grouped aggregation |
++| `text` | Regex extract/replace/count with linear-time matching |
++| `codec` | Base64/hex/URL encode/decode, sha256/sha512/md5/crc32/blake3 |
++
++#### Prompt Optimizations
++
++The system prompt has been improved with additional guidance for communication style, accuracy, and execution discipline 鈥?reducing AI clich茅s and hallucinations.
++
++#### Multi-Language Support (new)
++
++| Language | Code |
++|----------|------|
++| English | `en` |
++| 涓枃 (Simplified) | `zh-CN` |
++| 鏃ユ湰瑾?| `ja` |
++| 頃滉淡鞏?| `ko` |
++| 袪褍褋褋泻懈泄 | `ru` |
++| Fran莽ais | `fr` |
++
++- **Auto-detect**: Matches system language on first startup
++- **Real-time switch**: `/lang zh-CN` takes effect immediately, no restart needed
++- **Dropdown picker**: `/lang` then press Tab for language selection
++- **Coverage**: 278 translations (slash commands, shortcuts, settings, welcome screen, toasts, permission modals)
++
++#### API Error Message De-branding
++
++- Third-party API quota errors no longer show "SuperGrok" promotional copy
++- All hardcoded `grok.com/supergrok` URLs removed
++- Error messages use generic wording ("API quota exhausted, check your API account")
++
++#### WebFetch Tool
++
++- WebFetch (URL content fetching) tool enabled by default
++- Set `GROK_DISABLE_WEB_FETCH=1` env var to disable
++
++#### Session Forward Compatibility
++
++- Added `ConversationItem::Unknown` variant 鈥?old sessions won't fail after version upgrades
++- Unknown message types are silently skipped instead of crashing
++
++### Planned
++
++## Build
++
++```bash
++# Requires Rust toolchain
++cargo build -p xai-grok-pager-bin --release
++```
++
++## Contributing
++
++Pull requests welcome. We accept community improvements, fixes, and suggestions.
++
++## License
++
++Apache 2.0, same as upstream.
++
++## Disclaimer
++
++Not affiliated with SpaceXAI / xAI. No warranty provided. Model inference still requires your own API keys.
+diff --git a/COMMUNITY_CN.md b/COMMUNITY_CN.md
+new file mode 100644
+index 0000000..9efb053
+--- /dev/null
++++ b/COMMUNITY_CN.md
+@@ -0,0 +1,113 @@
++# Grok Build 绀惧尯鐗?+
++Grok Build 绀惧尯鐗堟槸鍩轰簬 [SpaceXAI Grok Build](https://github.com/xai-org/grok-build) 鐨勭嫭绔嬬ぞ鍖虹淮鎶ゅ垎鏀€?+
++**瀹氫綅**锛欸rok Build 绀惧尯鐗?涔嬩簬 瀹樻柟 Grok Build锛屽鍚?VSCodium 涔嬩簬 VS Code銆?+
++## 鏍稿績鐞嗗康
++
++- **闅愮绗竴**锛氭墍鏈夐仴娴嬪拰鐢ㄦ埛琛屼负杩借釜宸茬Щ闄わ紝鏁版嵁浠呭瓨鏈湴銆?+- **妯″瀷鑷敱**锛氫笉缁戝畾浠讳綍鐗瑰畾妯″瀷鍘傚晢锛屾敮鎸佹墍鏈?OpenAI 鍏煎 / Anthropic 鍏煎 API銆?+- **寮€鍙戣€呭弸濂?*锛氭坊鍔犲畼鏂圭増缂哄け鐨勫伐鍏峰拰鑳藉姏锛屾帴鍙楃ぞ鍖?PR銆?+
++## 涓庡畼鏂圭増鐨勪富瑕佸尯鍒?+
++### 宸插畬鎴愮殑鏀瑰姩
++
++#### 闅愮涓庡畨鍏?+
++| 瀹樻柟鐗?| 绀惧尯鐗?|
++|--------|--------|
++| Mixpanel 鐢ㄦ埛琛屼负鍒嗘瀽 | 鉁?宸插垹闄?|
++| Sentry 宕╂簝涓婃姤 | 鉁?宸插垹闄?|
++| Google Cloud Storage 浼氳瘽涓婁紶 | 鉁?宸插垹闄?|
++| OpenTelemetry 鏁版嵁瀵煎嚭 | 鉁?宸叉敼涓虹┖澹筹紙鏈湴锛?|
++| Hook 浜嬩欢鏃ュ織涓婃姤 | 鉁?宸插垹闄?|
++
++鎵€鏈夊師杩滅▼閬ユ祴鏁版嵁**鏀逛负鍐欏叆鏈湴鏂囦欢**锛坄~/.grok/logs/events.log`锛夈€?+
++#### Web 鎼滅储
++
++| 瀹樻柟鐗?| 绀惧尯鐗?|
++|--------|--------|
++| 浠呮敮鎸?Grok 妯″瀷鐨?Responses API 鎼滅储 | 鉁?4 绉嶆悳绱㈠悗绔嚜鍔ㄩ€傞厤 |
++| 鍏朵粬妯″瀷鏃犳硶浣跨敤鎼滅储 | 鉁?DuckDuckGo 鍏嶈垂鍥為€€ |
++
++鏂板鎼滅储鍚庣锛?+
++| 鍚庣 | 閫傜敤妯″瀷 | 璇存槑 |
++|------|---------|------|
++| Responses API | Grok, GPT-4 | 瀹樻柟鍘熸湁锛屼繚鐣?|
++| Messages API锛堟柊澧烇級 | DeepSeek, Claude | Anthropic web_search 宸ュ叿 |
++| Chat Completions锛堟柊澧烇級 | OpenAI 鎼滅储妯″瀷 | web_search_options 鍙傛暟 |
++| DuckDuckGo锛堟柊澧烇級 | 鎵€鏈夋ā鍨?| 鍏嶈垂锛岄浂閰嶇疆锛岃嚜鍔ㄥ洖閫€ |
++
++鎼滅储鍚庣鏍规嵁妯″瀷鐨?`api_backend` 閰嶇疆**鑷姩閫夋嫨**锛屾棤闇€鎵嬪姩璁剧疆銆?+
++#### 鏂板宸ュ叿
++
++| 宸ュ叿 | 璇存槑 |
++|------|------|
++| `glob` | 鏂囦欢妯″紡鍖归厤锛坄*` `**` `?`锛夛紝鎸変慨鏀规椂闂存帓搴?|
++| `calculator` | 鏁板琛ㄨ揪寮忔眰鍊硷紝缁熻鍑芥暟锛坢ean/median/stdev锛夛紝澶氭鍙橀噺 |
++| `json_query` | JSON 璺緞瀵艰埅銆佽繃婊ゃ€佽仛鍚堬紙sum/avg/min/max锛?|
++| `csv_ops` | CSV/TSV 缁撴瀯鎺ㄦ柇銆佽繃婊ゃ€佹帓搴忋€佸垎缁勮仛鍚?|
++| `text` | 姝ｅ垯鎻愬彇/鏇挎崲/缁熻锛岀嚎鎬ф椂闂村尮閰?|
++| `codec` | Base64/hex/URL 缂栬В鐮侊紝sha256/sha512/md5/crc32/blake3 |
++
++#### 鎻愮ず璇嶄紭鍖?+
++绯荤粺鎻愮ず璇嶆柊澧炰簡娌熼€氶鏍笺€佸噯纭€с€佹墽琛岀邯寰嬬瓑鎸囧鈥斺€斿噺灏慉I鑵旇皟鍜屽够瑙夈€?+
++#### 澶氳瑷€鏀寔锛堟柊澧烇級
++
++| 璇█ | 浠ｇ爜 |
++|------|------|
++| English | `en` |
++| 涓枃锛堢畝浣擄級 | `zh-CN` |
++| 鏃ユ湰瑾?| `ja` |
++| 頃滉淡鞏?| `ko` |
++| 袪褍褋褋泻懈泄 | `ru` |
++| Fran莽ais | `fr` |
++
++- **鑷姩妫€娴?*锛氶娆″惎鍔ㄨ嚜鍔ㄥ尮閰嶇郴缁熻瑷€锛堜腑鏂囩郴缁熼粯璁や腑鏂囷級
++- **瀹炴椂鍒囨崲**锛歚/lang zh-CN` 绔嬪嵆鐢熸晥锛屾棤闇€閲嶅惎
++- **涓嬫媺閫夋嫨**锛歚/lang` 鐒跺悗鎸?Tab 寮瑰嚭璇█閫夋嫨妗?+- **瑕嗙洊鑼冨洿**锛?78 鏉＄炕璇戯紙鏂滄潬鍛戒护銆佸揩鎹烽敭銆佽缃潰鏉裤€佹杩庡睆骞曘€佹彁绀烘秷鎭€佹潈闄愬脊绐楋級
++
++#### API 閿欒鎻愮ず浼樺寲
++
++- 绗笁鏂?API 浣欓鑰楀敖鏃朵笉鍐嶆樉绀?"SuperGrok" 鎺ㄥ箍鏂囨
++- 鎵€鏈夌‖缂栫爜鐨?`grok.com/supergrok` URL 宸茬Щ闄?+- 閿欒娑堟伅鏀逛负閫氱敤鎺緸锛?API 棰濆害鑰楀敖锛岃妫€鏌ヤ綘鐨?API 璐︽埛"锛?+
++#### WebFetch 宸ュ叿
++
++- WebFetch锛堢綉椤垫姄鍙栵級宸ュ叿榛樿鍚敤
++- 鏀寔鐜鍙橀噺 `GROK_DISABLE_WEB_FETCH=1` 绂佺敤
++
++#### 浼氳瘽鍚戝墠鍏煎
++
++- 鏂板 `ConversationItem::Unknown` 鍙樹綋锛屾棫浼氳瘽涓嶄細鍥犵増鏈崌绾ц€屾棤娉曞姞杞?+- 鏈煡娑堟伅绫诲瀷闈欓粯璺宠繃锛屼笉鍐嶅鑷村穿婧?+
++### 璁″垝涓殑鏀瑰姩
++
++## 鏋勫缓
++
++```bash
++# 闇€瑕?Rust 宸ュ叿閾?+cargo build -p xai-grok-pager-bin --release
++```
++
++## 璐＄尞
++
++娆㈣繋鎻愪氦 PR銆傛垜浠帴鍙楁潵鑷ぞ鍖虹殑鏀硅繘銆佷慨澶嶅拰寤鸿銆?+
++## 璁稿彲璇?+
++Apache 2.0锛屼笌涓婃父涓€鑷淬€?+
++## 鍏嶈矗澹版槑
++
++鏈」鐩笌 SpaceXAI / xAI 鏃犱换浣曞叧鑱旓紝涓嶆彁渚涗换浣曟媴淇濄€傛ā鍨嬫帹鐞嗕粛闇€瑕佷娇鐢ㄤ綘鑷繁鐨?API 瀵嗛挜銆?diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md
+new file mode 100644
+index 0000000..2bf47a7
+--- /dev/null
++++ b/docs/CHANGELOG.md
+@@ -0,0 +1,48 @@
++# Changelog
++
++## v0.2.109-ce.1 (2026-07-23)
++
++### Multi-Language Support (i18n)
++- New `xai-grok-i18n` crate with lightweight translation engine
++- 6 languages: English, 涓枃, 鏃ユ湰瑾? 頃滉淡鞏? 袪褍褋褋泻懈泄, Fran莽ais
++- Auto-detects system language on first startup (`LANG` / `LC_ALL` env vars)
++- `/lang` command: real-time switching, Tab dropdown picker, no restart needed
++- 278 translations: slash commands, shortcuts, settings, welcome screen, toasts, permissions
++
++### Bug Fixes
++- **WebFetch**: URL fetch tool now enabled by default (was invisible to Agent)
++- **Session compatibility**: `ConversationItem::Unknown` variant prevents old session crashes
++- **Build hygiene**: All compiler warnings fixed, zero-warning release build
++
++### De-branding
++- Third-party API errors no longer show "SuperGrok" promotional copy
++- All `grok.com/supergrok` hardcoded URLs removed
++- Image/video generation tier-restricted messages use generic wording
++
++### Upstream sync
++- Based on upstream v0.2.109
++
++---
++
++## 0.2.105-ce.1 (2026-07-19)
++
++### Upstream sync
++- Merged upstream v0.2.105: Grok 4.5 model support, event loop rewrite, MCP OAuth improvements, `/btw` command, line editor, dashboard refactor (364 files, +30K/-16K lines)
++
++### CE infrastructure
++- Established patch-based maintenance system (17 independent patches + `build.bat`)
++- CE tool source moved to `ce-tools/` directory (safe from upstream overwrites)
++- Versioning scheme: upstream version + `-ce.N` patch number
++- Documentation reorganized: README 鈫?CHANGELOG + MAINTENANCE + patches/README
++
++---
++
++## Previous (v0.1.0 - v0.3.0)
++
++Early CE releases with independent versioning. Key milestones:
++- Telemetry removal (Mixpanel, Sentry, Google Cloud)
++- Multi-backend web search (Messages API, Chat Completions, DuckDuckGo, Bing)
++- 6 new tools: glob, calculator, json_query, csv_ops, text, codec
++- Community branding and optimized system prompt
++- One-command install scripts, binary named `grokce`
++- CI/CD pipeline with release automation
+diff --git a/docs/CHANGELOG_CN.md b/docs/CHANGELOG_CN.md
+new file mode 100644
+index 0000000..051ef6c
+--- /dev/null
++++ b/docs/CHANGELOG_CN.md
+@@ -0,0 +1,48 @@
++# 鏇存柊鏃ュ織
++
++## v0.2.109-ce.1 (2026-07-23)
++
++### 澶氳瑷€鏀寔 (i18n)
++- 鍏ㄦ柊 `xai-grok-i18n` crate锛岃交閲忕炕璇戝紩鎿?+- 6 璇█鏀寔锛欵nglish銆佷腑鏂囥€佹棩鏈獮銆來暅甑柎銆佇犙冄佈佇盒感广€丗ran莽ais
++- 棣栨鍚姩鑷姩妫€娴嬬郴缁熻瑷€锛坄LANG` / `LC_ALL` 鐜鍙橀噺锛?+- `/lang` 鍛戒护锛氬疄鏃跺垏鎹紝Tab 涓嬫媺閫夋嫨锛屾棤闇€閲嶅惎
++- 278 鏉＄炕璇戣鐩栵細鏂滄潬鍛戒护銆佸揩鎹烽敭銆佽缃潰鏉裤€佹杩庡睆骞曘€佹彁绀烘秷鎭€佹潈闄愬脊绐?+
++### Bug 淇
++- **WebFetch**锛氱綉椤垫姄鍙栧伐鍏烽粯璁ゅ惎鐢紙涔嬪墠 Agent 鐪嬩笉鍒拌宸ュ叿锛?+- **浼氳瘽鍏煎**锛歚ConversationItem::Unknown` 鍙樹綋闃叉鏃т細璇濆姞杞藉け璐?+- **缂栬瘧娓呯悊**锛氫慨澶嶅叏閮ㄧ紪璇戝櫒璀﹀憡锛岄浂璀﹀憡鏋勫缓
++
++### 鍝佺墝娓呯悊
++- 绗笁鏂?API 閿欒鎻愮ず绉婚櫎 "SuperGrok" 鎺ㄥ箍鏂囨
++- 鎵€鏈?`grok.com/supergrok` 纭紪鐮?URL 宸叉竻闄?+- Image/Video generation 闄愬埗鎻愮ず鏀逛负閫氱敤鎺緸
++
++### 涓婃父鍚屾
++- 鍩轰簬涓婃父 v0.2.109
++
++---
++
++## 0.2.105-ce.1 (2026-07-19)
++
++### 涓婃父鍚屾
++- 鍚堝苟涓婃父 v0.2.105锛欸rok 4.5 妯″瀷鏀寔銆佷簨浠跺惊鐜噸鍐欍€丮CP OAuth 鏀硅繘銆乣/btw` 鍛戒护銆佽缂栬緫鍣ㄣ€乨ashboard 閲嶆瀯锛?64 涓枃浠讹紝+30K/-16K 琛岋級
++
++### CE 鍩虹璁炬柦
++- 寤虹珛 patch 缁存姢浣撶郴锛?7 涓嫭绔嬭ˉ涓?+ `build.bat` 涓€閿瀯寤猴級
++- CE 宸ュ叿婧愮爜绉昏嚦 `ce-tools/` 鐩綍锛堜笂娓告洿鏂颁笉浼氳瑕嗙洊锛?+- 鐗堟湰鏂规锛氫笂娓哥増鏈?+ `-ce.N` 琛ヤ竵鍙?+- 鏂囨。閲嶇粍锛歊EADME 鈫?CHANGELOG + MAINTENANCE + patches
++
++---
++
++## 鏃╂湡鐗堟湰 (v0.1.0 - v0.3.0)
++
++CE 鏃╂湡鐙珛鐗堟湰鍙枫€備富瑕佽妭鐐癸細
++- 閬ユ祴鍒犻櫎锛圡ixpanel銆丼entry銆丟oogle Cloud锛?+- 澶氬悗绔?Web 鎼滅储锛圡essages API銆丆hat Completions銆丏uckDuckGo銆丅ing锛?+- 6 涓柊宸ュ叿锛歡lob銆乧alculator銆乯son_query銆乧sv_ops銆乼ext銆乧odec
++- 绀惧尯鍝佺墝鍘诲寲 + 绯荤粺鎻愮ず璇嶄紭鍖?+- 涓€閿畨瑁呰剼鏈紝浜岃繘鍒跺懡浠?`grokce`
++- CI/CD 娴佹按绾?+ release 鑷姩鍖?diff --git a/docs/MAINTENANCE.md b/docs/MAINTENANCE.md
+new file mode 100644
+index 0000000..926363d
+--- /dev/null
++++ b/docs/MAINTENANCE.md
+@@ -0,0 +1,62 @@
++# Grok Build Community Edition - Maintenance Guide
++
++## Directory Structure
++
++```
++鈹溾攢鈹€ patches/          鈫?17 patches, one per CE change
++鈹溾攢鈹€ ce-tools/         鈫?CE tool source (never touched by upstream)
++鈹溾攢鈹€ docs/             鈫?Documentation
++鈹溾攢鈹€ build.bat         鈫?One-click: apply patches 鈫?build
++鈹斺攢鈹€ README.md         鈫?Project overview
++```
++
++## Daily Workflow
++
++### After upstream update
++```bash
++git pull upstream main
++./build.bat
++# Failed patch? Fix code 鈫?git diff > patches/failed.patch
++```
++
++### Adding a new CE feature
++```bash
++# 1. Code changes as normal
++# 2. Export as patch
++git diff > patches/18-feature-name.patch
++# 3. Add to build.bat list
++# 4. Update this guide
++```
++
++### Just modifying CE tools
++Edit files in `ce-tools/src/`. These are reference copies - 
++actual compilation uses the patches system.
++
++## Patch List
++
++| # | File | What |
++|---|------|------|
++| 01 | remove-telemetry | Delete Mixpanel, Sentry, Google Cloud uploads |
++| 02 | web-search | Multi-backend: Messages, Chat, DuckDuckGo |
++| 03 | community-docs | Community edition docs (EN+CN) |
++| 04 | add-glob-tool | glob file pattern matching |
++| 05 | add-calculator-tool | Calculator + statistics |
++| 06 | add-json-csv-tools | json_query + csv_ops |
++| 07 | add-text-codec-tools | text + codec |
++| 08 | community-branding | CE branding |
++| 09 | optimize-system-prompt | Better system prompt |
++| 10 | community-tool-docs | CE tool documentation |
++| 11 | ci-cd-build | CI/CD pipeline + block auto-update |
++| 12 | install-scripts | One-command install |
++| 13 | clean-dead-code | Remove dead code + warnings |
++| 14 | inject-tools | Register all 6 CE tools in toolsets |
++| 15 | binary-name-grokce | Binary named grokce |
++| 16 | websearch-zero-config | Zero-config web search |
++| 17 | ci-fixes | CI fmt + clippy fixes |
++
++## Architecture
++
++Same approach as VSCodium, ungoogled-chromium, LineageOS:
++- Upstream code kept clean
++- CE changes stored as independent patches
++- Each patch fails independently, easy to diagnose
+diff --git a/docs/MAINTENANCE_CN.md b/docs/MAINTENANCE_CN.md
+new file mode 100644
+index 0000000..852ecfa
+--- /dev/null
++++ b/docs/MAINTENANCE_CN.md
+@@ -0,0 +1,61 @@
++# Grok Build 绀惧尯鐗?- 缁存姢鎸囧崡
++
++## 鐩綍缁撴瀯
++
++```
++鈹溾攢鈹€ patches/          鈫?17 涓ˉ涓侊紝姣忎釜瀵瑰簲涓€椤?CE 鏀瑰姩
++鈹溾攢鈹€ ce-tools/         鈫?CE 宸ュ叿婧愮爜锛堜笂娓告洿鏂颁笉浼氳鐩栵級
++鈹溾攢鈹€ docs/             鈫?鏂囨。
++鈹溾攢鈹€ build.bat         鈫?涓€閿瀯寤猴細apply patches 鈫?cargo build
++鈹斺攢鈹€ README.md         鈫?椤圭洰浠嬬粛
++```
++
++## 鏃ュ父鎿嶄綔
++
++### 涓婃父鏇存柊鍚?+```bash
++git pull upstream main
++./build.bat
++# 鍝釜琛ヤ竵澶辫触灏变慨鍝釜锛氭敼浠ｇ爜 鈫?git diff > patches/澶辫触鐨勮ˉ涓?patch
++```
++
++### 鏂板 CE 鍔熻兘
++```bash
++# 1. 姝ｅ父鏀逛唬鐮?+# 2. 瀵煎嚭涓鸿ˉ涓?+git diff > patches/18-鍔熻兘鍚?patch
++# 3. 鏇存柊 build.bat 涓殑琛ヤ竵鍒楄〃
++# 4. 鏇存柊鏈枃妗ｅ拰 CHANGELOG
++```
++
++### 淇敼 CE 宸ュ叿
++鐩存帴鍦?`ce-tools/src/` 涓紪杈戙€傝繖浜涙槸鍙傝€冨壇鏈€斺€斿疄闄呯紪璇戣蛋 patch 绯荤粺銆?+
++## 琛ヤ竵鍒楄〃
++
++| # | 鏂囦欢 | 鍔熻兘 |
++|---|------|------|
++| 01 | remove-telemetry | 鍒犻櫎 Mixpanel銆丼entry銆丟oogle Cloud 涓婁紶 |
++| 02 | web-search | 澶氬悗绔悳绱紙Messages銆丆hat銆丏uckDuckGo锛?|
++| 03 | community-docs | 绀惧尯鐗堟枃妗ｏ紙涓嫳鍙岀増锛?|
++| 04 | add-glob-tool | glob 鏂囦欢鍖归厤 |
++| 05 | add-calculator-tool | 璁＄畻鍣?+ 缁熻 |
++| 06 | add-json-csv-tools | json_query + csv_ops |
++| 07 | add-text-codec-tools | text + codec |
++| 08 | community-branding | CE 鍝佺墝 |
++| 09 | optimize-system-prompt | 绯荤粺鎻愮ず璇嶄紭鍖?|
++| 10 | community-tool-docs | CE 宸ュ叿鏂囨。 |
++| 11 | ci-cd-build | CI/CD + 闃绘鑷姩鏇存柊 |
++| 12 | install-scripts | 涓€閿畨瑁呰剼鏈?|
++| 13 | clean-dead-code | 娓呯悊姝讳唬鐮?|
++| 14 | inject-tools | 6 涓?CE 宸ュ叿娉ㄥ唽鍒版墍鏈?toolset |
++| 15 | binary-name-grokce | 鍛戒护鍚嶄负 grokce |
++| 16 | websearch-zero-config | 鎼滅储闆堕厤缃?|
++| 17 | ci-fixes | CI fmt + clippy 淇 |
++
++## 鏋舵瀯
++
++涓?VSCodium銆乽ngoogled-chromium銆丩ineageOS 鐩稿悓锛?+- 涓婃父浠ｇ爜淇濇寔鍘熸牱
++- CE 鏀瑰姩瀛樹负鐙珛琛ヤ竵
++- 姣忎釜琛ヤ竵鐙珛澶辫触锛屾槗浜庤瘖鏂?

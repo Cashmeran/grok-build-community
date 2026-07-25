@@ -1,0 +1,1775 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index b65aab6..fb0985c 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -26,6 +26,7 @@ members = [
+     "crates/codegen/xai-grok-env",
+     "crates/codegen/xai-grok-hooks",
+     "crates/codegen/xai-grok-http",
++    "crates/codegen/xai-grok-i18n",
+     "crates/codegen/xai-grok-markdown",
+     "crates/codegen/xai-grok-markdown-core",
+     "crates/codegen/xai-grok-mcp",
+@@ -60,7 +61,6 @@ members = [
+     "crates/codegen/xai-grok-workspace-types",
+     "crates/codegen/xai-hooks-plugins-types",
+     "crates/codegen/xai-hunk-tracker",
+-    "crates/codegen/xai-mixpanel",
+     "crates/codegen/xai-prompt-queue",
+     "crates/codegen/xai-ratatui-inline",
+     "crates/codegen/xai-ratatui-textarea",
+@@ -289,6 +289,7 @@ xai-grok-config = { path = "crates/codegen/xai-grok-config" }
+ xai-grok-config-types = { path = "crates/codegen/xai-grok-config-types" }
+ xai-grok-env = { path = "crates/codegen/xai-grok-env" }
+ xai-grok-http = { path = "crates/codegen/xai-grok-http" }
++xai-grok-i18n = { path = "crates/codegen/xai-grok-i18n" }
+ xai-grok-markdown = { path = "crates/codegen/xai-grok-markdown" }
+ xai-grok-markdown-core = { path = "crates/codegen/xai-grok-markdown-core" }
+ xai-grok-mcp = { path = "crates/codegen/xai-grok-mcp" }
+@@ -310,7 +311,6 @@ xai-grok-workspace = { path = "crates/codegen/xai-grok-workspace" }
+ xai-grok-workspace-types = { path = "crates/codegen/xai-grok-workspace-types" }
+ xai-hooks-plugins-types = { path = "crates/codegen/xai-hooks-plugins-types" }
+ xai-interjection-core = { path = "crates/common/xai-interjection-core" }
+-xai-mixpanel = { path = "crates/codegen/xai-mixpanel" }
+ xai-prompt-queue = { path = "crates/codegen/xai-prompt-queue" }
+ xai-proto-build = { path = "crates/build/xai-proto-build" }
+ xai-ratatui-inline = { path = "crates/codegen/xai-ratatui-inline" }
+diff --git a/crates/codegen/xai-grok-i18n/Cargo.toml b/crates/codegen/xai-grok-i18n/Cargo.toml
+new file mode 100644
+index 0000000..c88707d
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/Cargo.toml
+@@ -0,0 +1,12 @@
++[package]
++name = "xai-grok-i18n"
++version = "0.1.0"
++edition = "2024"
++description = "Lightweight internationalization for Grok Build Community Edition"
++
++[dependencies]
++serde = { workspace = true }
++serde_json = { workspace = true }
++dirs = { workspace = true }
++parking_lot = { workspace = true }
++tracing = { workspace = true }
+diff --git a/crates/codegen/xai-grok-i18n/src/lib.rs b/crates/codegen/xai-grok-i18n/src/lib.rs
+new file mode 100644
+index 0000000..3f124c4
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/src/lib.rs
+@@ -0,0 +1,267 @@
++//! Lightweight internationalization (i18n) for Grok Build Community Edition.
++//!
++//! # Design
++//!
++//! - Keys are the English strings themselves (self-documenting, natural fallback).
++//! - Translations live in JSON files under `src/translations/`, embedded at compile
++//!   time via `include_str!`.
++//! - A `static` lookup table is loaded once on first use; the `/lang` command
++//!   can switch it at runtime.
++//!
++//! # Usage
++//!
++//! ```ignore
++//! use xai_grok_i18n::tr;
++//!
++//! let text: &'static str = tr!("Exit Grok Build");
++//! // English → "Exit Grok Build"
++//! // Chinese → "退出 Grok Build"
++//! ```
++//!
++//! The macro works in const and non-const contexts and always returns `&'static str`.
++
++use std::collections::HashMap;
++use std::sync::OnceLock;
++
++use parking_lot::RwLock;
++
++// ---------------------------------------------------------------------------
++// Built-in translation data (compile-time embedded)
++// ---------------------------------------------------------------------------
++
++const TRANSLATION_ZH_CN: &str = include_str!("translations/zh-CN.json");
++const TRANSLATION_JA: &str = include_str!("translations/ja.json");
++const TRANSLATION_KO: &str = include_str!("translations/ko.json");
++const TRANSLATION_RU: &str = include_str!("translations/ru.json");
++const TRANSLATION_FR: &str = include_str!("translations/fr.json");
++
++// ---------------------------------------------------------------------------
++// Global state
++// ---------------------------------------------------------------------------
++
++static LANG: OnceLock<RwLock<String>> = OnceLock::new();
++static TRANSLATIONS: OnceLock<RwLock<HashMap<&'static str, &'static str>>> = OnceLock::new();
++
++fn lang_cell() -> &'static RwLock<String> {
++    LANG.get_or_init(|| {
++        let detected = detect_system_lang();
++        let normalized = normalize_lang(&detected);
++        tracing::info!(lang = %normalized, "i18n auto-detected system language");
++        RwLock::new(normalized)
++    })
++}
++
++fn translations_cell() -> &'static RwLock<HashMap<&'static str, &'static str>> {
++    TRANSLATIONS.get_or_init(|| {
++        let lang = lang_cell().read().clone();
++        let map = load_translations(&lang);
++        RwLock::new(map)
++    })
++}
++
++// ---------------------------------------------------------------------------
++// Public API
++// ---------------------------------------------------------------------------
++
++/// Auto-detect the system language and initialize translations.
++///
++/// Should be called once at startup, before any `tr!()` calls.
++/// Checks (in order): saved preference in `~/.grok/lang`, environment variables
++/// (`LANG`, `LC_ALL`), and platform-specific locale APIs. Falls back to `"en"`.
++pub fn init() {
++    let normalized = load_lang_preference().unwrap_or_else(|| {
++        let detected = detect_system_lang();
++        normalize_lang(&detected)
++    });
++    let map = load_translations(&normalized);
++    *lang_cell().write() = normalized.clone();
++    *translations_cell().write() = map;
++    tracing::info!(lang = %normalized, "i18n initialized");
++}
++
++/// Return the currently active language code (e.g. `"en"`, `"zh-CN"`).
++pub fn current_lang() -> String {
++    lang_cell().read().clone()
++}
++
++/// Switch the active language at runtime and persist the preference.
++///
++/// Supported values: `"en"`, `"zh-CN"`. Unknown values fall back to `"en"`.
++/// The new translations take effect immediately for all subsequent `tr!()` calls.
++/// The choice is saved to `~/.grok/lang` for future sessions.
++pub fn set_lang(lang: &str) {
++    let normalized = normalize_lang(lang);
++    let map = load_translations(&normalized);
++    *lang_cell().write() = normalized;
++    *translations_cell().write() = map;
++    save_lang_preference(lang);
++    tracing::info!(lang = %lang, "i18n language switched and saved");
++}
++
++/// Translate a string key into the active language.
++///
++/// Returns the translated `&'static str` if a mapping exists, otherwise returns
++/// `key` unchanged (English fallback).
++///
++/// Prefer the [`tr`] macro for ergonomic usage.
++pub fn translate(key: &str) -> &'static str {
++    let guard = translations_cell().read();
++    guard.get(key).copied().unwrap_or_else(|| {
++        // Leak the key to make it 'static only when we need to return it.
++        // This happens exactly once per untranslated key — acceptable in a
++        // long-running TUI process.
++        let leaked: &'static str = Box::leak(key.to_string().into_boxed_str());
++        leaked
++    })
++}
++
++/// Macro form of [`translate`].  Accepts a string literal and returns `&'static str`.
++///
++/// # Example
++///
++/// ```ignore
++/// let s: &'static str = tr!("Hello, world!");
++/// ```
++#[macro_export]
++macro_rules! tr {
++    ($key:expr) => {
++        $crate::translate($key)
++    };
++}
++
++// ---------------------------------------------------------------------------
++// Internal helpers
++// ---------------------------------------------------------------------------
++
++fn normalize_lang(raw: &str) -> String {
++    let t = raw.trim().to_lowercase();
++    match t.as_str() {
++        "zh" | "zh-cn" | "zh_cn" | "zhcn" | "chinese" => "zh-CN".to_string(),
++        "ja" | "ja-jp" | "japanese" => "ja".to_string(),
++        "ko" | "ko-kr" | "korean" => "ko".to_string(),
++        "ru" | "ru-ru" | "russian" => "ru".to_string(),
++        "fr" | "fr-fr" | "french" => "fr".to_string(),
++        _ => "en".to_string(),
++    }
++}
++
++/// Detect the system's preferred language from environment variables.
++///
++/// Checks (in order):
++/// 1. `LC_ALL` env var
++/// 2. `LC_MESSAGES` env var
++/// 3. `LANG` env var (Unix/macOS)
++/// 4. `LANGUAGE` env var (GNU gettext)
++/// 5. Falls back to `"en"` if nothing matches
++///
++/// Supported auto-detected locales: zh, ja, ko, ru, fr. All others → en.
++fn detect_system_lang() -> String {
++    for var in &["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] {
++        if let Ok(val) = std::env::var(var) {
++            let lang = val.split('.').next().unwrap_or(&val);
++            if !lang.is_empty() && lang != "C" && lang != "POSIX" {
++                return lang.to_string();
++            }
++        }
++    }
++    "en".to_string()
++}
++
++fn load_translations(lang: &str) -> HashMap<&'static str, &'static str> {
++    match lang {
++        "zh-CN" => parse_translations(TRANSLATION_ZH_CN),
++        "ja" => parse_translations(TRANSLATION_JA),
++        "ko" => parse_translations(TRANSLATION_KO),
++        "ru" => parse_translations(TRANSLATION_RU),
++        "fr" => parse_translations(TRANSLATION_FR),
++        _ => HashMap::new(), // English = identity, empty map
++    }
++}
++
++fn parse_translations(json: &str) -> HashMap<&'static str, &'static str> {
++    let raw: HashMap<String, String> = serde_json::from_str(json).unwrap_or_else(|e| {
++        tracing::warn!("Failed to parse translations: {e}");
++        HashMap::new()
++    });
++    // Leak all strings to make them 'static — the translations live for the
++    // entire process lifetime, so this is intentional and not a leak.
++    raw.into_iter()
++        .map(|(k, v)| {
++            let k: &'static str = Box::leak(k.into_boxed_str());
++            let v: &'static str = Box::leak(v.into_boxed_str());
++            (k, v)
++        })
++        .collect()
++}
++
++// ---------------------------------------------------------------------------
++// Persistence helpers
++// ---------------------------------------------------------------------------
++
++fn lang_pref_path() -> Option<std::path::PathBuf> {
++    dirs::home_dir().map(|h| h.join(".grok").join("lang"))
++}
++
++/// Try to load a saved language preference from `~/.grok/lang`.
++fn load_lang_preference() -> Option<String> {
++    let path = lang_pref_path()?;
++    let content = std::fs::read_to_string(&path).ok()?;
++    let lang = content.trim();
++    if lang.is_empty() { None } else { Some(normalize_lang(lang)) }
++}
++
++/// Save the current language preference to `~/.grok/lang`.
++fn save_lang_preference(lang: &str) {
++    if let Some(path) = lang_pref_path() {
++        if let Some(parent) = path.parent() {
++            let _ = std::fs::create_dir_all(parent);
++        }
++        let _ = std::fs::write(&path, lang);
++    }
++}
++
++// ---------------------------------------------------------------------------
++// Tests
++// ---------------------------------------------------------------------------
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn default_lang_falls_back_to_en() {
++        // Default depends on system locale; on CI (LANG=C) it's "en".
++        // We test the fallback path directly via normalize_lang.
++        assert_eq!(normalize_lang("C"), "en");
++        assert_eq!(normalize_lang("POSIX"), "en");
++        assert_eq!(normalize_lang(""), "en");
++    }
++
++    #[test]
++    fn english_is_identity() {
++        assert_eq!(translate("Hello"), "Hello");
++        assert_eq!(translate("File"), "File");
++    }
++
++    #[test]
++    fn switch_to_chinese() {
++        set_lang("zh-CN");
++        assert_eq!(current_lang(), "zh-CN");
++        // Reset for other tests
++        set_lang("en");
++    }
++
++    #[test]
++    fn normalize_variants() {
++        assert_eq!(normalize_lang("zh"), "zh-CN");
++        assert_eq!(normalize_lang("zh-cn"), "zh-CN");
++        assert_eq!(normalize_lang("ZH_CN"), "zh-CN");
++        assert_eq!(normalize_lang("en"), "en");
++        assert_eq!(normalize_lang("fr"), "fr");
++        assert_eq!(normalize_lang("de"), "en"); // unknown → en
++    }
++}
++
++#[cfg(test)]
++#[path = "tests.rs"]
++mod translation_integration_tests;
+diff --git a/crates/codegen/xai-grok-i18n/src/tests.rs b/crates/codegen/xai-grok-i18n/src/tests.rs
+new file mode 100644
+index 0000000..24d2279
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/src/tests.rs
+@@ -0,0 +1,53 @@
++#[cfg(test)]
++mod translation_tests {
++    use crate::current_lang;
++    use crate::set_lang;
++    use crate::tr;
++
++    #[test]
++    fn zh_cn_translations_work() {
++        let original = current_lang();
++
++        set_lang("zh-CN");
++        assert_eq!(current_lang(), "zh-CN");
++
++        // Verify actual translations work
++        assert_eq!(tr!("Switch language"), "切换语言");
++        assert_eq!(tr!("Quit the application"), "退出应用程序");
++        assert_eq!(tr!("Start a new session"), "开始新会话");
++        assert_eq!(tr!("Open the settings modal"), "打开设置面板");
++
++        // Verify English fallback for untranslated keys
++        assert_eq!(tr!("Some unknown key"), "Some unknown key");
++
++        // Reset to original
++        set_lang(&original);
++    }
++
++    #[test]
++    fn ja_translations_work() {
++        let original = current_lang();
++
++        set_lang("ja");
++        assert_eq!(current_lang(), "ja");
++        assert_eq!(tr!("Switch language"), "言語を切り替え");
++        assert_eq!(tr!("Quit the application"), "アプリケーションを終了");
++
++        set_lang(&original);
++    }
++
++    #[test]
++    fn round_trip_en_to_zh_and_back() {
++        let original = current_lang();
++
++        set_lang("zh-CN");
++        let zh = tr!("Switch language");
++        assert_eq!(zh, "切换语言");
++
++        set_lang("en");
++        let en = tr!("Switch language");
++        assert_eq!(en, "Switch language");
++
++        set_lang(&original);
++    }
++}
+diff --git a/crates/codegen/xai-grok-i18n/src/translations/fr.json b/crates/codegen/xai-grok-i18n/src/translations/fr.json
+new file mode 100644
+index 0000000..8e8e23b
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/src/translations/fr.json
+@@ -0,0 +1,139 @@
++{
++  "Quit the application": "Quitter l'application",
++  "Browse commands and keyboard shortcuts": "Parcourir les commandes et raccourcis clavier",
++  "Open How-to Guides or online Build docs": "Ouvrir les guides pratiques ou la documentation Build en ligne",
++  "/docs [web|title]": "/docs [web|titre]",
++  "Return to the welcome screen": "Retourner à l'écran d'accueil",
++  "Start a new session": "Démarrer une nouvelle session",
++  "Branch the current session into a peer agent": "Brancher la session actuelle vers un agent pair",
++  "/fork [--worktree|--no-worktree] [directive]": "/fork [--worktree|--no-worktree] [directive]",
++  "Compact conversation history": "Compacter l'historique de conversation",
++  "/compact compaction instructions": "/compact instructions de compactage",
++  "Copy last response to clipboard or file (/copy [N] [file])": "Copier la dernière réponse dans le presse-papiers ou un fichier",
++  "/copy [N] [file]": "/copy [N] [fichier]",
++  "Search the conversation scrollback": "Rechercher dans l'historique de conversation",
++  "/find [text]": "/find [texte]",
++  "Search prompt history": "Rechercher dans l'historique des invites",
++  "Export the current conversation to a file or clipboard": "Exporter la conversation actuelle vers un fichier ou le presse-papiers",
++  "/export [filename]": "/export [nom_fichier]",
++  "View the full conversation transcript in your pager ($PAGER)": "Afficher la transcription complète de la conversation dans votre pagineur ($PAGER)",
++  "/transcript": "/transcript",
++  "Open an external editor for an empty prompt; use the command palette to preserve a draft": "Ouvrir un éditeur externe pour une invite vide ; utilisez la palette de commandes pour conserver un brouillon",
++  "/edit-prompt": "/edit-prompt",
++  "Re-print the last collapsed block, fully expanded (minimal mode)": "Ré-afficher le dernier bloc réduit, entièrement déplié (mode minimal)",
++  "View context usage": "Afficher l'utilisation du contexte",
++  "Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen": "Rouvrir cette session en mode minimal (navigation native) — revenir avec /fullscreen",
++  "/minimal": "/minimal",
++  "Reopen this session in fullscreen mode — switch back with /minimal": "Rouvrir cette session en mode plein écran — revenir avec /minimal",
++  "/fullscreen": "/fullscreen",
++  "Switch the active model": "Changer le modèle actif",
++  "/model <name> [effort]": "/model <nom> [effort]",
++  "Set reasoning effort for the current model": "Définir l'effort de raisonnement pour le modèle actuel",
++  "/effort <level>": "/effort <niveau>",
++  "Toggle always-approve mode (skip all permission prompts)": "Activer/désactiver le mode d'approbation automatique (ignorer toutes les demandes de permission)",
++  "/always-approve": "/always-approve",
++  "Toggle auto mode (classifier approves safe tools)": "Activer/désactiver le mode automatique (le classifieur approuve les outils sûrs)",
++  "/auto": "/auto",
++  "Toggle multiline input mode (swap Enter and Shift+Enter)": "Activer/désactiver le mode de saisie multiligne (inverser Entrée et Maj+Entrée)",
++  "/multiline": "/multiline",
++  "Toggle compact UI (less padding, more content)": "Activer/désactiver l'interface compacte (moins d'espacement, plus de contenu)",
++  "/compact-mode": "/compact-mode",
++  "Toggle vim-style scrollback keybindings (j/k, h/l, g/G, y/Y, …)": "Activer/désactiver les raccourcis clavier de navigation style Vim (j/k, h/l, g/G, y/Y, …)",
++  "/vim-mode": "/vim-mode",
++  "View hooks": "Afficher les hooks",
++  "/hooks": "/hooks",
++  "View plugins": "Afficher les plugins",
++  "/plugins": "/plugins",
++  "View marketplace": "Afficher le marketplace",
++  "/marketplace": "/marketplace",
++  "View skills": "Afficher les compétences",
++  "/skills": "/skills",
++  "Share this session via URL": "Partager cette session via URL",
++  "/share": "/share",
++  "Show session info": "Afficher les informations de session",
++  "/session-info": "/session-info",
++  "Rename the current session": "Renommer la session actuelle",
++  "/rename <title>": "/rename <titre>",
++  "Open the Agent Dashboard — a fullscreen overview of every running session": "Ouvrir le tableau de bord Agent — un aperçu plein écran de toutes les sessions en cours",
++  "/dashboard": "/dashboard",
++  "Change the working directory for new agents": "Changer le répertoire de travail pour les nouveaux agents",
++  "/cd [path]": "/cd [chemin]",
++  "Switch the color theme": "Changer le thème de couleur",
++  "/theme <name>": "/theme <nom>",
++  "Send feedback about the current session": "Envoyer un commentaire sur la session actuelle",
++  "/feedback [text]": "/feedback [texte]",
++  "Show or hide announcements": "Afficher ou masquer les annonces",
++  "/announcements hide | show": "/announcements hide | show",
++  "Save a memory note": "Enregistrer une note mémoire",
++  "/remember [text]": "/remember [texte]",
++  "Enter plan mode": "Entrer en mode planification",
++  "/plan [description]": "/plan [description]",
++  "View the current plan": "Afficher le plan actuel",
++  "/view-plan": "/view-plan",
++  "Resume a previous session": "Reprendre une session précédente",
++  "/resume": "/resume",
++  "Show MCP server status": "Afficher le statut des serveurs MCP",
++  "/mcps": "/mcps",
++  "Show workflow runs (phases, agents, progress)": "Afficher les exécutions de workflow (phases, agents, progression)",
++  "/workflows": "/workflows",
++  "Ask a side question without interrupting": "Poser une question annexe sans interrompre",
++  "/btw <question>": "/btw <question>",
++  "Summarize the session so far": "Résumer la session en cours",
++  "/recap": "/recap",
++  "Check terminal, color, clipboard, and voice input": "Vérifier le terminal, les couleurs, le presse-papiers et la saisie vocale",
++  "/doctor": "/doctor",
++  "Dictation (Ctrl+Space/F8; Esc/Enter to stop) [Kitty] / Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop) [non-Kitty]": "Dictée (Ctrl+Espace/F8 ; Échap/Entrée pour arrêter) [Kitty] / Activer/désactiver la dictée (Ctrl+Espace/F8 ; Échap/Entrée pour arrêter) [non-Kitty]",
++  "/voice": "/voice",
++  "Run a prompt on a recurring interval": "Exécuter une invite à intervalles réguliers",
++  "/loop [interval] <prompt>": "/loop [interval] <invite>",
++  "Generate an image from a text description": "Générer une image à partir d'une description textuelle",
++  "/imagine <description>": "/imagine <description>",
++  "Generate a video from a text description": "Générer une vidéo à partir d'une description textuelle",
++  "/imagine-video <description>": "/imagine-video <description>",
++  "Toggle message timestamps on/off": "Activer/désactiver les horodatages des messages",
++  "/timestamps": "/timestamps",
++  "Toggle the timeline sidebar": "Activer/désactiver la barre latérale de chronologie",
++  "/timeline": "/timeline",
++  "Toggle terminal mouse reporting (native click-drag copy/paste)": "Activer/désactiver le rapport de souris du terminal (copier/coller natif par cliquer-glisser)",
++  "/toggle-mouse-reporting": "/toggle-mouse-reporting",
++  "Open the settings modal": "Ouvrir le panneau de paramètres",
++  "/settings": "/settings",
++  "Show or toggle privacy & data retention status": "Afficher ou modifier le statut de confidentialité et de conservation des données",
++  "/privacy [opt-in|opt-out]": "/privacy [opt-in|opt-out]",
++  "Rewind to a previous turn": "Revenir à un tour précédent",
++  "/rewind": "/rewind",
++  "Jump to a turn in the conversation": "Aller à un tour de la conversation",
++  "/jump": "/jump",
++  "Log in or re-authenticate with your account": "Se connecter ou se ré-authentifier avec votre compte",
++  "/login": "/login",
++  "Log out and return to the login screen": "Se déconnecter et revenir à l'écran de connexion",
++  "/logout": "/logout",
++  "Open the Claude settings import modal": "Ouvrir le panneau d'importation des paramètres Claude",
++  "/import-claude": "/import-claude",
++  "View usage": "Afficher l'utilisation",
++  "/usage [show|manage]": "/usage [show|manage]",
++  "List the prompts queued behind the running turn": "Lister les invites en file d'attente derrière le tour en cours",
++  "/queue": "/queue",
++  "List background tasks, subagents, and scheduled tasks": "Lister les tâches d'arrière-plan, les sous-agents et les tâches planifiées",
++  "/tasks": "/tasks",
++  "View release notes for the current version": "Afficher les notes de version pour la version actuelle",
++  "/release-notes": "/release-notes",
++  "Manage agent definitions": "Gérer les définitions d'agent",
++  "/config-agents": "/config-agents",
++  "Manage personas (create, edit, delete)": "Gérer les personas (créer, modifier, supprimer)",
++  "/personas": "/personas",
++  "Hidden easter egg": "Œuf de Pâques caché",
++  "/gboom": "/gboom",
++  "Toggle the scroll-diagnostics HUD": "Activer/désactiver l'affichage de diagnostic de défilement",
++  "/scroll-debug": "/scroll-debug",
++  "Toggle debug overlays": "Activer/désactiver les superpositions de débogage",
++  "/debug [scroll|fps|log]": "/debug [scroll|fps|log]",
++
++  "Switch language": "Changer la langue",
++  "/lang <code>": "/lang <code>",
++
++  "Languages": "Langues",
++  "Language": "Langue",
++  "en": "Anglais",
++  "zh-CN": "Chinois (simplifié)"
++}
+diff --git a/crates/codegen/xai-grok-i18n/src/translations/ja.json b/crates/codegen/xai-grok-i18n/src/translations/ja.json
+new file mode 100644
+index 0000000..fc57e5f
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/src/translations/ja.json
+@@ -0,0 +1,140 @@
++{
++  "Quit the application": "アプリケーションを終了",
++  "Browse commands and keyboard shortcuts": "コマンドとキーボードショートカットを閲覧",
++  "Open How-to Guides or online Build docs": "ハウツーガイドまたはオンラインドキュメントを開く",
++  "/docs [web|title]": "/docs [web|タイトル]",
++  "Return to the welcome screen": "ウェルカム画面に戻る",
++  "Start a new session": "新規セッションを開始",
++  "Branch the current session into a peer agent": "現在のセッションをピアエージェントに分岐",
++  "/fork [--worktree|--no-worktree] [directive]": "/fork [--worktree|--no-worktree] [指示]",
++  "Compact conversation history": "会話履歴を圧縮",
++  "/compact compaction instructions": "/compact 圧縮指示",
++  "Copy last response to clipboard or file (/copy [N] [file])": "最後の応答をクリップボードまたはファイルにコピー",
++  "/copy [N] [file]": "/copy [N] [ファイル]",
++  "Search the conversation scrollback": "会話のスクロールバックを検索",
++  "/find [text]": "/find [テキスト]",
++  "Search prompt history": "プロンプト履歴を検索",
++  "Export the current conversation to a file or clipboard": "現在の会話をファイルまたはクリップボードにエクスポート",
++  "/export [filename]": "/export [ファイル名]",
++  "View the full conversation transcript in your pager ($PAGER)": "ページャーで会話の完全なトランスクリプトを表示",
++  "/transcript": "/transcript",
++  "Open an external editor for an empty prompt; use the command palette to preserve a draft": "外部エディタで空のプロンプトを開く（下書きを保持するにはコマンドパレットを使用）",
++  "/edit-prompt": "/edit-prompt",
++  "Re-print the last collapsed block, fully expanded (minimal mode)": "最後に折りたたまれたブロックを完全展開して再表示（最小化モード）",
++  "View context usage": "コンテキスト使用量を表示",
++  "Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen": "最小化モードでこのセッションを再表示 — /fullscreen で切替",
++  "/minimal": "/minimal",
++  "Reopen this session in fullscreen mode — switch back with /minimal": "フルスクリーンモードでこのセッションを再表示 — /minimal で切替",
++  "/fullscreen": "/fullscreen",
++  "Switch the active model": "アクティブモデルを切り替え",
++  "/model <name> [effort]": "/model <名前> [強度]",
++  "Set reasoning effort for the current model": "現在のモデルの推論強度を設定",
++  "/effort <level>": "/effort <レベル>",
++  "Toggle always-approve mode (skip all permission prompts)": "常に承認モードを切り替え（すべての権限プロンプトをスキップ）",
++  "/always-approve": "/always-approve",
++  "Toggle auto mode (classifier approves safe tools)": "自動モードを切り替え（分類器が安全なツールを自動承認）",
++  "/auto": "/auto",
++  "Toggle multiline input mode (swap Enter and Shift+Enter)": "複数行入力モードを切り替え（Enter と Shift+Enter を入れ替え）",
++  "/multiline": "/multiline",
++  "Toggle compact UI (less padding, more content)": "コンパクトUIを切り替え（余白を減らしコンテンツを拡大）",
++  "/compact-mode": "/compact-mode",
++  "Toggle vim-style scrollback keybindings (j/k, h/l, g/G, y/Y, …)": "Vim スタイルのスクロールバックキーバインドを切り替え",
++  "/vim-mode": "/vim-mode",
++  "View hooks": "フックを表示",
++  "/hooks": "/hooks",
++  "View plugins": "プラグインを表示",
++  "/plugins": "/plugins",
++  "View marketplace": "マーケットプレイスを表示",
++  "/marketplace": "/marketplace",
++  "View skills": "スキルを表示",
++  "/skills": "/skills",
++  "Share this session via URL": "このセッションをURLで共有",
++  "/share": "/share",
++  "Show session info": "セッション情報を表示",
++  "/session-info": "/session-info",
++  "Rename the current session": "現在のセッション名を変更",
++  "/rename <title>": "/rename <タイトル>",
++  "Open the Agent Dashboard — a fullscreen overview of every running session": "エージェントダッシュボードを開く — 実行中の全セッションの概要",
++  "/dashboard": "/dashboard",
++  "Change the working directory for new agents": "新規エージェントの作業ディレクトリを変更",
++  "/cd [path]": "/cd [パス]",
++  "Switch the color theme": "カラーテーマを切り替え",
++  "/theme <name>": "/theme <名前>",
++  "Send feedback about the current session": "現在のセッションのフィードバックを送信",
++  "/feedback [text]": "/feedback [テキスト]",
++  "Show or hide announcements": "お知らせの表示/非表示を切り替え",
++  "/announcements hide | show": "/announcements hide | show",
++  "Save a memory note": "メモリノートを保存",
++  "/remember [text]": "/remember [テキスト]",
++  "Enter plan mode": "計画モードに入る",
++  "/plan [description]": "/plan [説明]",
++  "View the current plan": "現在の計画を表示",
++  "/view-plan": "/view-plan",
++  "Resume a previous session": "以前のセッションを再開",
++  "/resume": "/resume",
++  "Show MCP server status": "MCP サーバーの状態を表示",
++  "/mcps": "/mcps",
++  "Show workflow runs (phases, agents, progress)": "ワークフロー実行を表示（フェーズ、エージェント、進捗）",
++  "/workflows": "/workflows",
++  "Ask a side question without interrupting": "中断せずにサイド質問をする",
++  "/btw <question>": "/btw <質問>",
++  "Summarize the session so far": "ここまでのセッションを要約",
++  "/recap": "/recap",
++  "Check terminal, color, clipboard, and voice input": "端末、色、クリップボード、音声入力を診断",
++  "/doctor": "/doctor",
++  "Dictation (Ctrl+Space/F8; Esc/Enter to stop) [Kitty] / Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop) [non-Kitty]": "音声入力",
++  "/voice": "/voice",
++  "Run a prompt on a recurring interval": "定期的にプロンプトを実行",
++  "/loop [interval] <prompt>": "/loop [間隔] <プロンプト>",
++  "Generate an image from a text description": "テキスト説明から画像を生成",
++  "/imagine <description>": "/imagine <説明>",
++  "Generate a video from a text description": "テキスト説明から動画を生成",
++  "/imagine-video <description>": "/imagine-video <説明>",
++  "Toggle message timestamps on/off": "メッセージのタイムスタンプ表示を切り替え",
++  "/timestamps": "/timestamps",
++  "Toggle the timeline sidebar": "タイムラインサイドバーを切り替え",
++  "/timeline": "/timeline",
++  "Toggle terminal mouse reporting (native click-drag copy/paste)": "端末のマウスレポートを切り替え（ネイティブのクリックドラッグコピー）",
++  "/toggle-mouse-reporting": "/toggle-mouse-reporting",
++  "Open the settings modal": "設定パネルを開く",
++  "/settings": "/settings",
++  "Show or toggle privacy & data retention status": "プライバシーとデータ保持状態を表示/切替",
++  "/privacy [opt-in|opt-out]": "/privacy [opt-in|opt-out]",
++  "Rewind to a previous turn": "前のターンに巻き戻し",
++  "/rewind": "/rewind",
++  "Jump to a turn in the conversation": "会話内のターンにジャンプ",
++  "/jump": "/jump",
++  "Log in or re-authenticate with your account": "アカウントでログインまたは再認証",
++  "/login": "/login",
++  "Log out and return to the login screen": "ログアウトしてログイン画面に戻る",
++  "/logout": "/logout",
++  "Open the Claude settings import modal": "Claude 設定インポートパネルを開く",
++  "/import-claude": "/import-claude",
++  "View usage": "使用量を表示",
++  "/usage [show|manage]": "/usage [show|manage]",
++  "List the prompts queued behind the running turn": "実行中のターンの後続キューにあるプロンプトを一覧表示",
++  "/queue": "/queue",
++  "List background tasks, subagents, and scheduled tasks": "バックグラウンドタスク、サブエージェント、定期タスクを一覧表示",
++  "/tasks": "/tasks",
++  "View release notes for the current version": "現在のバージョンのリリースノートを表示",
++  "/release-notes": "/release-notes",
++  "Manage agent definitions": "エージェント定義を管理",
++  "/config-agents": "/config-agents",
++  "Manage personas (create, edit, delete)": "ペルソナを管理（作成、編集、削除）",
++  "/personas": "/personas",
++  "Hidden easter egg": "隠しイースターエッグ",
++  "/gboom": "/gboom",
++  "Toggle the scroll-diagnostics HUD": "スクロール診断HUDを切り替え",
++  "/scroll-debug": "/scroll-debug",
++  "Toggle debug overlays": "デバッグオーバーレイを切り替え",
++  "/debug [scroll|fps|log]": "/debug [scroll|fps|log]",
++
++  "Switch language": "言語を切り替え",
++  "/lang <code>": "/lang <コード>",
++
++  "Languages": "言語",
++  "Language": "言語",
++  "en": "English",
++  "zh-CN": "中文",
++  "ja": "日本語"
++}
+diff --git a/crates/codegen/xai-grok-i18n/src/translations/ko.json b/crates/codegen/xai-grok-i18n/src/translations/ko.json
+new file mode 100644
+index 0000000..c6784f5
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/src/translations/ko.json
+@@ -0,0 +1,140 @@
++{
++  "Quit the application": "애플리케이션 종료",
++  "Browse commands and keyboard shortcuts": "명령어 및 키보드 단축키 탐색",
++  "Open How-to Guides or online Build docs": "사용 가이드 또는 온라인 Build 문서 열기",
++  "/docs [web|title]": "/docs [web|제목]",
++  "Return to the welcome screen": "환영 화면으로 돌아가기",
++  "Start a new session": "새 세션 시작하기",
++  "Branch the current session into a peer agent": "현재 세션을 피어 Agent로 분기하기",
++  "/fork [--worktree|--no-worktree] [directive]": "/fork [--worktree|--no-worktree] [지시어]",
++  "Compact conversation history": "대화 기록 압축하기",
++  "/compact compaction instructions": "/compact 압축 지시어",
++  "Copy last response to clipboard or file (/copy [N] [file])": "마지막 응답을 클립보드 또는 파일로 복사",
++  "/copy [N] [file]": "/copy [N] [파일]",
++  "Search the conversation scrollback": "대화 내용 검색하기",
++  "/find [text]": "/find [텍스트]",
++  "Search prompt history": "프롬프트 기록 검색하기",
++  "Export the current conversation to a file or clipboard": "현재 대화를 파일 또는 클립보드로 내보내기",
++  "/export [filename]": "/export [파일명]",
++  "View the full conversation transcript in your pager ($PAGER)": "페이저에서 전체 대화 기록 보기 ($PAGER)",
++  "/transcript": "/transcript",
++  "Open an external editor for an empty prompt; use the command palette to preserve a draft": "외부 편집기로 빈 프롬프트 열기; 명령 팔레트로 초안 보존 가능",
++  "/edit-prompt": "/edit-prompt",
++  "Re-print the last collapsed block, fully expanded (minimal mode)": "마지막으로 접힌 블록을 전체 펼쳐서 다시 출력 (최소 모드)",
++  "View context usage": "컨텍스트 사용량 보기",
++  "Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen": "최소 모드로 이 세션 다시 열기 — /fullscreen으로 전환",
++  "/minimal": "/minimal",
++  "Reopen this session in fullscreen mode — switch back with /minimal": "전체 화면 모드로 이 세션 다시 열기 — /minimal로 전환",
++  "/fullscreen": "/fullscreen",
++  "Switch the active model": "현재 모델 전환하기",
++  "/model <name> [effort]": "/model <이름> [강도]",
++  "Set reasoning effort for the current model": "현재 모델의 추론 강도 설정하기",
++  "/effort <level>": "/effort <레벨>",
++  "Toggle always-approve mode (skip all permission prompts)": "항상 승인 모드 전환 (모든 권한 프롬프트 건너뛰기)",
++  "/always-approve": "/always-approve",
++  "Toggle auto mode (classifier approves safe tools)": "자동 모드 전환 (분류기가 안전한 도구 자동 승인)",
++  "/auto": "/auto",
++  "Toggle multiline input mode (swap Enter and Shift+Enter)": "멀티라인 입력 모드 전환 (Enter와 Shift+Enter 교체)",
++  "/multiline": "/multiline",
++  "Toggle compact UI (less padding, more content)": "컴팩트 UI 전환 (여백 축소, 콘텐츠 확대)",
++  "/compact-mode": "/compact-mode",
++  "Toggle vim-style scrollback keybindings (j/k, h/l, g/G, y/Y, …)": "Vim 스타일 스크롤백 키바인딩 전환 (j/k, h/l, g/G, y/Y 등)",
++  "/vim-mode": "/vim-mode",
++  "View hooks": "훅 보기",
++  "/hooks": "/hooks",
++  "View plugins": "플러그인 보기",
++  "/plugins": "/plugins",
++  "View marketplace": "마켓플레이스 보기",
++  "/marketplace": "/marketplace",
++  "View skills": "스킬 보기",
++  "/skills": "/skills",
++  "Share this session via URL": "이 세션을 URL로 공유하기",
++  "/share": "/share",
++  "Show session info": "세션 정보 표시",
++  "/session-info": "/session-info",
++  "Rename the current session": "현재 세션 이름 변경하기",
++  "/rename <title>": "/rename <제목>",
++  "Open the Agent Dashboard — a fullscreen overview of every running session": "Agent 대시보드 열기 — 실행 중인 모든 세션의 전체 화면 개요",
++  "/dashboard": "/dashboard",
++  "Change the working directory for new agents": "새 Agent의 작업 디렉터리 변경하기",
++  "/cd [path]": "/cd [경로]",
++  "Switch the color theme": "색상 테마 전환하기",
++  "/theme <name>": "/theme <이름>",
++  "Send feedback about the current session": "현재 세션에 대한 피드백 보내기",
++  "/feedback [text]": "/feedback [텍스트]",
++  "Show or hide announcements": "공지사항 표시 또는 숨기기",
++  "/announcements hide | show": "/announcements hide | show",
++  "Save a memory note": "메모 저장하기",
++  "/remember [text]": "/remember [텍스트]",
++  "Enter plan mode": "계획 모드 진입하기",
++  "/plan [description]": "/plan [설명]",
++  "View the current plan": "현재 계획 보기",
++  "/view-plan": "/view-plan",
++  "Resume a previous session": "이전 세션 다시 시작하기",
++  "/resume": "/resume",
++  "Show MCP server status": "MCP 서버 상태 표시",
++  "/mcps": "/mcps",
++  "Show workflow runs (phases, agents, progress)": "워크플로우 실행 표시 (단계, Agent, 진행률)",
++  "/workflows": "/workflows",
++  "Ask a side question without interrupting": "대화 중단 없이 부가 질문하기",
++  "/btw <question>": "/btw <질문>",
++  "Summarize the session so far": "지금까지의 세션 요약하기",
++  "/recap": "/recap",
++  "Check terminal, color, clipboard, and voice input": "터미널, 색상, 클립보드 및 음성 입력 상태 확인",
++  "/doctor": "/doctor",
++  "Dictation (Ctrl+Space/F8; Esc/Enter to stop) [Kitty] / Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop) [non-Kitty]": "음성 입력 (Ctrl+Space/F8; Esc/Enter로 중지)",
++  "/voice": "/voice",
++  "Run a prompt on a recurring interval": "정기 간격으로 프롬프트 실행하기",
++  "/loop [interval] <prompt>": "/loop [간격] <프롬프트>",
++  "Generate an image from a text description": "텍스트 설명으로 이미지 생성하기",
++  "/imagine <description>": "/imagine <설명>",
++  "Generate a video from a text description": "텍스트 설명으로 비디오 생성하기",
++  "/imagine-video <description>": "/imagine-video <설명>",
++  "Toggle message timestamps on/off": "메시지 타임스탬프 표시 전환",
++  "/timestamps": "/timestamps",
++  "Toggle the timeline sidebar": "타임라인 사이드바 전환",
++  "/timeline": "/timeline",
++  "Toggle terminal mouse reporting (native click-drag copy/paste)": "터미널 마우스 지원 전환 (네이티브 클릭-드래그 복사/붙여넣기)",
++  "/toggle-mouse-reporting": "/toggle-mouse-reporting",
++  "Open the settings modal": "설정 패널 열기",
++  "/settings": "/settings",
++  "Show or toggle privacy & data retention status": "개인정보 및 데이터 보존 상태 표시 또는 전환",
++  "/privacy [opt-in|opt-out]": "/privacy [opt-in|opt-out]",
++  "Rewind to a previous turn": "이전 대화 턴으로 되돌리기",
++  "/rewind": "/rewind",
++  "Jump to a turn in the conversation": "대화의 특정 턴으로 이동하기",
++  "/jump": "/jump",
++  "Log in or re-authenticate with your account": "계정으로 로그인 또는 재인증하기",
++  "/login": "/login",
++  "Log out and return to the login screen": "로그아웃 후 로그인 화면으로 돌아가기",
++  "/logout": "/logout",
++  "Open the Claude settings import modal": "Claude 설정 가져오기 패널 열기",
++  "/import-claude": "/import-claude",
++  "View usage": "사용량 보기",
++  "/usage [show|manage]": "/usage [show|manage]",
++  "List the prompts queued behind the running turn": "실행 중인 턴 뒤에 대기 중인 프롬프트 나열",
++  "/queue": "/queue",
++  "List background tasks, subagents, and scheduled tasks": "백그라운드 작업, 서브에이전트 및 예약 작업 나열",
++  "/tasks": "/tasks",
++  "View release notes for the current version": "현재 버전의 릴리스 노트 보기",
++  "/release-notes": "/release-notes",
++  "Manage agent definitions": "Agent 정의 관리하기",
++  "/config-agents": "/config-agents",
++  "Manage personas (create, edit, delete)": "페르소나 관리 (생성, 편집, 삭제)",
++  "/personas": "/personas",
++  "Hidden easter egg": "숨겨진 이스터 에그",
++  "/gboom": "/gboom",
++  "Toggle the scroll-diagnostics HUD": "스크롤 진단 HUD 전환",
++  "/scroll-debug": "/scroll-debug",
++  "Toggle debug overlays": "디버그 오버레이 전환",
++  "/debug [scroll|fps|log]": "/debug [scroll|fps|log]",
++
++  "Switch language": "언어 전환하기",
++  "/lang <code>": "/lang <코드>",
++
++  "Languages": "언어",
++  "Language": "언어",
++  "en": "English",
++  "zh-CN": "中文",
++  "ko": "한국어"
++}
+diff --git a/crates/codegen/xai-grok-i18n/src/translations/ru.json b/crates/codegen/xai-grok-i18n/src/translations/ru.json
+new file mode 100644
+index 0000000..99b1bf7
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/src/translations/ru.json
+@@ -0,0 +1,140 @@
++{
++  "Quit the application": "Выйти из приложения",
++  "Browse commands and keyboard shortcuts": "Просмотр команд и сочетаний клавиш",
++  "Open How-to Guides or online Build docs": "Открыть руководства или онлайн-документацию Build",
++  "/docs [web|title]": "/docs [web|заголовок]",
++  "Return to the welcome screen": "Вернуться на экран приветствия",
++  "Start a new session": "Начать новую сессию",
++  "Branch the current session into a peer agent": "Ответвить текущую сессию в параллельного агента",
++  "/fork [--worktree|--no-worktree] [directive]": "/fork [--worktree|--no-worktree] [инструкция]",
++  "Compact conversation history": "Сжать историю диалога",
++  "/compact compaction instructions": "/compact инструкции сжатия",
++  "Copy last response to clipboard or file (/copy [N] [file])": "Копировать последний ответ в буфер обмена или файл",
++  "/copy [N] [file]": "/copy [N] [файл]",
++  "Search the conversation scrollback": "Поиск в истории диалога",
++  "/find [text]": "/find [текст]",
++  "Search prompt history": "Поиск в истории запросов",
++  "Export the current conversation to a file or clipboard": "Экспортировать текущий диалог в файл или буфер обмена",
++  "/export [filename]": "/export [имя файла]",
++  "View the full conversation transcript in your pager ($PAGER)": "Просмотреть полную стенограмму диалога в пейджере ($PAGER)",
++  "/transcript": "/transcript",
++  "Open an external editor for an empty prompt; use the command palette to preserve a draft": "Открыть внешний редактор для пустого запроса; используйте палитру команд для сохранения черновика",
++  "/edit-prompt": "/edit-prompt",
++  "Re-print the last collapsed block, fully expanded (minimal mode)": "Повторно вывести последний свёрнутый блок в развёрнутом виде (минимальный режим)",
++  "View context usage": "Просмотр использования контекста",
++  "Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen": "Переоткрыть сессию в минимальном режиме — вернуться через /fullscreen",
++  "/minimal": "/minimal",
++  "Reopen this session in fullscreen mode — switch back with /minimal": "Переоткрыть сессию в полноэкранном режиме — вернуться через /minimal",
++  "/fullscreen": "/fullscreen",
++  "Switch the active model": "Сменить активную модель",
++  "/model <name> [effort]": "/model <название> [усилие]",
++  "Set reasoning effort for the current model": "Установить уровень рассуждения для текущей модели",
++  "/effort <level>": "/effort <уровень>",
++  "Toggle always-approve mode (skip all permission prompts)": "Переключить режим автоподтверждения (пропускать все запросы разрешений)",
++  "/always-approve": "/always-approve",
++  "Toggle auto mode (classifier approves safe tools)": "Переключить автоматический режим (классификатор одобряет безопасные инструменты)",
++  "/auto": "/auto",
++  "Toggle multiline input mode (swap Enter and Shift+Enter)": "Переключить многострочный ввод (поменять Enter и Shift+Enter)",
++  "/multiline": "/multiline",
++  "Toggle compact UI (less padding, more content)": "Переключить компактный интерфейс (меньше отступов, больше содержимого)",
++  "/compact-mode": "/compact-mode",
++  "Toggle vim-style scrollback keybindings (j/k, h/l, g/G, y/Y, …)": "Переключить привязки клавиш в стиле Vim для прокрутки (j/k, h/l, g/G, y/Y, …)",
++  "/vim-mode": "/vim-mode",
++  "View hooks": "Просмотр хуков",
++  "/hooks": "/hooks",
++  "View plugins": "Просмотр плагинов",
++  "/plugins": "/plugins",
++  "View marketplace": "Просмотр маркетплейса",
++  "/marketplace": "/marketplace",
++  "View skills": "Просмотр навыков",
++  "/skills": "/skills",
++  "Share this session via URL": "Поделиться сессией по ссылке",
++  "/share": "/share",
++  "Show session info": "Показать информацию о сессии",
++  "/session-info": "/session-info",
++  "Rename the current session": "Переименовать текущую сессию",
++  "/rename <title>": "/rename <заголовок>",
++  "Open the Agent Dashboard — a fullscreen overview of every running session": "Открыть панель агентов — полноэкранный обзор всех запущенных сессий",
++  "/dashboard": "/dashboard",
++  "Change the working directory for new agents": "Изменить рабочий каталог для новых агентов",
++  "/cd [path]": "/cd [путь]",
++  "Switch the color theme": "Сменить цветовую тему",
++  "/theme <name>": "/theme <название>",
++  "Send feedback about the current session": "Отправить отзыв о текущей сессии",
++  "/feedback [text]": "/feedback [текст]",
++  "Show or hide announcements": "Показать или скрыть объявления",
++  "/announcements hide | show": "/announcements hide | show",
++  "Save a memory note": "Сохранить заметку в память",
++  "/remember [text]": "/remember [текст]",
++  "Enter plan mode": "Войти в режим планирования",
++  "/plan [description]": "/plan [описание]",
++  "View the current plan": "Просмотреть текущий план",
++  "/view-plan": "/view-plan",
++  "Resume a previous session": "Возобновить предыдущую сессию",
++  "/resume": "/resume",
++  "Show MCP server status": "Показать статус MCP-серверов",
++  "/mcps": "/mcps",
++  "Show workflow runs (phases, agents, progress)": "Показать ход рабочих процессов (этапы, агенты, прогресс)",
++  "/workflows": "/workflows",
++  "Ask a side question without interrupting": "Задать побочный вопрос, не прерывая работу",
++  "/btw <question>": "/btw <вопрос>",
++  "Summarize the session so far": "Краткое содержание текущей сессии",
++  "/recap": "/recap",
++  "Check terminal, color, clipboard, and voice input": "Проверить терминал, цветопередачу, буфер обмена и голосовой ввод",
++  "/doctor": "/doctor",
++  "Dictation (Ctrl+Space/F8; Esc/Enter to stop) [Kitty] / Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop) [non-Kitty]": "Голосовой ввод (Ctrl+Space/F8; Esc/Enter — остановить)",
++  "/voice": "/voice",
++  "Run a prompt on a recurring interval": "Запускать запрос с заданным интервалом",
++  "/loop [interval] <prompt>": "/loop [интервал] <запрос>",
++  "Generate an image from a text description": "Создать изображение по текстовому описанию",
++  "/imagine <description>": "/imagine <описание>",
++  "Generate a video from a text description": "Создать видео по текстовому описанию",
++  "/imagine-video <description>": "/imagine-video <описание>",
++  "Toggle message timestamps on/off": "Переключить отображение меток времени",
++  "/timestamps": "/timestamps",
++  "Toggle the timeline sidebar": "Переключить боковую панель хронологии",
++  "/timeline": "/timeline",
++  "Toggle terminal mouse reporting (native click-drag copy/paste)": "Переключить поддержку мыши в терминале (нативное копирование и вставка)",
++  "/toggle-mouse-reporting": "/toggle-mouse-reporting",
++  "Open the settings modal": "Открыть окно настроек",
++  "/settings": "/settings",
++  "Show or toggle privacy & data retention status": "Показать или переключить статус конфиденциальности и хранения данных",
++  "/privacy [opt-in|opt-out]": "/privacy [opt-in|opt-out]",
++  "Rewind to a previous turn": "Вернуться к предыдущему шагу диалога",
++  "/rewind": "/rewind",
++  "Jump to a turn in the conversation": "Перейти к шагу в диалоге",
++  "/jump": "/jump",
++  "Log in or re-authenticate with your account": "Войти или повторно аутентифицироваться",
++  "/login": "/login",
++  "Log out and return to the login screen": "Выйти и вернуться на экран входа",
++  "/logout": "/logout",
++  "Open the Claude settings import modal": "Открыть окно импорта настроек Claude",
++  "/import-claude": "/import-claude",
++  "View usage": "Просмотр использования",
++  "/usage [show|manage]": "/usage [show|manage]",
++  "List the prompts queued behind the running turn": "Показать запросы в очереди за текущим шагом",
++  "/queue": "/queue",
++  "List background tasks, subagents, and scheduled tasks": "Показать фоновые задачи, подагентов и запланированные задачи",
++  "/tasks": "/tasks",
++  "View release notes for the current version": "Просмотреть примечания к текущей версии",
++  "/release-notes": "/release-notes",
++  "Manage agent definitions": "Управление определениями агентов",
++  "/config-agents": "/config-agents",
++  "Manage personas (create, edit, delete)": "Управление персонами (создание, редактирование, удаление)",
++  "/personas": "/personas",
++  "Hidden easter egg": "Скрытая пасхалка",
++  "/gboom": "/gboom",
++  "Toggle the scroll-diagnostics HUD": "Переключить панель диагностики прокрутки",
++  "/scroll-debug": "/scroll-debug",
++  "Toggle debug overlays": "Переключить отладочные слои",
++  "/debug [scroll|fps|log]": "/debug [scroll|fps|log]",
++
++  "Switch language": "Сменить язык",
++  "/lang <code>": "/lang <код>",
++
++  "Languages": "Языки",
++  "Language": "Язык",
++  "en": "English",
++  "zh-CN": "中文",
++  "ru": "Русский"
++}
+diff --git a/crates/codegen/xai-grok-i18n/src/translations/zh-CN.json b/crates/codegen/xai-grok-i18n/src/translations/zh-CN.json
+new file mode 100644
+index 0000000..f910bb3
+--- /dev/null
++++ b/crates/codegen/xai-grok-i18n/src/translations/zh-CN.json
+@@ -0,0 +1,351 @@
++{
++  "Quit the application": "退出应用程序",
++  "Browse commands and keyboard shortcuts": "浏览命令和键盘快捷键",
++  "Open How-to Guides or online Build docs": "打开使用指南或在线文档",
++  "/docs [web|title]": "/docs [web|标题]",
++  "Return to the welcome screen": "返回欢迎屏幕",
++  "Start a new session": "开始新会话",
++  "Branch the current session into a peer agent": "将当前会话分支为对等 Agent",
++  "/fork [--worktree|--no-worktree] [directive]": "/fork [--worktree|--no-worktree] [指令]",
++  "Compact conversation history": "压缩对话历史",
++  "/compact compaction instructions": "/compact 压缩指令",
++  "Copy last response to clipboard or file (/copy [N] [file])": "将最后回复复制到剪贴板或文件",
++  "/copy [N] [file]": "/copy [N] [文件]",
++  "Search the conversation scrollback": "在对话回滚中搜索",
++  "/find [text]": "/find [文本]",
++  "Search prompt history": "搜索提示历史",
++  "Export the current conversation to a file or clipboard": "将当前对话导出到文件或剪贴板",
++  "/export [filename]": "/export [文件名]",
++  "View the full conversation transcript in your pager ($PAGER)": "在分页器中查看完整对话记录",
++  "/transcript": "/transcript",
++  "Open an external editor for an empty prompt; use the command palette to preserve a draft": "用外部编辑器打开空白提示；使用命令面板可保留草稿",
++  "/edit-prompt": "/edit-prompt",
++  "Re-print the last collapsed block, fully expanded (minimal mode)": "完整展开最近折叠的内容块（最小化模式）",
++  "View context usage": "查看上下文用量",
++  "Reopen this session in minimal (scrollback-native) mode — switch back with /fullscreen": "以最小化模式重新打开此会话 — 用 /fullscreen 切回",
++  "/minimal": "/minimal",
++  "Reopen this session in fullscreen mode — switch back with /minimal": "以全屏模式重新打开此会话 — 用 /minimal 切回",
++  "/fullscreen": "/fullscreen",
++  "Switch the active model": "切换当前模型",
++  "/model <name> [effort]": "/model <名称> [强度]",
++  "Set reasoning effort for the current model": "设置当前模型的推理强度",
++  "/effort <level>": "/effort <级别>",
++  "Toggle always-approve mode (skip all permission prompts)": "切换自动批准模式（跳过所有权限提示）",
++  "/always-approve": "/always-approve",
++  "Toggle auto mode (classifier approves safe tools)": "切换自动模式（分类器自动批准安全工具）",
++  "/auto": "/auto",
++  "Toggle multiline input mode (swap Enter and Shift+Enter)": "切换多行输入模式（交换 Enter 和 Shift+Enter）",
++  "/multiline": "/multiline",
++  "Toggle compact UI (less padding, more content)": "切换紧凑界面（减少间距，更多内容）",
++  "/compact-mode": "/compact-mode",
++  "Toggle vim-style scrollback keybindings (j/k, h/l, g/G, y/Y, …)": "切换 Vim 风格回滚键位绑定",
++  "/vim-mode": "/vim-mode",
++  "View hooks": "查看 Hook",
++  "/hooks": "/hooks",
++  "View plugins": "查看插件",
++  "/plugins": "/plugins",
++  "View marketplace": "查看市场",
++  "/marketplace": "/marketplace",
++  "View skills": "查看技能",
++  "/skills": "/skills",
++  "Share this session via URL": "通过 URL 分享此会话",
++  "/share": "/share",
++  "Show session info": "显示会话信息",
++  "/session-info": "/session-info",
++  "Rename the current session": "重命名当前会话",
++  "/rename <title>": "/rename <标题>",
++  "Open the Agent Dashboard — a fullscreen overview of every running session": "打开 Agent 仪表盘 — 所有运行中会话的全屏概览",
++  "/dashboard": "/dashboard",
++  "Change the working directory for new agents": "更改新 Agent 的工作目录",
++  "/cd [path]": "/cd [路径]",
++  "Switch the color theme": "切换颜色主题",
++  "/theme <name>": "/theme <名称>",
++  "Send feedback about the current session": "发送当前会话的反馈",
++  "/feedback [text]": "/feedback [文本]",
++  "Show or hide announcements": "显示或隐藏公告",
++  "/announcements hide | show": "/announcements hide | show",
++  "Save a memory note": "保存记忆笔记",
++  "/remember [text]": "/remember [文本]",
++  "Enter plan mode": "进入计划模式",
++  "/plan [description]": "/plan [描述]",
++  "View the current plan": "查看当前计划",
++  "/view-plan": "/view-plan",
++  "Resume a previous session": "恢复之前的会话",
++  "/resume": "/resume",
++  "Show MCP server status": "显示 MCP 服务器状态",
++  "/mcps": "/mcps",
++  "Show workflow runs (phases, agents, progress)": "显示工作流运行（阶段、Agent、进度）",
++  "/workflows": "/workflows",
++  "Ask a side question without interrupting": "在不中断对话的情况下提问",
++  "/btw <question>": "/btw <问题>",
++  "Summarize the session so far": "摘要当前会话",
++  "/recap": "/recap",
++  "Check terminal, color, clipboard, and voice input": "检查终端、颜色、剪贴板和语音输入",
++  "/doctor": "/doctor",
++  "Dictation (Ctrl+Space/F8; Esc/Enter to stop) [Kitty] / Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop) [non-Kitty]": "语音输入",
++  "/voice": "/voice",
++  "Run a prompt on a recurring interval": "在定时间隔运行提示",
++  "/loop [interval] <prompt>": "/loop [间隔] <提示>",
++  "Generate an image from a text description": "根据文本描述生成图片",
++  "/imagine <description>": "/imagine <描述>",
++  "Generate a video from a text description": "根据文本描述生成视频",
++  "/imagine-video <description>": "/imagine-video <描述>",
++  "Toggle message timestamps on/off": "切换消息时间戳",
++  "/timestamps": "/timestamps",
++  "Toggle the timeline sidebar": "切换时间线侧栏",
++  "/timeline": "/timeline",
++  "Toggle terminal mouse reporting (native click-drag copy/paste)": "切换终端鼠标支持（原生点击拖拽复制）",
++  "/toggle-mouse-reporting": "/toggle-mouse-reporting",
++  "Open the settings modal": "打开设置面板",
++  "/settings": "/settings",
++  "Show or toggle privacy & data retention status": "显示或切换隐私与数据保留状态",
++  "/privacy [opt-in|opt-out]": "/privacy [opt-in|opt-out]",
++  "Rewind to a previous turn": "回退到之前的对话轮次",
++  "/rewind": "/rewind",
++  "Jump to a turn in the conversation": "跳转到对话中的某轮",
++  "/jump": "/jump",
++  "Log in or re-authenticate with your account": "登录或重新认证你的账户",
++  "/login": "/login",
++  "Log out and return to the login screen": "退出登录并返回登录界面",
++  "/logout": "/logout",
++  "Open the Claude settings import modal": "打开 Claude 设置导入面板",
++  "/import-claude": "/import-claude",
++  "View usage": "查看用量",
++  "/usage [show|manage]": "/usage [show|manage]",
++  "List the prompts queued behind the running turn": "列出排队中的提示",
++  "/queue": "/queue",
++  "List background tasks, subagents, and scheduled tasks": "列出后台任务、子Agent和定时任务",
++  "/tasks": "/tasks",
++  "View release notes for the current version": "查看当前版本的发布说明",
++  "/release-notes": "/release-notes",
++  "Manage agent definitions": "管理 Agent 定义",
++  "/config-agents": "/config-agents",
++  "Manage personas (create, edit, delete)": "管理角色（创建、编辑、删除）",
++  "/personas": "/personas",
++  "Hidden easter egg": "隐藏彩蛋",
++  "/gboom": "/gboom",
++  "Toggle the scroll-diagnostics HUD": "切换滚动诊断面板",
++  "/scroll-debug": "/scroll-debug",
++  "Toggle debug overlays": "切换调试覆盖层",
++  "/debug [scroll|fps|log]": "/debug [scroll|fps|log]",
++  "Switch language": "切换语言",
++  "/lang <code>": "/lang <代码>",
++  "Languages": "语言",
++  "Language": "语言",
++  "en": "English",
++  "zh-CN": "中文",
++  " to choose permission scope": " 选择权限范围",
++  " to expand": " 展开",
++  "... ": "... ",
++  "[Refresh]": "[刷新]",
++  "← →": "← →",
++  "accept": "接受",
++  "After double-clicking conversation text while Text selection is fold/nav, remind you that Word select lives in Settings.": "当文本选择设为折叠/导航模式时，双击对话文本后，提醒你词语选择功能在设置中。",
++  "After each turn, predict your likely next prompt and show it as ghost text in the input (Tab to accept). Uses a small model call per turn.": "每轮对话后，预测你可能的下一个提示，并在输入框中显示为幽灵文本（Tab 接受）。每轮调用一次小型模型。",
++  "After you queue a follow-up mid-turn, remind you that Enter on an empty prompt sends the top queued item now.": "在对话中途排队跟进后，提醒你空提示时按 Enter 会立即发送队列中的第一项。",
++  "Agent runs tools and edits files directly (default).": "Agent 直接运行工具并编辑文件（默认）。",
++  "Agent summarises a plan and asks for approval before running tools.": "Agent 总结计划并在运行工具前请求批准。",
++  "agents": "Agent 列表",
++  "Allow SpaceXAI to retain coding session data for model training and product improvement.": "允许 SpaceXAI 保留编码会话数据，用于模型训练和产品改进。",
++  "Always show the raw Mermaid source as a code block.": "始终将原始 Mermaid 源代码显示为代码块。",
++  "Always treat scrolling as a trackpad (fractional accumulation).": "始终将滚动视为触控板（分数累积）。",
++  "Always treat scrolling as wheel notches (fixed lines per tick).": "始终将滚动视为滚轮刻度（每刻度固定行数）。",
++  "always-approve": "始终批准",
++  "approve": "批准",
++  "At session load over SSH, recommend `grok wrap ssh` for clipboard forwarding and terminal restore.": "通过 SSH 加载会话时，推荐使用 `grok wrap ssh` 实现剪贴板转发和终端恢复。",
++  "Auto-approve every tool action. Skips ALL permission prompts.": "自动批准所有工具操作。跳过所有权限提示。",
++  "Automatically download and install pager updates on startup. Restart required.": "启动时自动下载并安装分页器更新。需要重启。",
++  "back": "返回",
++  "Brief highlight on mouse-up, then clear. Double-click toggles fold. Default.": "鼠标松开时短暂高亮，随后清除。双击切换折叠。默认。",
++  "cancel": "取消",
++  "Changelog": "更新日志",
++  "Chat conversations can't be resumed in a worktree": "聊天对话无法在工作树中恢复",
++  "clear": "清除",
++  "close": "关闭",
++  "collapse": "折叠",
++  "Color theme for the pager UI.": "分页器界面的颜色主题。",
++  "Column width budget for the agent's thoughts panel (40-500, default 120).": "Agent 思考面板的列宽限制（40-500，默认 120）。",
++  "comment": "评论",
++  "confirm": "确认",
++  "Controls whether SpaceXAI may retain and train on coding session data. Does not affect product analytics; see Configuration and Monitoring docs.": "控制 SpaceXAI 是否可以保留并训练编码会话数据。不影响产品分析；请参阅配置和监控文档。",
++  "copy": "复制",
++  "Ctrl+Space / F8 starts dictation; press again (or Esc/Enter) to stop.": "Ctrl+Space / F8 启动语音输入；再次按下（或按 Esc/Enter）停止。",
++  "Dark + blue-tinted; needs truecolor.": "深色 + 蓝色调；需要真彩色。",
++  "dashboard": "仪表盘",
++  "Deep dark with warm accents; needs truecolor.": "深邃暗色搭配暖色调点缀；需要真彩色。",
++  "Default uses the agent's built-in behavior; Ask prompts for each tool action; Auto uses an LLM classifier for risky tools; Always approve grants all permissions automatically.": "默认使用 Agent 的内置行为；询问会对每个工具操作弹出提示；自动使用 LLM 分类器处理有风险的工具；始终批准则自动授予所有权限。",
++  "delete": "删除",
++  "Detect wheel vs trackpad per gesture from event timing. Default.": "根据事件时序逐手势检测滚轮和触控板。默认。",
++  "Disable hunk tracking entirely. Also disables LOC tracking.": "完全禁用代码块跟踪。同时禁用代码行数统计。",
++  "dismiss": "忽略",
++  "Do not retain coding session data for training. Does not disable product analytics.": "不保留编码会话数据用于训练。不禁用产品分析。",
++  "Double-click selects & copies a word, triple-click a line; selection stays until dismissed.": "双击选中并复制一个词，三击选中一行；选择保持直到取消。",
++  "drill": "深入",
++  "edit": "编辑",
++  "Enable vim keys (h/j/k/l, gg/G, /) for navigating the scrollback. Does not affect the input prompt.": "启用 Vim 键位（h/j/k/l、gg/G、/）用于导航回滚内容。不影响输入提示。",
++  "expand": "展开",
++  "External sessions can't be resumed in a worktree": "外部会话无法在工作树中恢复",
++  "filename": "文件名",
++  "Fold consecutive read/search/list tool calls and subagent rows into one summary row; finished thoughts fold into the group too.": "将连续的读取/搜索/列表工具调用和子 Agent 行折叠为一行摘要；已完成的思考也会折叠到组中。",
++  "Follow system dark/light appearance.": "跟随系统深色/浅色外观。",
++  "Force wheel or trackpad scroll behavior when auto-detection misreads your device.": "当自动检测误判你的设备时，强制使用滚轮或触控板滚动行为。",
++  "Free": "免费",
++  "from remote": "来自远程",
++  "fullscreen": "全屏",
++  "goto": "跳转",
++  "Hold Ctrl+Space / F8 to record, release to stop. Needs a Kitty-protocol terminal.": "按住 Ctrl+Space / F8 录音，松开停止。需要 Kitty 协议终端。",
++  "How ```mermaid code blocks are shown: auto/on add a clickable row to open the rendered diagram; off shows the raw source.": "```mermaid 代码块的显示方式：auto/on 添加可点击行以打开渲染后的图表；off 显示原始源代码。",
++  "How long in-app selection stays on screen and what double-click does (fold vs. select & copy a word). For your terminal or multiplexer's own selection, hold Shift while dragging (native copy).": "应用内选择的保持时长及双击行为（折叠 vs. 选中并复制一个词）。如需使用终端或复用器自带的选择功能，请按住 Shift 拖动（原生复制）。",
++  "How plain grok opens next time: Fullscreen (default when unset) or Minimal. Writes [ui] screen_mode in config.toml. Restart required. Switch this session only with /minimal or /fullscreen.": "plain grok 下次启动方式：全屏（未设置时的默认值）或最小化。在 config.toml 中写入 [ui] screen_mode。需要重启。仅当前会话可通过 /minimal 或 /fullscreen 切换。",
++  "How the voice chord (Ctrl+Space / F8) behaves: Toggle (press to start/stop) or Hold to talk (hold to record, release to stop; needs a Kitty-protocol terminal).": "语音和弦键（Ctrl+Space / F8）的行为：切换模式（按下开始/停止）或按住说话模式（按住录音，松开停止；需要 Kitty 协议终端）。",
++  "Import Claude settings": "导入 Claude 设置",
++  "Keep manually folded blocks as-is while streaming and stop auto-scroll when expanding a block. Experimental.": "流式输出时保持手动折叠的块不变，展开块时停止自动滚动。实验性功能。",
++  "keep running": "保持运行",
++  "Keep the selection visible until Esc, click, or scroll. Double-click toggles fold.": "保持选择可见，直到按 Esc、点击或滚动。双击切换折叠。",
++  "Light theme for bright environments.": "适合明亮环境的浅色主题。",
++  "Lines per scroll tick for both wheel and trackpad (1-10). Until set, each terminal's own profile applies.": "滚轮和触控板每次滚动的行数（1-10）。未设置时，使用各终端自身的配置文件。",
++  "LLM classifier approves safe tools; dangerous actions may still prompt or deny.": "LLM 分类器自动批准安全工具；危险操作可能仍会提示或拒绝。",
++  "Loading session": "正在加载会话",
++  "Login with": "使用以下方式登录",
++  "Logout": "退出登录",
++  "Merge consecutive plain follow-ups into one model turn (TUI shows one bubble each). Stops at bash, slash commands, cron, expanded skills, image follow-ups, or a row under edit. Default off; applies on local drain and shell promote.": "将连续的纯文本跟进合并为一个模型回合（TUI 中各显示一个气泡）。遇到 bash、斜杠命令、cron、展开的技能、图片跟进或编辑中的行时停止合并。默认关闭；适用于本地排空和 shell 提升场景。",
++  "Model used for new sessions. Changing this also switches the active session. Pick `(no override)` to clear.": "新会话使用的模型。更改此设置也会切换当前会话的模型。选择 `(no override)` 可清除。",
++  "Model used for the secondary agent when forking. Pick `(no override)` to clear.": "分支时二级 Agent 使用的模型。选择 `(no override)` 可清除。",
++  "Mouse-wheel and trackpad scroll speed multiplier (1-100). Higher = faster.": "鼠标滚轮和触控板滚动速度倍率（1-100）。数值越高越快。",
++  "Muted dark with mauve accents; needs truecolor.": "柔和暗色搭配淡紫色调点缀；需要真彩色。",
++  "nav": "导航",
++  "Neutral dark with magenta accent.": "中性暗色搭配洋红色调点缀。",
++  "New worktree": "新建工作树",
++  "No, quit": "否，退出",
++  "No, reject (type to add feedback)": "否，拒绝（输入以添加反馈）",
++  "Offer to paste an image when one is on the clipboard and the model accepts images.": "当剪贴板中有图片且模型支持图片时，提示粘贴图片。",
++  "On high-refresh displays, the TUI will stream/scroll faster to match the display. Off keeps the classic ~60 Hz cadence. Restart required.": "在高刷新率显示器上，TUI 将以更快速度流式输出/滚动以匹配显示器刷新率。关闭则保持经典 ~60 Hz 节奏。需要重启。",
++  "Open plain grok in scrollback-native (minimal) mode.": "以回滚原生（最小化）模式打开 plain grok。",
++  "Open plain grok in the standard fullscreen TUI. Default when unset.": "以标准全屏 TUI 模式打开 plain grok。未设置时的默认值。",
++  "Per-turn tick rail in place of the scrollbar: hover previews a turn, click jumps to it.": "用每轮刻度轨替代滚动条：悬停预览某一轮，点击跳转到该轮。",
++  "plan": "计划",
++  "prompt": "提示",
++  "Prompt for permission before tool actions.": "工具操作前提示请求权限。",
++  "Quit": "退出",
++  "quit plan": "退出计划",
++  "Reduce padding around messages for more content density. Auto-enabled while the terminal is 20 rows or shorter.": "减少消息周围的间距以增加内容密度。当终端行数 ≤ 20 时自动启用。",
++  "Remind you that Ctrl+Z restores the prompt after you clear it.": "提醒你清除提示后可通过 Ctrl+Z 恢复。",
++  "request changes": "请求修改",
++  "Restoring code for session": "正在恢复会话代码",
++  "Restoring session": "正在恢复会话",
++  "Restoring session from remote...": "正在从远程恢复会话...",
++  "Resume session": "恢复会话",
++  "Reverse vertical scroll direction (natural scrolling).": "反转垂直滚动方向（自然滚动）。",
++  "Same as auto: always show the clickable affordance row.": "与 auto 相同：始终显示可点击的操作行。",
++  "save comment": "保存评论",
++  "scope": "范围",
++  "scrollback": "回滚",
++  "search": "搜索",
++  "select": "选择",
++  "send": "发送",
++  "Session not found locally": "本地未找到会话",
++  "Show agent thinking/reasoning blocks in the scrollback while streaming.": "流式输出时在回滚中显示 Agent 的思考/推理块。",
++  "Show brief, in-context keyboard hints as you work; toggle each one individually.": "工作时显示简短的上下文键盘提示；可分别开关每一项。",
++  "Show clock time next to user messages and agent responses.": "在用户消息和 Agent 回复旁显示时钟时间。",
++  "Show diagrams with a clickable row to open/copy the rendered image.": "显示图表，并添加可点击行以打开/复制渲染后的图片。",
++  "Show edits as one-line +N/-M diffstat summaries and merge back-to-back edits to the same file into one block; expand a row to see the diffs.": "将编辑显示为一行 +N/-M 差异摘要，并将对同一文件的连续编辑合并为一个块；展开行可查看具体差异。",
++  "Show the tip-of-the-day banner on startup. Restart required.": "启动时显示每日提示横幅。需要重启。",
++  "Speech-to-text language for voice dictation (Grok STT). English by default; System uses your locale when supported. Sets formatting language for numbers and currencies.": "语音输入的语言（Grok 语音转文字）。默认使用英语；当系统区域设置受支持时则使用系统语言。同时设置数字和货币的格式化语言。",
++  "stop": "停止",
++  "submit": "提交",
++  "Suggest /compact-mode once per run when the terminal is short on rows.": "当终端行数不足时，每次运行建议一次 /compact-mode。",
++  "Suggest plan mode (Shift+Tab) when your prompt looks like a planning request.": "当你的提示看起来像计划请求时，建议使用计划模式（Shift+Tab）。",
++  "SuperGrok subscription required": "需要 SuperGrok 订阅",
++  "Switch account": "切换账户",
++  "Theme to use when the system is in dark mode (only with theme=auto).": "系统处于深色模式时使用的主题（仅在 theme=auto 时生效）。",
++  "Theme to use when the system is in light mode (only with theme=auto).": "系统处于浅色模式时使用的主题（仅在 theme=auto 时生效）。",
++  "Tier:": "等级：",
++  "Tier: ": "等级：",
++  "Track every git-dirty file, including external edits.": "跟踪每个 git 脏文件，包括外部编辑。",
++  "Track only files the agent edits (default).": "仅跟踪 Agent 编辑的文件（默认）。",
++  "unselect": "取消选择",
++  "Upgrade Subscription": "升级订阅",
++  "Use ": "使用 ",
++  "Use plain readline-style input instead of vim keys in the prompt. Experimental.": "在提示中使用纯 readline 风格输入而非 Vim 键位。实验性功能。",
++  "Use the agent's default permission behavior (currently equivalent to Ask).": "使用 Agent 的默认权限行为（当前等同于询问模式）。",
++  "Use the system locale when it is a supported STT language; otherwise English.": "当系统区域设置是受支持的语音转文字语言时使用；否则使用英语。",
++  "Welcome to Grok Build CE — give feedback with /feedback!": "欢迎使用 Grok Build CE — 使用 /feedback 提供反馈！",
++  "When on, Enter inserts a newline and Shift+Enter sends. Resets each session.": "开启时，Enter 插入换行，Shift+Enter 发送。每次会话重置。",
++  "When on, the agent summarises a plan before running tools or making edits.": "开启时，Agent 在运行工具或进行编辑前先总结计划。",
++  "When on, the ask_user_question tool will time out after a set period of time instead of infinitely blocking.": "开启时，ask_user_question 工具将在设定时间后超时，而非无限期阻塞。",
++  "When you send a prompt, scroll it to the top of the screen so the response starts on a fresh page (default). Turn off to leave the scroll position unchanged when you send.": "发送提示时，将其滚动到屏幕顶部，使回复从全新的页面开始（默认）。关闭后发送时保持滚动位置不变。",
++  "Which file changes the agent tracks as hunks. Off disables tracking (and LOC stats) entirely. Restart required.": "Agent 将哪些文件更改作为代码块跟踪。关闭则完全禁用跟踪（包括代码行数统计）。需要重启。",
++  "Which row the cursor preselects on permission prompts.": "权限提示时光标预选的行。",
++  "Yes, proceed": "是，继续",
++  "Switch display language (saved across sessions)": "切换显示语言（跨会话保存）",
++  "Do you trust the contents of this directory?": "你信任此目录中的内容吗？",
++  "Grok Build may run or modify contents in this directory,": "Grok Build 可能会在此目录中运行或修改内容，",
++  "posing security risks.": "可能带来安全风险。",
++  "Yes, trust this folder": "是，信任此文件夹",
++  "No, go back": "否，返回",
++  "A browser window will open for authentication.": "将打开浏览器窗口进行身份验证。",
++  "Approve in your browser to finish signing in.": "在浏览器中批准以完成登录。",
++  "Make sure your browser shows this code.": "请确保浏览器显示此验证码。",
++  "If it doesn't open, click ": "如果未打开，请点击",
++  " to copy.": " 进行复制。",
++  "Copying not working? Click here to show full URL.": "复制不成功？点击此处显示完整 URL。",
++  "Select the URL below with your mouse and copy manually.": "请用鼠标选中下方 URL 并手动复制。",
++  "Waiting for login to complete...": "等待登录完成…",
++  "Waiting for approval...": "等待批准…",
++  "Logged in with API key": "已通过 API 密钥登录",
++  "Grok Build is not yet available for this account.": "Grok Build 暂不适用于此账户。",
++  "Go back": "返回",
++  "Waiting": "等待中",
++  "Copied to clipboard": "已复制到剪贴板",
++  "Saved": "已保存",
++  "Deleted": "已删除",
++  "Stopped": "已停止",
++  "Cancelled": "已取消",
++  "No results": "无结果",
++  "Refresh": "刷新",
++  "Filter": "筛选",
++  "Clear": "清除",
++  "Permission Required": "需要权限",
++  "Always Allow": "始终允许",
++  "Allow Once": "允许一次",
++  "Deny": "拒绝",
++  "Auto mode": "自动模式",
++  "Ask mode": "询问模式",
++  "Dictation (Ctrl+Space/F8; Esc/Enter to stop)": "语音输入（Ctrl+Space/F8；Esc/Enter 停止）",
++  "Toggle dictation (Ctrl+Space/F8; Esc/Enter to stop)": "切换语音输入（Ctrl+Space/F8；Esc/Enter 停止）",
++  "Edit prompt in external editor": "在外部编辑器中编辑提示",
++  "Toggle tasks pane": "切换任务面板",
++  "Go to top": "跳到顶部",
++  "Go to bottom": "跳到底部",
++  "Scroll up one line": "向上滚动一行",
++  "Scroll down one line": "向下滚动一行",
++  "Scroll up half page": "向上滚动半页",
++  "Scroll down half page": "向下滚动半页",
++  "Scroll up one page": "向上滚动一页",
++  "Scroll down one page": "向下滚动一页",
++  "Copy content": "复制内容",
++  "Copy command / path": "复制命令/路径",
++  "Open in viewer": "在查看器中打开",
++  "Next link": "下一个链接",
++  "Previous link": "上一个链接",
++  "Rewind to selected turn": "回退到选中的轮次",
++  "Kill background task": "终止后台任务",
++  "Focus prompt": "聚焦输入框",
++  "Focus scrollback": "聚焦回滚区",
++  "Cancel turn": "取消当前轮次",
++  "Toggle todo pane": "切换待办面板",
++  "Toggle prompt queue": "切换提示队列",
++  "Open sessions": "打开会话列表",
++  "Open extensions": "打开扩展管理",
++  "Send running task to background": "将运行中的任务发送到后台",
++  "Toggle multiline": "切换多行模式",
++  "Shell mode (type ! on empty prompt)": "Shell 模式（空提示时输入 !）",
++  "Command palette": "命令面板",
++  "Keyboard shortcuts": "键盘快捷键",
++  "Pick model": "选择模型",
++  "Open the Agent Dashboard": "打开 Agent 仪表盘",
++  "Close dashboard": "关闭仪表盘",
++  "Back to dashboard": "返回仪表盘",
++  "Previous session": "上一个会话",
++  "Next session": "下一个会话"
++}
+\ No newline at end of file
+diff --git a/crates/codegen/xai-grok-pager/Cargo.toml b/crates/codegen/xai-grok-pager/Cargo.toml
+index d6c8100..a4e931d 100644
+--- a/crates/codegen/xai-grok-pager/Cargo.toml
++++ b/crates/codegen/xai-grok-pager/Cargo.toml
+@@ -43,6 +43,8 @@ blake3 = { workspace = true }
+ serde = { workspace = true, features = ["derive"] }
+ serde_json = { workspace = true }
+ toml = { workspace = true }
++# i18n (Community Edition)
++xai-grok-i18n = { workspace = true }
+ toml_edit = { workspace = true, features = ["serde"] }
+ 
+ # ANSI parsing (tracing pane)
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/lang.rs b/crates/codegen/xai-grok-pager/src/slash/commands/lang.rs
+new file mode 100644
+index 0000000..6de8102
+--- /dev/null
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/lang.rs
+@@ -0,0 +1,79 @@
++//! `/lang` — switch the display language.
++//!
++//! When invoked with no arguments, the prompt widget shows a dropdown
++//! with available languages. Selecting one switches immediately.
++//! Supported: en, zh-CN, ja, ko, ru, fr.
++
++use crate::app::actions::Action;
++use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
++use xai_grok_i18n::tr;
++
++pub struct LangCommand;
++
++impl SlashCommand for LangCommand {
++    fn name(&self) -> &str {
++        "lang"
++    }
++
++    fn aliases(&self) -> &[&str] {
++        &["language"]
++    }
++
++    fn description(&self) -> &str {
++        tr!("Switch display language (saved across sessions)")
++    }
++
++    fn usage(&self) -> &str {
++        "/lang [en|zh-CN|ja|ko|ru|fr]"
++    }
++
++    fn takes_args(&self) -> bool {
++        true
++    }
++
++    fn args_required(&self) -> bool {
++        false
++    }
++
++    fn arg_placeholder(&self) -> Option<&str> {
++        Some("[language]")
++    }
++
++    fn suggest_args(&self, _ctx: &AppCtx, _args_query: &str) -> Option<Vec<ArgItem>> {
++        let current = xai_grok_i18n::current_lang();
++        let entries: &[(&str, &str)] = &[
++            ("en", "English"),
++            ("zh-CN", "中文"),
++            ("ja", "日本語"),
++            ("ko", "한국어"),
++            ("ru", "Русский"),
++            ("fr", "Français"),
++        ];
++        let items: Vec<ArgItem> = entries
++            .iter()
++            .map(|(code, name)| {
++                let marker = if current == *code { ">" } else { " " };
++                ArgItem {
++                    display: format!("{marker}  {name}"),
++                    match_text: code.to_string(),
++                    insert_text: code.to_string(),
++                    description: name.to_string(),
++                }
++            })
++            .collect();
++        Some(items)
++    }
++
++    fn run(&self, _ctx: &mut CommandExecCtx, args: &str) -> CommandResult {
++        let code = args.trim();
++        if code.is_empty() {
++            return CommandResult::Message(format!(
++                "Current language: {}. Type /lang <code> to switch, or press Tab to select.",
++                xai_grok_i18n::current_lang()
++            ));
++        }
++
++        xai_grok_i18n::set_lang(code);
++        CommandResult::Action(Action::RefreshLanguage)
++    }
++}
+diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs b/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
+index 9dae92b..fd2253c 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
+@@ -34,6 +34,7 @@ pub mod imagine;
+ pub mod imagine_video;
+ pub mod import_claude;
+ pub mod jump;
++pub mod lang;
+ pub mod login;
+ pub mod logout;
+ pub mod loop_cmd;
+@@ -81,7 +82,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(docs::DocsCommand),
+         Arc::new(home::HomeCommand),
+         Arc::new(new::NewCommand),
+-        
+         Arc::new(fork::ForkCommand),
+         Arc::new(compact::CompactCommand),
+         Arc::new(copy::CopyCommand),
+@@ -121,7 +121,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(workflows::WorkflowsCommand),
+         Arc::new(btw::BtwCommand),
+         Arc::new(recap::RecapCommand),
+-        
+         Arc::new(doctor::DoctorCommand),
+         Arc::new(voice::VoiceCommand),
+         Arc::new(loop_cmd::LoopCommand),
+@@ -137,6 +136,7 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(login::LoginCommand),
+         Arc::new(logout::LogoutCommand),
+         Arc::new(import_claude::ImportClaudeCommand),
++        Arc::new(lang::LangCommand),
+         Arc::new(usage::UsageCommand),
+         Arc::new(queue::QueueCommand),
+         Arc::new(tasks::TasksCommand),
+@@ -282,6 +282,7 @@ mod tests {
+             "imagine-video",
+             "import-claude",
+             "jump",
++            "lang",
+             "login",
+             "logout",
+             "log",
+diff --git a/crates/codegen/xai-grok-pager/src/slash/registry.rs b/crates/codegen/xai-grok-pager/src/slash/registry.rs
+index 0b50f03..46cf9d4 100644
+--- a/crates/codegen/xai-grok-pager/src/slash/registry.rs
++++ b/crates/codegen/xai-grok-pager/src/slash/registry.rs
+@@ -306,6 +306,12 @@ impl CommandRegistry {
+             .is_some_and(|s| *s == CommandSource::Builtin)
+     }
+ 
++    /// Rebuild all triggers from the current command set, picking up any
++    /// runtime changes (e.g. i18n language switch).
++    pub fn refresh_triggers(&mut self) {
++        self.rebuild_triggers();
++    }
++
+     /// All triggers (for fuzzy matching).
+     pub fn triggers(&self) -> &[CommandTrigger] {
+         &self.triggers
+diff --git a/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs b/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
+index 7491581..2d3231c 100644
+--- a/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
++++ b/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
+@@ -1,4 +1,4 @@
+-//! Welcome screen — the first thing users see.
++﻿//! Welcome screen — the first thing users see.
+ //!
+ //! Layout (top to bottom):
+ //! - Top margin row (always preserved)
+@@ -18,6 +18,7 @@ use crate::app::app_view::{AuthMode, AuthState, SessionPickerEntry, TrustState};
+ use crate::startup::StartupWarning;
+ use crate::theme::Theme;
+ use crate::views::prompt_widget::{PromptFlag, PromptInfo, PromptWidget};
++use xai_grok_i18n::tr;
+ mod hero_box;
+ pub(crate) mod logo;
+ mod menu;
+@@ -421,14 +422,14 @@ pub(super) fn render_version_badge(
+         } = &mode
+     {
+         spans.push(Span::styled(
+-            format!("Tier: {tier}"),
++            format!("{} {}", tr!("Tier:"), tier),
+             Style::default().fg(theme.gray),
+         ));
+         spans.push(sep.clone());
+     }
+     if show_api_key && is_api_key_auth {
+         spans.push(Span::styled(
+-            "Logged in with API key",
++            tr!("Logged in with API key"),
+             Style::default().fg(theme.gray),
+         ));
+         spans.push(sep);
+@@ -688,8 +689,8 @@ pub fn render_welcome(
+     let mut result = match params.auth_state {
+         AuthState::Pending { error } => {
+             let label = params.login_label.unwrap_or("grok.com");
+-            let login_text = format!("Login with {}", label);
+-            let menu = [("l", login_text.as_str()), ("q", "Quit")];
++            let login_text = format!("{} {}", tr!("Login with"), label);
++            let menu = [("l", login_text.as_str()), ("q", tr!("Quit"))];
+             let msg = error.as_deref().map(|e| (e, theme.accent_error));
+             let info = PromptInfo {
+                 model_name: params.model_name,
+@@ -759,12 +760,12 @@ pub fn render_welcome(
+             }
+         }
+         AuthState::Done if params.is_zdr_blocked => {
+-            let menu = [("l", "Switch account"), ("q", "Quit")];
++            let menu = [("l", tr!("Switch account")), ("q", tr!("Quit"))];
+             let (menu_rects, post_flush_escapes) = render_welcome_blocked(
+                 content_area,
+                 buf,
+                 Some((
+-                    "Grok Build is not yet available for this account.",
++                    tr!("Grok Build is not yet available for this account."),
+                     theme.gray_bright,
+                 )),
+                 &menu,
+@@ -935,10 +936,10 @@ fn render_welcome_trust(
+     h_margin: u16,
+     compact: bool,
+ ) -> WelcomeRenderResult {
+-    let menu_items = [("y", "Yes, proceed"), ("n", "No, quit")];
++    let menu_items = [("y", tr!("Yes, proceed")), ("n", tr!("No, quit"))];
+     let lines = vec![
+         Line::from(Span::styled(
+-            "Do you trust the contents of this directory?",
++            tr!("Do you trust the contents of this directory?"),
+             Style::default().fg(theme.gray_bright),
+         ))
+         .alignment(Alignment::Center),
+@@ -951,12 +952,12 @@ fn render_welcome_trust(
+         // Two lines so the warning never clips at narrow / compact widths
+         // (a single ~78-char line would truncate "...posing security risks").
+         Line::from(Span::styled(
+-            "Grok Build may run or modify contents in this directory,",
++            tr!("Grok Build may run or modify contents in this directory,"),
+             Style::default().fg(theme.gray),
+         ))
+         .alignment(Alignment::Center),
+         Line::from(Span::styled(
+-            "posing security risks.",
++            tr!("posing security risks."),
+             Style::default().fg(theme.gray),
+         ))
+         .alignment(Alignment::Center),
+@@ -1003,11 +1004,11 @@ fn render_welcome_trust(
+ }
+ 
+ /// Header text shared by Loopback and Command auth modes.
+-const AUTH_HEADER: &str = "A browser window will open for authentication.";
++fn auth_header() -> &'static str { tr!("A browser window will open for authentication.") }
+ /// Header text for the device-flow auth mode.
+-const DEVICE_AUTH_HEADER: &str = "Approve in your browser to finish signing in.";
++fn device_auth_header() -> &'static str { tr!("Approve in your browser to finish signing in.") }
+ /// Caption beneath the device code.
+-const DEVICE_CODE_CAPTION: &str = "Make sure your browser shows this code.";
++fn device_code_caption() -> &'static str { tr!("Make sure your browser shows this code.") }
+ 
+ /// Extract `user_code` from a device verification URL (`None` if absent or
+ /// malformed). Shown on-screen so the user can confirm it matches the browser
+@@ -1053,12 +1054,12 @@ fn auth_copy_line_rows(inner_width: u16) -> u16 {
+     (copy_len as u16).div_ceil(inner_width)
+ }
+ 
+-const AUTH_FALLBACK_TEXT: &str = "Copying not working? Click here to show full URL.";
++fn auth_fallback_text() -> &'static str { tr!("Copying not working? Click here to show full URL.") }
+ 
+ /// Build the fallback "show full URL" link line.
+ fn auth_fallback_line(theme: &Theme) -> Line<'static> {
+     Line::from(Span::styled(
+-        AUTH_FALLBACK_TEXT,
++        auth_fallback_text(),
+         Style::default()
+             .fg(theme.gray)
+             .add_modifier(Modifier::UNDERLINED),
+@@ -1160,7 +1161,7 @@ fn render_raw_url_mode(
+ 
+     // Render hint above the URL.
+     let hint = Line::from(Span::styled(
+-        "Select the URL below with your mouse and copy manually.",
++        tr!("Select the URL below with your mouse and copy manually."),
+         Style::default().fg(theme.gray),
+     ))
+     .alignment(Alignment::Center);
+@@ -1259,17 +1260,17 @@ fn render_browser_status_arm(
+ 
+     // Device also parses the user code from the verification URL.
+     let (header, waiting_text, user_code) = match kind {
+-        BrowserStatusKind::Command => (AUTH_HEADER, "Waiting for login to complete...", None),
++        BrowserStatusKind::Command => (auth_header(), tr!("Waiting for login to complete..."), None),
+         BrowserStatusKind::Device => (
+-            DEVICE_AUTH_HEADER,
+-            "Waiting for approval...",
++            device_auth_header(),
++            tr!("Waiting for approval..."),
+             auth_url.and_then(extract_user_code),
+         ),
+     };
+ 
+     let header_rows = (header.len() as u16).div_ceil(inner_width);
+     let code_extra = if user_code.is_some() {
+-        let caption_rows = (DEVICE_CODE_CAPTION.len() as u16).div_ceil(inner_width);
++        let caption_rows = (device_code_caption().len() as u16).div_ceil(inner_width);
+         1 + 1 + 1 + caption_rows // blank + code + blank + caption
+     } else {
+         0
+@@ -1312,7 +1313,7 @@ fn render_browser_status_arm(
+         lines.push(Line::default());
+         lines.push(
+             Line::from(Span::styled(
+-                DEVICE_CODE_CAPTION,
++                device_code_caption(),
+                 Style::default().fg(theme.gray),
+             ))
+             .alignment(Alignment::Center),
+@@ -1377,7 +1378,7 @@ fn render_welcome_authenticating(
+             }
+ 
+             let msg_height = if auth_url.is_some() {
+-                let header_rows = (AUTH_HEADER.len() as u16).div_ceil(inner_width);
++                let header_rows = (auth_header().len() as u16).div_ceil(inner_width);
+                 header_rows + auth_copy_block_rows(inner_width)
+             } else {
+                 1u16
+@@ -1402,7 +1403,7 @@ fn render_welcome_authenticating(
+             if auth_url.is_some() {
+                 lines.push(
+                     Line::from(Span::styled(
+-                        AUTH_HEADER,
++                        auth_header(),
+                         Style::default().fg(theme.gray_bright),
+                     ))
+                     .alignment(Alignment::Center),
+@@ -1423,7 +1424,7 @@ fn render_welcome_authenticating(
+                 .render(msg_area, buf);
+ 
+             let (click_rect, fallback_rect) = if auth_url.is_some() {
+-                auth_hit_rects(msg_area, h_pad, inner_width, AUTH_HEADER, 0)
++                auth_hit_rects(msg_area, h_pad, inner_width, auth_header(), 0)
+             } else {
+                 (None, None)
+             };
+@@ -1564,7 +1565,7 @@ fn render_changelog_section(
+             .fg(theme.gray_bright)
+             .add_modifier(Modifier::DIM),
+     );
+-    let title = "Changelog";
++    let title = tr!("Changelog");
+     buf.set_span(
+         centered.x,
+         centered.y,
+@@ -1686,7 +1687,7 @@ fn render_welcome_done(
+     let cta = p
+         .gate
+         .and_then(|g| g.label.as_deref())
+-        .unwrap_or("Upgrade Subscription");
++        .unwrap_or(tr!("Upgrade Subscription"));
+     let in_vscode_family = welcome_in_vscode_family();
+     let (key_g, key_l, key_q) = (
+         "ctrl+g",
+@@ -1730,7 +1731,7 @@ fn render_welcome_done(
+     let gate_menu;
+     let owned_menu;
+     let menu_items: &[(&str, &str)] = if !p.has_access {
+-        gate_menu = [(key_g, cta), (key_l, "Logout"), (key_q, "Quit")];
++        gate_menu = [(key_g, cta), (key_l, tr!("Logout")), (key_q, tr!("Quit"))];
+         &gate_menu
+     } else {
+         let (key_w, key_s, key_q, key_i_with_x) = (
+@@ -1748,15 +1749,15 @@ fn render_welcome_done(
+             // 3 cells of this row as dismiss instead of open. Keyboard:
+             // ctrl-shift-i. The key string is right-aligned by render_menu,
+             // so [x] sits at the very end of the row.
+-            items.push((key_i_with_x, "Import Claude settings"));
++            items.push((key_i_with_x, tr!("Import Claude settings")));
+         }
+-        items.push((key_w, "New worktree"));
+-        items.push((key_s, "Resume session"));
++        items.push((key_w, tr!("New worktree")));
++        items.push((key_s, tr!("Resume session")));
+         // "Changelog" above Quit; no shortcut — opened by click (row or block).
+         if show_changelog_action {
+-            items.push(("", "Changelog"));
++            items.push(("", tr!("Changelog")));
+         }
+-        items.push((key_q, "Quit"));
++        items.push((key_q, tr!("Quit")));
+         owned_menu = items;
+         owned_menu.as_slice()
+     };
+@@ -1923,12 +1924,12 @@ fn render_welcome_done(
+         .flex(Flex::Center)
+         .areas(layout.prompt);
+         // Show the user's current tier + clickable refresh button above the gate message.
+-        let tier_label = p.subscription_tier.unwrap_or("Free");
++        let tier_label = p.subscription_tier.unwrap_or(tr!("Free"));
+         let tier_prefix = format!("Tier: {tier_label}  ");
+-        let refresh_text = "[Refresh]";
++        let refresh_text = tr!("[Refresh]");
+         let total_width = tier_prefix.len() + refresh_text.len();
+         let tier_line = Line::from(vec![
+-            Span::styled("Tier: ", Style::default().fg(theme.gray)),
++            Span::styled(tr!("Tier: "), Style::default().fg(theme.gray)),
+             Span::styled(
+                 tier_label,
+                 Style::default()
+@@ -1962,7 +1963,7 @@ fn render_welcome_done(
+         let gate_text = p
+             .gate
+             .map(|g| g.message.as_str())
+-            .unwrap_or("SuperGrok subscription required");
++            .unwrap_or(tr!("SuperGrok subscription required"));
+         let msg = Line::from(Span::styled(
+             gate_text,
+             Style::default().fg(theme.gray_bright),
+@@ -1983,10 +1984,7 @@ fn render_welcome_done(
+                 height: 1,
+                 ..centered
+             };
+-            let gate_link = p
+-                .gate
+-                .and_then(|g| g.url.as_deref())
+-                .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
++            let gate_link = p.gate.and_then(|g| g.url.as_deref()).unwrap_or("");
+             let url = Line::from(Span::styled(
+                 gate_link,
+                 Style::default()
+@@ -2382,7 +2380,7 @@ pub(crate) fn render_session_picker(
+     }
+ 
+     let config = PickerConfig {
+-        title: Some("Resume session"),
++        title: Some(tr!("Resume session")),
+         show_search_hint: true,
+         expandable: true,
+         esc_clears_query: true,
+@@ -3048,7 +3046,7 @@ mod tests {
+ 
+     fn resume_picker_config() -> crate::views::picker::PickerConfig<'static> {
+         crate::views::picker::PickerConfig {
+-            title: Some("Resume session"),
++            title: Some(tr!("Resume session")),
+             show_search_hint: true,
+             expandable: true,
+             esc_clears_query: true,

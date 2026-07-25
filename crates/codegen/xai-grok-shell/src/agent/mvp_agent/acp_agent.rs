@@ -3441,9 +3441,12 @@ impl acp::Agent for MvpAgent {
                     })?;
                 crate::extensions::to_raw_response(&serde_json::json!({ "ok" : true }))
             }
-            "x.ai/billing" => crate::extensions::billing::handle(self, &args).await,
-            "x.ai/auto-topup-rule" => {
-                crate::extensions::billing::handle(self, &args).await
+            "x.ai/billing" | "x.ai/auto-topup-rule" => {
+                // Community Edition: billing is not available.
+                crate::extensions::to_raw_response(&serde_json::json!({
+                    "available": false,
+                    "message": "Billing is not available in Community Edition."
+                }))
             }
             "x.ai/share_session" => crate::extensions::share::handle(self, &args).await,
             "x.ai/privacy/setCodingDataRetention" => {

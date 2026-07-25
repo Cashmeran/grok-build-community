@@ -66,15 +66,17 @@ fn translations_cell() -> &'static RwLock<HashMap<&'static str, &'static str>> {
 /// Auto-detect the system language and initialize translations.
 ///
 /// Should be called once at startup, before any `tr!()` calls.
-/// Checks environment variables (`LANG`, `LC_ALL`) and platform-specific
-/// locale APIs. Falls back to `"en"` if detection fails.
+/// Checks (in order): saved preference in `~/.grok/lang`, environment variables
+/// (`LANG`, `LC_ALL`), and platform-specific locale APIs. Falls back to `"en"`.
 pub fn init() {
-    let detected = detect_system_lang();
-    let normalized = normalize_lang(&detected);
+    let normalized = load_lang_preference().unwrap_or_else(|| {
+        let detected = detect_system_lang();
+        normalize_lang(&detected)
+    });
     let map = load_translations(&normalized);
-    *lang_cell().write() = normalized;
+    *lang_cell().write() = normalized.clone();
     *translations_cell().write() = map;
-    tracing::info!(lang = %detected, "i18n initialized from system locale");
+    tracing::info!(lang = %normalized, "i18n initialized");
 }
 
 /// Return the currently active language code (e.g. `"en"`, `"zh-CN"`).
@@ -82,16 +84,18 @@ pub fn current_lang() -> String {
     lang_cell().read().clone()
 }
 
-/// Switch the active language at runtime.
+/// Switch the active language at runtime and persist the preference.
 ///
 /// Supported values: `"en"`, `"zh-CN"`. Unknown values fall back to `"en"`.
 /// The new translations take effect immediately for all subsequent `tr!()` calls.
+/// The choice is saved to `~/.grok/lang` for future sessions.
 pub fn set_lang(lang: &str) {
     let normalized = normalize_lang(lang);
     let map = load_translations(&normalized);
     *lang_cell().write() = normalized;
     *translations_cell().write() = map;
-    tracing::info!(lang = %lang, "i18n language switched");
+    save_lang_preference(lang);
+    tracing::info!(lang = %lang, "i18n language switched and saved");
 }
 
 /// Translate a string key into the active language.
@@ -188,6 +192,32 @@ fn parse_translations(json: &str) -> HashMap<&'static str, &'static str> {
             (k, v)
         })
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Persistence helpers
+// ---------------------------------------------------------------------------
+
+fn lang_pref_path() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|h| h.join(".grok").join("lang"))
+}
+
+/// Try to load a saved language preference from `~/.grok/lang`.
+fn load_lang_preference() -> Option<String> {
+    let path = lang_pref_path()?;
+    let content = std::fs::read_to_string(&path).ok()?;
+    let lang = content.trim();
+    if lang.is_empty() { None } else { Some(normalize_lang(lang)) }
+}
+
+/// Save the current language preference to `~/.grok/lang`.
+fn save_lang_preference(lang: &str) {
+    if let Some(path) = lang_pref_path() {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(&path, lang);
+    }
 }
 
 // ---------------------------------------------------------------------------

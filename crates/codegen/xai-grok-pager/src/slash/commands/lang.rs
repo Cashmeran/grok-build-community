@@ -20,7 +20,7 @@ impl SlashCommand for LangCommand {
     }
 
     fn description(&self) -> &str {
-        tr!("Switch language")
+        tr!("Switch display language (saved across sessions)")
     }
 
     fn usage(&self) -> &str {

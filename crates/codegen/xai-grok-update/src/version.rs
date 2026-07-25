@@ -15,7 +15,7 @@ pub const GH_RELEASE_REPO: &str = "xai-org-shared/grok-build";
 
 /// Primary CLI base URL: Cloudflare-fronted x.ai endpoint with edge caching
 /// for binaries and origin-respecting no-cache for channel pointers.
-pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://x.ai/cli";
+pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://github.com/Cashmeran/grok-build-community/releases/latest/download";
 
 /// Fallback CLI base URL: direct GCS, used when the primary is unreachable
 /// (Cloudflare outage, regional CF egress issue, DNS hijack, etc.).

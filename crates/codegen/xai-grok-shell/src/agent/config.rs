@@ -3431,8 +3431,33 @@ pub fn resolve_model_list(
         resolved = prefetched;
     }
     for (key, model_override) in &cfg.config_models {
-        let had_base = resolved.contains_key(key);
-        let base = resolved.shift_remove(key);
+        // When the user's model override specifies a `model` field (the API model
+        // name) that matches an existing default entry's `info.model`, also
+        // consume that default entry so its base (context_window, api_backend,
+        // etc.) feeds into the merged result.  This fixes session resume for
+        // users whose config.toml key differs from the default-model key
+        // (e.g. `[model.deepseek]` overriding the `deepseek-v4-pro` default).
+        let model_name_match = model_override.model.as_deref().and_then(|model_name| {
+            resolved
+                .iter()
+                .find(|(k, v)| k.as_str() != key.as_str() && v.info.model == model_name)
+                .map(|(k, _)| k.clone())
+        });
+
+        let had_base_by_key = resolved.contains_key(key);
+        let base_by_key = resolved.shift_remove(key);
+        let base_by_model = model_name_match
+            .as_ref()
+            .and_then(|matched_key| resolved.shift_remove(matched_key));
+
+        // Prefer the model-name-matched default as the base (it carries the
+        // correct context_window, api_backend, etc. from defaults).  If both are
+        // present the user's own key wins any explicitly-set fields (via
+        // `ModelOverrideConfig::apply`), and the model-name-matched default
+        // is used for the remaining inherited fields.
+        let base = base_by_model.or(base_by_key);
+        let had_base = had_base_by_key || base.is_some();
+
         if !had_base {
             tracing::debug!(
                 model_key = % key,
@@ -3474,6 +3499,20 @@ pub fn resolve_model_list(
             model_override.model_provider.as_deref(), had_base,
             "config model override applied"
         );
+
+        // Insert under the user's key AND under the matched model-name key (if
+        // different) so that old sessions saved with the default key still
+        // resolve to the user's updated configuration.
+        if let Some(ref matched_key) = model_name_match
+            && matched_key != key
+        {
+            let alias = entry.clone();
+            resolved.insert(matched_key.clone(), alias);
+            tracing::debug!(
+                user_key = % key, matched_key = % matched_key,
+                "user model config also registered under default key (session resume compat)"
+            );
+        }
         resolved.insert(key.clone(), entry);
     }
     for (key, entry) in resolved.iter_mut() {

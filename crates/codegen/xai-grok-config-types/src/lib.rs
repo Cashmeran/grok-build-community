@@ -499,7 +499,7 @@ pub struct RemoteSettings {
     pub subscription_watch_interval_secs: Option<u64>,
     #[serde(default)]
     pub writeback_enabled: Option<bool>,
-    /// OAuth2 provider issuer URL (e.g., "https://auth.x.ai"). When present
+    /// OAuth2 provider issuer URL (e.g., "https://auth.example.com"). When present
     /// together with `oauth2_client_id`, the client uses OAuth2 authorization code
     /// flow. Controlled via remote settings for gradual rollout.
     #[serde(default)]
@@ -507,7 +507,7 @@ pub struct RemoteSettings {
     /// OAuth2 client_id for the CLI. Paired with `oauth2_issuer`.
     #[serde(default)]
     pub oauth2_client_id: Option<String>,
-    /// When `Some(true)`, enable grok's default OAuth2 (xAI auth.x.ai).
+    /// When `Some(true)`, enable default OAuth2.
     /// Enterprise OIDC (user's own IdP via `oidc` config) always wins.
     /// Controlled via remote settings; `--oauth` CLI flag overrides.
     #[serde(default)]
@@ -853,7 +853,7 @@ pub struct RemoteSettings {
     pub sharing_enabled: Option<bool>,
     /// Voice mode (STT dictation). Client default is **on** when absent.
     /// `Some(false)` is a remote kill switch; `Some(true)` forces on.
-    /// Overridable locally via `GROK_VOICE_MODE`. Free-tier SuperGrok upsell
+    /// Overridable locally via `GROK_VOICE_MODE`. Feature-gating upsell
     /// is a separate client tier gate.
     #[serde(default)]
     pub voice_mode_enabled: Option<bool>,
@@ -909,7 +909,7 @@ pub struct RemoteSettings {
     #[serde(default)]
     pub permission_mode: Option<String>,
     /// User's subscription tier from remote settings `grok_build_access_gate`.
-    /// E.g. "free", "premium", "supergrok", "supergrok_heavy".
+    /// E.g. "free", "premium".
     /// Stamped on analytics events + user profile for filtering.
     #[serde(default)]
     pub subscription_tier: Option<String>,
@@ -929,7 +929,7 @@ pub struct RemoteSettings {
     #[serde(default)]
     pub allow_access: Option<bool>,
     /// User-friendly display name for the current subscription tier
-    /// (e.g. "SuperGrok", "X Premium+", "Free", "API Key"). Set by CCP
+    /// (e.g. "Pro", "Free", "API Key"). Set by CCP
     /// from the JWT tier claim (OAuth) or credential kind (API key).
     /// Free/Invalid OAuth → `"Free"`; API keys → `"API Key"` (Mixpanel
     /// `api_key`, never free).

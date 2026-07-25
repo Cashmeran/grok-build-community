@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo ============================================
-echo   Grok Build Community Edition - One-Click Build
+echo   Grok Build Community Edition - Build
 echo ============================================
 echo.
 
@@ -19,13 +19,38 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [1/2] Applying community edition patch...
+echo [1/2] Applying community patches...
 set PATCH_DIR=patches
 set FAILED=0
 
-git apply --3way "%PATCH_DIR%\00-community-full.patch" 2>nul
+REM Apply patches in order. Add new patches here as they are created.
+git apply "%PATCH_DIR%\00-community-foundation.patch" 2>nul
 if !errorlevel! neq 0 (
-    echo   [FAILED] Fix the conflict, then update the patch
+    echo   [FAILED] 00-community-foundation.patch - fix conflicts and retry
+    set FAILED=1
+    goto :done
+)
+git apply "%PATCH_DIR%\01-community-ci.patch" 2>nul
+if !errorlevel! neq 0 (
+    echo   [FAILED] 01-community-ci.patch - fix conflicts and retry
+    set FAILED=1
+    goto :done
+)
+git apply "%PATCH_DIR%\02-community-prompt.patch" 2>nul
+if !errorlevel! neq 0 (
+    echo   [FAILED] 02-community-prompt.patch - fix conflicts and retry
+    set FAILED=1
+    goto :done
+)
+git apply "%PATCH_DIR%\03-community-tools.patch" 2>nul
+if !errorlevel! neq 0 (
+    echo   [FAILED] 03-community-tools.patch - fix conflicts and retry
+    set FAILED=1
+    goto :done
+)
+git apply "%PATCH_DIR%\04-community-i18n.patch" 2>nul
+if !errorlevel! neq 0 (
+    echo   [FAILED] 04-community-i18n.patch - fix conflicts and retry
     set FAILED=1
     goto :done
 )
@@ -33,7 +58,7 @@ if !errorlevel! neq 0 (
 :done
 if %FAILED% equ 1 (
     echo.
-    echo Fix: manually edit code -^> git diff ^> patches/failed-patch.patch
+    echo Fix conflicts: manually edit code ^> git add ^> regenerate patch
     exit /b 1
 )
 
@@ -44,5 +69,6 @@ if %errorlevel% neq 0 ( echo [ERROR] Build failed! & exit /b 1 )
 
 echo.
 echo ============================================
-echo   Done! Run: grokce
+echo   Done! Binary: target\release\xai-grok-pager.exe
+echo   Run: grokce
 echo ============================================

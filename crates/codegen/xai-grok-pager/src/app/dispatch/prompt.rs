@@ -367,7 +367,6 @@ pub(super) fn dispatch_send_prompt_inner(
     // shown after the agent borrow ends so we can re-enter via the tip helper.
     let mut tip_send_now_after_queue = false;
     let voice_stt_language_from_app = app.voice_config.language.clone();
-    let login_method_id_from_app = app.login_method_id.as_ref().map(|id| id.0.to_string());
     let Some(agent) = app.agents.get_mut(&id) else {
         return vec![];
     };
@@ -397,32 +396,6 @@ pub(super) fn dispatch_send_prompt_inner(
     // through the unknown-command path below and leak to the model as a
     // raw prompt. Upsell instead; genuinely unknown commands still pass
     // through (shell/ACP commands depend on that).
-    if !literal
-        && trimmed.starts_with('/')
-        && let Some(invocation) = crate::slash::parse_invocation(trimmed)
-        && agent
-            .prompt
-            .slash_controller
-            .registry()
-            .is_restricted(invocation.token)
-    {
-        // Only consume the composer when the upsell can actually open: with
-        // another question modal already up, `open_supergrok_upsell` would
-        // no-op and wiping the composer here would silently drop the typed
-        // text. Keep it instead so the user can resubmit after closing the
-        // modal — and never fall through to passthrough for restricted
-        // commands.
-        if agent.question_view.is_none() {
-            if consume_input {
-                agent.prompt.set_text("");
-            }
-            let opened =
-                super::billing::open_restricted_command_upsell(agent, login_method_id_from_app);
-            debug_assert!(opened, "no modal was open, so the upsell must open");
-        }
-        return vec![];
-    }
-
     // ── Registry-based slash command execution ─────────────────────
     // If the text starts with `/`, run it through the slash registry.
     // The registry resolves builtins, ACP-advertised commands, and
@@ -1402,20 +1375,6 @@ pub(super) fn handle_prompt_response(
                 agent.discard_pending_adoption_updates(&p.prompt_id);
             }
             return vec![Effect::CreditLimitRecheck { agent_id }];
-        }
-
-        // Free-usage paywall (429 + subscription:free-usage-exhausted): the
-        // RetryState handler set the flag and suppressed the generic
-        // rate-limit block; show the upsell modal. Driver-only by
-        // construction — viewers never receive a PromptResponse. No queue
-        // drain: queued prompts would fail on the same exhausted quota.
-        if free_usage_blocked {
-            let auth_method = app.login_method_id.as_ref().map(|id| id.0.to_string());
-            super::billing::open_free_usage_upsell(agent, auth_method);
-            if let Some(p) = pending_adoption {
-                agent.discard_pending_adoption_updates(&p.prompt_id);
-            }
-            return vec![];
         }
 
         // FIFO handoff: if a server-authoritative prompt drained

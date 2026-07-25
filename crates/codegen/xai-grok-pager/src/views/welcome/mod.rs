@@ -1,4 +1,4 @@
-//! Welcome screen — the first thing users see.
+﻿//! Welcome screen — the first thing users see.
 //!
 //! Layout (top to bottom):
 //! - Top margin row (always preserved)
@@ -429,7 +429,7 @@ pub(super) fn render_version_badge(
     }
     if show_api_key && is_api_key_auth {
         spans.push(Span::styled(
-            "Logged in with API key",
+            tr!("Logged in with API key"),
             Style::default().fg(theme.gray),
         ));
         spans.push(sep);
@@ -765,7 +765,7 @@ pub fn render_welcome(
                 content_area,
                 buf,
                 Some((
-                    "Grok Build is not yet available for this account.",
+                    tr!("Grok Build is not yet available for this account."),
                     theme.gray_bright,
                 )),
                 &menu,
@@ -939,7 +939,7 @@ fn render_welcome_trust(
     let menu_items = [("y", tr!("Yes, proceed")), ("n", tr!("No, quit"))];
     let lines = vec![
         Line::from(Span::styled(
-            "Do you trust the contents of this directory?",
+            tr!("Do you trust the contents of this directory?"),
             Style::default().fg(theme.gray_bright),
         ))
         .alignment(Alignment::Center),
@@ -952,12 +952,12 @@ fn render_welcome_trust(
         // Two lines so the warning never clips at narrow / compact widths
         // (a single ~78-char line would truncate "...posing security risks").
         Line::from(Span::styled(
-            "Grok Build may run or modify contents in this directory,",
+            tr!("Grok Build may run or modify contents in this directory,"),
             Style::default().fg(theme.gray),
         ))
         .alignment(Alignment::Center),
         Line::from(Span::styled(
-            "posing security risks.",
+            tr!("posing security risks."),
             Style::default().fg(theme.gray),
         ))
         .alignment(Alignment::Center),
@@ -1004,11 +1004,11 @@ fn render_welcome_trust(
 }
 
 /// Header text shared by Loopback and Command auth modes.
-const AUTH_HEADER: &str = "A browser window will open for authentication.";
+fn auth_header() -> &'static str { tr!("A browser window will open for authentication.") }
 /// Header text for the device-flow auth mode.
-const DEVICE_AUTH_HEADER: &str = "Approve in your browser to finish signing in.";
+fn device_auth_header() -> &'static str { tr!("Approve in your browser to finish signing in.") }
 /// Caption beneath the device code.
-const DEVICE_CODE_CAPTION: &str = "Make sure your browser shows this code.";
+fn device_code_caption() -> &'static str { tr!("Make sure your browser shows this code.") }
 
 /// Extract `user_code` from a device verification URL (`None` if absent or
 /// malformed). Shown on-screen so the user can confirm it matches the browser
@@ -1054,12 +1054,12 @@ fn auth_copy_line_rows(inner_width: u16) -> u16 {
     (copy_len as u16).div_ceil(inner_width)
 }
 
-const AUTH_FALLBACK_TEXT: &str = "Copying not working? Click here to show full URL.";
+fn auth_fallback_text() -> &'static str { tr!("Copying not working? Click here to show full URL.") }
 
 /// Build the fallback "show full URL" link line.
 fn auth_fallback_line(theme: &Theme) -> Line<'static> {
     Line::from(Span::styled(
-        AUTH_FALLBACK_TEXT,
+        auth_fallback_text(),
         Style::default()
             .fg(theme.gray)
             .add_modifier(Modifier::UNDERLINED),
@@ -1161,7 +1161,7 @@ fn render_raw_url_mode(
 
     // Render hint above the URL.
     let hint = Line::from(Span::styled(
-        "Select the URL below with your mouse and copy manually.",
+        tr!("Select the URL below with your mouse and copy manually."),
         Style::default().fg(theme.gray),
     ))
     .alignment(Alignment::Center);
@@ -1260,17 +1260,17 @@ fn render_browser_status_arm(
 
     // Device also parses the user code from the verification URL.
     let (header, waiting_text, user_code) = match kind {
-        BrowserStatusKind::Command => (AUTH_HEADER, "Waiting for login to complete...", None),
+        BrowserStatusKind::Command => (auth_header(), tr!("Waiting for login to complete..."), None),
         BrowserStatusKind::Device => (
-            DEVICE_AUTH_HEADER,
-            "Waiting for approval...",
+            device_auth_header(),
+            tr!("Waiting for approval..."),
             auth_url.and_then(extract_user_code),
         ),
     };
 
     let header_rows = (header.len() as u16).div_ceil(inner_width);
     let code_extra = if user_code.is_some() {
-        let caption_rows = (DEVICE_CODE_CAPTION.len() as u16).div_ceil(inner_width);
+        let caption_rows = (device_code_caption().len() as u16).div_ceil(inner_width);
         1 + 1 + 1 + caption_rows // blank + code + blank + caption
     } else {
         0
@@ -1313,7 +1313,7 @@ fn render_browser_status_arm(
         lines.push(Line::default());
         lines.push(
             Line::from(Span::styled(
-                DEVICE_CODE_CAPTION,
+                device_code_caption(),
                 Style::default().fg(theme.gray),
             ))
             .alignment(Alignment::Center),
@@ -1378,7 +1378,7 @@ fn render_welcome_authenticating(
             }
 
             let msg_height = if auth_url.is_some() {
-                let header_rows = (AUTH_HEADER.len() as u16).div_ceil(inner_width);
+                let header_rows = (auth_header().len() as u16).div_ceil(inner_width);
                 header_rows + auth_copy_block_rows(inner_width)
             } else {
                 1u16
@@ -1403,7 +1403,7 @@ fn render_welcome_authenticating(
             if auth_url.is_some() {
                 lines.push(
                     Line::from(Span::styled(
-                        AUTH_HEADER,
+                        auth_header(),
                         Style::default().fg(theme.gray_bright),
                     ))
                     .alignment(Alignment::Center),
@@ -1424,7 +1424,7 @@ fn render_welcome_authenticating(
                 .render(msg_area, buf);
 
             let (click_rect, fallback_rect) = if auth_url.is_some() {
-                auth_hit_rects(msg_area, h_pad, inner_width, AUTH_HEADER, 0)
+                auth_hit_rects(msg_area, h_pad, inner_width, auth_header(), 0)
             } else {
                 (None, None)
             };

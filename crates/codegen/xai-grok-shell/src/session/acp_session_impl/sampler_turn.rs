@@ -873,7 +873,13 @@ impl SessionActor {
                 None,
             );
         }
-        if let Some(ref provider) = auth_provider
+        // Provider-backed auth recovery: only applicable when the session is
+        // eligible for auth recovery (session-based auth, not api-key).
+        // Without this guard api-key users would attempt recovery that is
+        // guaranteed to fail, producing a silent no-op that delays surfacing
+        // the real error to the user.
+        if auth_recovery_eligible
+            && let Some(ref provider) = auth_provider
             && self.try_provider_401_recovery(provider).await
         {
             self.prepare_sampler_for_turn().await;

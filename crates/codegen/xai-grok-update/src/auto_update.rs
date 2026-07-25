@@ -29,9 +29,9 @@ const MSG_RUN_UPDATE_MANUAL: &str = "Run `grok update` to get the latest version
 /// Manual-install one-liner for this platform's bootstrap installer.
 fn manual_install_cmd() -> &'static str {
     if cfg!(windows) {
-        "irm https://x.ai/cli/install.ps1 | iex"
+        "irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/community/install.ps1 | iex"
     } else {
-        "curl -fsSL https://x.ai/cli/install.sh | bash"
+        "curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/community/install.sh | bash"
     }
 }
 

@@ -13007,7 +13007,7 @@ dependencies = [
 name = "xai-grok-i18n"
 version = "0.1.0"
 dependencies = [
- "once_cell",
+ "dirs 5.0.1",
  "parking_lot",
  "serde",
  "serde_json",

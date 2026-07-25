@@ -104,7 +104,6 @@ pub(super) fn dispatch_show_privacy_info(app: &mut AppView) -> Vec<Effect> {
     lines.push("  - [telemetry] trace_upload / GROK_TELEMETRY_TRACE_UPLOAD");
     lines.push("  - GROK_EXTERNAL_OTEL / OTEL_*");
     lines.push("");
-    lines.push("  Learn more: https://x.ai/legal");
     let text = lines.join("\n");
     push_system_to_any_agent(app, &text);
     vec![]
@@ -333,10 +332,8 @@ pub(super) fn dispatch_manage_billing(app: &mut AppView) -> Vec<Effect> {
     if !app.usage_visible {
         return vec![];
     }
-    super::router::dispatch(
-        crate::app::actions::Action::OpenUrl("https://grok.com/?_s=usage".to_string()),
-        app,
-    )
+    app.show_toast("Usage management is not available in this edition.");
+    vec![]
 }
 
 /// Commit a one-line "update available" notice into the active agent's

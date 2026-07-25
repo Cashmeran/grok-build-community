@@ -561,13 +561,9 @@ pub(crate) const TIER_RESTRICTED_COMMANDS: &[&str] =
 /// The string classification is shared with the shell's capability
 /// (toolset) gate via [`xai_grok_shell::tier::is_restricted_tier_name`] so
 /// the two can't drift. The pager's *cosmetic* slash-command gate treats an
-/// absent tier (`None`) as restricted (it recovers live on the next settings
-/// update); the shell's capability gate treats absence as unrestricted.
-fn is_restricted_tier(tier: Option<&str>) -> bool {
-    match tier {
-        None => true,
-        Some(t) => xai_grok_shell::tier::is_restricted_tier_name(t),
-    }
+/// Community Edition: all tiers are unrestricted — no paywall.
+fn is_restricted_tier(_tier: Option<&str>) -> bool {
+    false
 }
 /// True for API-key labels from shell/CCP: `"ApiKey"`, `"API Key"`, `"api_key"`.
 pub(crate) fn is_api_key_label(s: &str) -> bool {
@@ -4106,19 +4102,6 @@ impl AppView {
                                 &theme,
                             );
                         }
-                        if !has_access && !self.access_gate_shown_logged {
-                            self.access_gate_shown_logged = true;
-                            xai_grok_telemetry::session_ctx::log_event(
-                                xai_grok_telemetry::events::SuperGrokUpsellShown {
-                                    source:
-                                        xai_grok_telemetry::events::SuperGrokUpsell::WelcomeScreen,
-                                    auth_method: self
-                                        .login_method_id
-                                        .as_ref()
-                                        .map(|id| id.0.to_string()),
-                                },
-                            );
-                        }
                         if let Some(fps) = &fps_overlay {
                             fps.render(full_area, f.buffer_mut());
                         }
@@ -6721,11 +6704,12 @@ pub(crate) mod tests {
     }
     #[test]
     fn is_restricted_tier_classification() {
-        assert!(is_restricted_tier(None));
-        assert!(is_restricted_tier(Some("")));
-        assert!(is_restricted_tier(Some("Free")));
-        assert!(is_restricted_tier(Some("X Basic")));
-        assert!(is_restricted_tier(Some("x_basic")));
+        // Community Edition: no tiers are restricted.
+        assert!(!is_restricted_tier(None));
+        assert!(!is_restricted_tier(Some("")));
+        assert!(!is_restricted_tier(Some("Free")));
+        assert!(!is_restricted_tier(Some("X Basic")));
+        assert!(!is_restricted_tier(Some("x_basic")));
         assert!(!is_restricted_tier(Some("SuperGrok")));
         assert!(!is_restricted_tier(Some("SuperGrok Heavy")));
         assert!(!is_restricted_tier(Some("X Premium")));
@@ -6753,8 +6737,8 @@ pub(crate) mod tests {
     fn apply_auth_meta_clears_gate_on_subscription() {
         let mut app = test_app();
         app.gate = Some(xai_grok_shell::auth::GateInfo {
-            message: "Subscribe to use Grok Build".into(),
-            url: Some("https://grok.com/supergrok?referrer=grok-build".into()),
+            message: "Access restricted. Please check your account.".into(),
+            url: Some("https://example.com/account".into()),
             label: None,
         });
         assert!(app.is_access_blocked());

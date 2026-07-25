@@ -56,7 +56,7 @@ pub enum Action {
     ExitSession,
     /// Exit session without double-press confirmation (e.g., from command palette).
     ExitSessionConfirmed,
-    /// Open grok.com in the browser for SuperGrok subscription upsell.
+    /// Open the access-gate URL in the system browser.
     OpenSupergrokUrl,
     /// Re-check subscription status via the shell's `x.ai/auth/check_subscription`.
     CheckSubscription,
