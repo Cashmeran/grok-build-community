@@ -201,6 +201,9 @@ fn parse_translations(json: &str) -> HashMap<&'static str, &'static str> {
 fn lang_pref_path() -> Option<std::path::PathBuf> {
     dirs::home_dir().map(|h| h.join(".grok").join("lang"))
 }
+pub(crate) fn clear_lang_preference() {
+    if let Some(p) = lang_pref_path() { let _ = std::fs::remove_file(&p); }
+}
 
 /// Try to load a saved language preference from `~/.grok/lang`.
 fn load_lang_preference() -> Option<String> {
@@ -245,10 +248,13 @@ mod tests {
 
     #[test]
     fn switch_to_chinese() {
+        clear_lang_preference();
+        set_lang("en");
         set_lang("zh-CN");
         assert_eq!(current_lang(), "zh-CN");
-        // Reset for other tests
+        // Reset for other tests — also clear persistence
         set_lang("en");
+        clear_lang_preference();
     }
 
     #[test]

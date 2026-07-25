@@ -1,11 +1,14 @@
 #[cfg(test)]
 mod translation_tests {
+    use crate::clear_lang_preference;
     use crate::current_lang;
     use crate::set_lang;
     use crate::tr;
 
+    fn setup() { clear_lang_preference(); set_lang("en"); }
+
     #[test]
-    fn zh_cn_translations_work() {
+    fn zh_cn_translations_work() { setup(); setup();
         let original = current_lang();
 
         set_lang("zh-CN");
@@ -22,10 +25,12 @@ mod translation_tests {
 
         // Reset to original
         set_lang(&original);
+        // Clean up saved preference so it doesn't affect other tests
+        clear_lang_preference();
     }
 
     #[test]
-    fn ja_translations_work() {
+    fn ja_translations_work() { setup(); setup();
         let original = current_lang();
 
         set_lang("ja");
@@ -34,10 +39,12 @@ mod translation_tests {
         assert_eq!(tr!("Quit the application"), "アプリケーションを終了");
 
         set_lang(&original);
+        // Clean up saved preference so it doesn't affect other tests
+        clear_lang_preference();
     }
 
     #[test]
-    fn round_trip_en_to_zh_and_back() {
+    fn round_trip_en_to_zh_and_back() { setup();
         let original = current_lang();
 
         set_lang("zh-CN");
@@ -49,5 +56,7 @@ mod translation_tests {
         assert_eq!(en, "Switch language");
 
         set_lang(&original);
+        // Clean up saved preference so it doesn't affect other tests
+        clear_lang_preference();
     }
 }
