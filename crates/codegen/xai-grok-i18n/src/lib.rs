@@ -201,6 +201,7 @@ fn parse_translations(json: &str) -> HashMap<&'static str, &'static str> {
 fn lang_pref_path() -> Option<std::path::PathBuf> {
     dirs::home_dir().map(|h| h.join(".grok").join("lang"))
 }
+#[allow(dead_code)]
 pub(crate) fn clear_lang_preference() {
     if let Some(p) = lang_pref_path() { let _ = std::fs::remove_file(&p); }
 }
