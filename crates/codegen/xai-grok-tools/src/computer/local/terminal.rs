@@ -2834,7 +2834,7 @@ fn login_env_var_excluded(key: &str) -> bool {
 }
 
 #[cfg(unix)]
-fn parse_login_env_capture(stdout: &str) -> (Option<String>, HashMap<String, String>) {
+pub(crate) fn parse_login_env_capture(stdout: &str) -> (Option<String>, HashMap<String, String>) {
     let parts: Vec<&str> = stdout.split('\x01').collect();
     let login_path = parts
         .get(1)

@@ -1,39 +1,3 @@
-diff --git a/Cargo.toml b/Cargo.toml
-index b65aab6..fb0985c 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -26,6 +26,7 @@ members = [
-     "crates/codegen/xai-grok-env",
-     "crates/codegen/xai-grok-hooks",
-     "crates/codegen/xai-grok-http",
-+    "crates/codegen/xai-grok-i18n",
-     "crates/codegen/xai-grok-markdown",
-     "crates/codegen/xai-grok-markdown-core",
-     "crates/codegen/xai-grok-mcp",
-@@ -60,7 +61,6 @@ members = [
-     "crates/codegen/xai-grok-workspace-types",
-     "crates/codegen/xai-hooks-plugins-types",
-     "crates/codegen/xai-hunk-tracker",
--    "crates/codegen/xai-mixpanel",
-     "crates/codegen/xai-prompt-queue",
-     "crates/codegen/xai-ratatui-inline",
-     "crates/codegen/xai-ratatui-textarea",
-@@ -289,6 +289,7 @@ xai-grok-config = { path = "crates/codegen/xai-grok-config" }
- xai-grok-config-types = { path = "crates/codegen/xai-grok-config-types" }
- xai-grok-env = { path = "crates/codegen/xai-grok-env" }
- xai-grok-http = { path = "crates/codegen/xai-grok-http" }
-+xai-grok-i18n = { path = "crates/codegen/xai-grok-i18n" }
- xai-grok-markdown = { path = "crates/codegen/xai-grok-markdown" }
- xai-grok-markdown-core = { path = "crates/codegen/xai-grok-markdown-core" }
- xai-grok-mcp = { path = "crates/codegen/xai-grok-mcp" }
-@@ -310,7 +311,6 @@ xai-grok-workspace = { path = "crates/codegen/xai-grok-workspace" }
- xai-grok-workspace-types = { path = "crates/codegen/xai-grok-workspace-types" }
- xai-hooks-plugins-types = { path = "crates/codegen/xai-hooks-plugins-types" }
- xai-interjection-core = { path = "crates/common/xai-interjection-core" }
--xai-mixpanel = { path = "crates/codegen/xai-mixpanel" }
- xai-prompt-queue = { path = "crates/codegen/xai-prompt-queue" }
- xai-proto-build = { path = "crates/build/xai-proto-build" }
- xai-ratatui-inline = { path = "crates/codegen/xai-ratatui-inline" }
 diff --git a/crates/codegen/xai-grok-i18n/Cargo.toml b/crates/codegen/xai-grok-i18n/Cargo.toml
 new file mode 100644
 index 0000000..c88707d
@@ -54,10 +18,10 @@ index 0000000..c88707d
 +tracing = { workspace = true }
 diff --git a/crates/codegen/xai-grok-i18n/src/lib.rs b/crates/codegen/xai-grok-i18n/src/lib.rs
 new file mode 100644
-index 0000000..3f124c4
+index 0000000..ebec2aa
 --- /dev/null
 +++ b/crates/codegen/xai-grok-i18n/src/lib.rs
-@@ -0,0 +1,267 @@
+@@ -0,0 +1,274 @@
 +//! Lightweight internationalization (i18n) for Grok Build Community Edition.
 +//!
 +//! # Design
@@ -261,6 +225,10 @@ index 0000000..3f124c4
 +fn lang_pref_path() -> Option<std::path::PathBuf> {
 +    dirs::home_dir().map(|h| h.join(".grok").join("lang"))
 +}
++#[allow(dead_code)]
++pub(crate) fn clear_lang_preference() {
++    if let Some(p) = lang_pref_path() { let _ = std::fs::remove_file(&p); }
++}
 +
 +/// Try to load a saved language preference from `~/.grok/lang`.
 +fn load_lang_preference() -> Option<String> {
@@ -305,10 +273,13 @@ index 0000000..3f124c4
 +
 +    #[test]
 +    fn switch_to_chinese() {
++        clear_lang_preference();
++        set_lang("en");
 +        set_lang("zh-CN");
 +        assert_eq!(current_lang(), "zh-CN");
-+        // Reset for other tests
++        // Reset for other tests — also clear persistence
 +        set_lang("en");
++        clear_lang_preference();
 +    }
 +
 +    #[test]
@@ -327,18 +298,21 @@ index 0000000..3f124c4
 +mod translation_integration_tests;
 diff --git a/crates/codegen/xai-grok-i18n/src/tests.rs b/crates/codegen/xai-grok-i18n/src/tests.rs
 new file mode 100644
-index 0000000..24d2279
+index 0000000..7fa8964
 --- /dev/null
 +++ b/crates/codegen/xai-grok-i18n/src/tests.rs
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,62 @@
 +#[cfg(test)]
 +mod translation_tests {
++    use crate::clear_lang_preference;
 +    use crate::current_lang;
 +    use crate::set_lang;
 +    use crate::tr;
 +
++    fn setup() { clear_lang_preference(); set_lang("en"); }
++
 +    #[test]
-+    fn zh_cn_translations_work() {
++    fn zh_cn_translations_work() { setup(); setup();
 +        let original = current_lang();
 +
 +        set_lang("zh-CN");
@@ -355,10 +329,12 @@ index 0000000..24d2279
 +
 +        // Reset to original
 +        set_lang(&original);
++        // Clean up saved preference so it doesn't affect other tests
++        clear_lang_preference();
 +    }
 +
 +    #[test]
-+    fn ja_translations_work() {
++    fn ja_translations_work() { setup(); setup();
 +        let original = current_lang();
 +
 +        set_lang("ja");
@@ -367,10 +343,12 @@ index 0000000..24d2279
 +        assert_eq!(tr!("Quit the application"), "アプリケーションを終了");
 +
 +        set_lang(&original);
++        // Clean up saved preference so it doesn't affect other tests
++        clear_lang_preference();
 +    }
 +
 +    #[test]
-+    fn round_trip_en_to_zh_and_back() {
++    fn round_trip_en_to_zh_and_back() { setup();
 +        let original = current_lang();
 +
 +        set_lang("zh-CN");
@@ -382,6 +360,8 @@ index 0000000..24d2279
 +        assert_eq!(en, "Switch language");
 +
 +        set_lang(&original);
++        // Clean up saved preference so it doesn't affect other tests
++        clear_lang_preference();
 +    }
 +}
 diff --git a/crates/codegen/xai-grok-i18n/src/translations/fr.json b/crates/codegen/xai-grok-i18n/src/translations/fr.json
@@ -1326,9 +1306,17 @@ index 0000000..f910bb3
 +}
 \ No newline at end of file
 diff --git a/crates/codegen/xai-grok-pager/Cargo.toml b/crates/codegen/xai-grok-pager/Cargo.toml
-index d6c8100..a4e931d 100644
+index 3a65ecc..a4e931d 100644
 --- a/crates/codegen/xai-grok-pager/Cargo.toml
 +++ b/crates/codegen/xai-grok-pager/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "xai-grok-pager"
+-version = "0.2.111"
++version = "0.2.109"
+ edition.workspace = true
+ license = "Apache-2.0"
+ authors = ["xAI"]
 @@ -43,6 +43,8 @@ blake3 = { workspace = true }
  serde = { workspace = true, features = ["derive"] }
  serde_json = { workspace = true }
@@ -1424,7 +1412,7 @@ index 0000000..6de8102
 +    }
 +}
 diff --git a/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs b/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
-index 9dae92b..fd2253c 100644
+index c3f3e0e..fd2253c 100644
 --- a/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
 +++ b/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs
 @@ -34,6 +34,7 @@ pub mod imagine;
@@ -1435,23 +1423,23 @@ index 9dae92b..fd2253c 100644
  pub mod login;
  pub mod logout;
  pub mod loop_cmd;
-@@ -81,7 +82,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
-         Arc::new(docs::DocsCommand),
-         Arc::new(home::HomeCommand),
-         Arc::new(new::NewCommand),
--        
-         Arc::new(fork::ForkCommand),
-         Arc::new(compact::CompactCommand),
-         Arc::new(copy::CopyCommand),
-@@ -121,7 +121,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
-         Arc::new(workflows::WorkflowsCommand),
-         Arc::new(btw::BtwCommand),
-         Arc::new(recap::RecapCommand),
--        
-         Arc::new(doctor::DoctorCommand),
-         Arc::new(voice::VoiceCommand),
-         Arc::new(loop_cmd::LoopCommand),
-@@ -137,6 +136,7 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+@@ -63,7 +64,6 @@ pub mod timeline;
+ pub mod timestamps;
+ pub mod toggle_mouse_reporting;
+ pub mod transcript;
+-pub mod tutorial;
+ pub mod usage;
+ pub mod view_plan;
+ pub mod vim_mode;
+@@ -92,7 +92,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(edit_prompt::EditPromptCommand),
+         Arc::new(expand::ExpandCommand),
+         Arc::new(context::ContextCommand),
+-        // Screen-mode switchers: visible only in the opposite mode.
+         Arc::new(screen_mode_switch::ScreenModeSwitchCommand::minimal()),
+         Arc::new(screen_mode_switch::ScreenModeSwitchCommand::fullscreen()),
+         Arc::new(model::ModelCommand),
+@@ -137,18 +136,15 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
          Arc::new(login::LoginCommand),
          Arc::new(logout::LogoutCommand),
          Arc::new(import_claude::ImportClaudeCommand),
@@ -1459,7 +1447,19 @@ index 9dae92b..fd2253c 100644
          Arc::new(usage::UsageCommand),
          Arc::new(queue::QueueCommand),
          Arc::new(tasks::TasksCommand),
-@@ -282,6 +282,7 @@ mod tests {
+         Arc::new(release_notes::ReleaseNotesCommand),
+-        Arc::new(tutorial::TutorialCommand),
+         Arc::new(config_agents::ConfigAgentsCommand),
+         Arc::new(personas::PersonasCommand),
+-        // Hidden easter egg: never listed, runs on bare `/gboom`.
+         Arc::new(gboom::GboomCommand),
+-        // Hidden diagnostic: never listed, toggles the scroll-debug HUD.
+         Arc::new(scroll_debug::ScrollDebugCommand),
+-        // Debug toggles: always registered, listed only on debug binaries.
+         Arc::new(debug::DebugCommand),
+     ]
+ }
+@@ -286,6 +282,7 @@ mod tests {
              "imagine-video",
              "import-claude",
              "jump",
@@ -1467,6 +1467,33 @@ index 9dae92b..fd2253c 100644
              "login",
              "logout",
              "log",
+@@ -298,7 +295,6 @@ mod tests {
+             "model",
+             "multiline",
+             "new",
+-            "onboarding",
+             "personas",
+             "plan",
+             "plan-view",
+@@ -331,9 +327,7 @@ mod tests {
+             "timestamps",
+             "title",
+             "toggle-mouse-reporting",
+-            "tour",
+             "transcript",
+-            "tutorial",
+             "t",
+             "usage",
+             "view-plan",
+@@ -366,7 +360,7 @@ mod tests {
+         let quit_cmd = reg.get("quit").unwrap();
+         assert_eq!(exit_cmd.name(), quit_cmd.name());
+         let doctor = reg.get("doctor").unwrap();
+-        assert_eq!(doctor.usage(), "/doctor [fix [FIX]]");
++        assert_eq!(doctor.usage(), "/doctor");
+         for alias in ["terminal-setup", "terminal-check", "terminal-info"] {
+             assert_eq!(reg.get(alias).unwrap().name(), doctor.name());
+             assert_eq!(reg.get(alias).unwrap().usage(), doctor.usage());
 diff --git a/crates/codegen/xai-grok-pager/src/slash/registry.rs b/crates/codegen/xai-grok-pager/src/slash/registry.rs
 index 0b50f03..46cf9d4 100644
 --- a/crates/codegen/xai-grok-pager/src/slash/registry.rs
@@ -1485,7 +1512,7 @@ index 0b50f03..46cf9d4 100644
      pub fn triggers(&self) -> &[CommandTrigger] {
          &self.triggers
 diff --git a/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs b/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
-index 7491581..2d3231c 100644
+index 16f2920..2d3231c 100644
 --- a/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
 +++ b/crates/codegen/xai-grok-pager/src/views/welcome/mod.rs
 @@ -1,4 +1,4 @@
@@ -1502,7 +1529,17 @@ index 7491581..2d3231c 100644
  mod hero_box;
  pub(crate) mod logo;
  mod menu;
-@@ -421,14 +422,14 @@ pub(super) fn render_version_badge(
+@@ -117,9 +118,6 @@ pub struct WelcomeRenderResult {
+     pub announcement_rect: Option<Rect>,
+     /// Hit-test rect for the promo upgrade CTA `[label]` button (click → open).
+     pub upgrade_cta_rect: Option<Rect>,
+-    pub privacy_banner_accept_rect: Option<Rect>,
+-    pub privacy_banner_customize_rect: Option<Rect>,
+-    pub privacy_banner_legal_rect: Option<Rect>,
+ }
+ 
+ use hero_box::HERO_BOX_MIN_WIDTH;
+@@ -424,14 +422,14 @@ pub(super) fn render_version_badge(
          } = &mode
      {
          spans.push(Span::styled(
@@ -1519,7 +1556,29 @@ index 7491581..2d3231c 100644
              Style::default().fg(theme.gray),
          ));
          spans.push(sep);
-@@ -688,8 +689,8 @@ pub fn render_welcome(
+@@ -626,10 +624,10 @@ pub struct WelcomeRenderParams<'a> {
+     pub gate: Option<&'a xai_grok_shell::auth::GateInfo>,
+     pub subscription_tier: Option<&'a str>,
+     pub session_picker_grouped: bool,
+-    /// Source filter for the session picker.
++    /// Source filter (local/remote/all) for the session picker.
+     pub session_picker_source_filter: crate::views::session_picker::SourceFilter,
+     /// Process-wide `--chat`: the picker lists backend conversations only, so
+-    /// the source filter and local deep search are hidden.
++    /// the Local/Remote source filter and local deep search are hidden.
+     pub chat_mode: bool,
+     /// Live working directory (tracks `Effect::SetWorkingDir`), used to pin
+     /// the current repo's session group to the top of the picker.
+@@ -651,8 +649,6 @@ pub struct WelcomeRenderParams<'a> {
+     /// drives both the reserved row height and the `[label]` button. `None` = no
+     /// CTA on the welcome screen.
+     pub upgrade_cta: Option<&'a str>,
+-    /// Non-blocking welcome privacy banner above the prompt.
+-    pub privacy_banner: bool,
+ }
+ 
+ /// Render the welcome screen.
+@@ -693,8 +689,8 @@ pub fn render_welcome(
      let mut result = match params.auth_state {
          AuthState::Pending { error } => {
              let label = params.login_label.unwrap_or("grok.com");
@@ -1530,7 +1589,23 @@ index 7491581..2d3231c 100644
              let msg = error.as_deref().map(|e| (e, theme.accent_error));
              let info = PromptInfo {
                  model_name: params.model_name,
-@@ -759,12 +760,12 @@ pub fn render_welcome(
+@@ -729,9 +725,6 @@ pub fn render_welcome(
+                 announcement_truncated: false,
+                 announcement_rect: None,
+                 upgrade_cta_rect: None,
+-                privacy_banner_accept_rect: None,
+-                privacy_banner_customize_rect: None,
+-                privacy_banner_legal_rect: None,
+             }
+         }
+         AuthState::Authenticating { auth_url, mode, .. } => {
+@@ -764,18 +757,15 @@ pub fn render_welcome(
+                 announcement_truncated: false,
+                 announcement_rect: None,
+                 upgrade_cta_rect: None,
+-                privacy_banner_accept_rect: None,
+-                privacy_banner_customize_rect: None,
+-                privacy_banner_legal_rect: None,
              }
          }
          AuthState::Done if params.is_zdr_blocked => {
@@ -1545,7 +1620,17 @@ index 7491581..2d3231c 100644
                      theme.gray_bright,
                  )),
                  &menu,
-@@ -935,10 +936,10 @@ fn render_welcome_trust(
+@@ -800,9 +790,6 @@ pub fn render_welcome(
+                 announcement_truncated: false,
+                 announcement_rect: None,
+                 upgrade_cta_rect: None,
+-                privacy_banner_accept_rect: None,
+-                privacy_banner_customize_rect: None,
+-                privacy_banner_legal_rect: None,
+             }
+         }
+         // Folder-trust question: shown after auth, before any session is
+@@ -949,10 +936,10 @@ fn render_welcome_trust(
      h_margin: u16,
      compact: bool,
  ) -> WelcomeRenderResult {
@@ -1558,7 +1643,7 @@ index 7491581..2d3231c 100644
              Style::default().fg(theme.gray_bright),
          ))
          .alignment(Alignment::Center),
-@@ -951,12 +952,12 @@ fn render_welcome_trust(
+@@ -965,12 +952,12 @@ fn render_welcome_trust(
          // Two lines so the warning never clips at narrow / compact widths
          // (a single ~78-char line would truncate "...posing security risks").
          Line::from(Span::styled(
@@ -1573,7 +1658,7 @@ index 7491581..2d3231c 100644
              Style::default().fg(theme.gray),
          ))
          .alignment(Alignment::Center),
-@@ -1003,11 +1004,11 @@ fn render_welcome_trust(
+@@ -1017,11 +1004,11 @@ fn render_welcome_trust(
  }
  
  /// Header text shared by Loopback and Command auth modes.
@@ -1588,7 +1673,7 @@ index 7491581..2d3231c 100644
  
  /// Extract `user_code` from a device verification URL (`None` if absent or
  /// malformed). Shown on-screen so the user can confirm it matches the browser
-@@ -1053,12 +1054,12 @@ fn auth_copy_line_rows(inner_width: u16) -> u16 {
+@@ -1067,12 +1054,12 @@ fn auth_copy_line_rows(inner_width: u16) -> u16 {
      (copy_len as u16).div_ceil(inner_width)
  }
  
@@ -1603,7 +1688,7 @@ index 7491581..2d3231c 100644
          Style::default()
              .fg(theme.gray)
              .add_modifier(Modifier::UNDERLINED),
-@@ -1160,7 +1161,7 @@ fn render_raw_url_mode(
+@@ -1174,7 +1161,7 @@ fn render_raw_url_mode(
  
      // Render hint above the URL.
      let hint = Line::from(Span::styled(
@@ -1612,7 +1697,7 @@ index 7491581..2d3231c 100644
          Style::default().fg(theme.gray),
      ))
      .alignment(Alignment::Center);
-@@ -1259,17 +1260,17 @@ fn render_browser_status_arm(
+@@ -1273,17 +1260,17 @@ fn render_browser_status_arm(
  
      // Device also parses the user code from the verification URL.
      let (header, waiting_text, user_code) = match kind {
@@ -1634,7 +1719,7 @@ index 7491581..2d3231c 100644
          1 + 1 + 1 + caption_rows // blank + code + blank + caption
      } else {
          0
-@@ -1312,7 +1313,7 @@ fn render_browser_status_arm(
+@@ -1326,7 +1313,7 @@ fn render_browser_status_arm(
          lines.push(Line::default());
          lines.push(
              Line::from(Span::styled(
@@ -1643,7 +1728,7 @@ index 7491581..2d3231c 100644
                  Style::default().fg(theme.gray),
              ))
              .alignment(Alignment::Center),
-@@ -1377,7 +1378,7 @@ fn render_welcome_authenticating(
+@@ -1391,7 +1378,7 @@ fn render_welcome_authenticating(
              }
  
              let msg_height = if auth_url.is_some() {
@@ -1652,7 +1737,7 @@ index 7491581..2d3231c 100644
                  header_rows + auth_copy_block_rows(inner_width)
              } else {
                  1u16
-@@ -1402,7 +1403,7 @@ fn render_welcome_authenticating(
+@@ -1416,7 +1403,7 @@ fn render_welcome_authenticating(
              if auth_url.is_some() {
                  lines.push(
                      Line::from(Span::styled(
@@ -1661,7 +1746,7 @@ index 7491581..2d3231c 100644
                          Style::default().fg(theme.gray_bright),
                      ))
                      .alignment(Alignment::Center),
-@@ -1423,7 +1424,7 @@ fn render_welcome_authenticating(
+@@ -1437,7 +1424,7 @@ fn render_welcome_authenticating(
                  .render(msg_area, buf);
  
              let (click_rect, fallback_rect) = if auth_url.is_some() {
@@ -1670,7 +1755,7 @@ index 7491581..2d3231c 100644
              } else {
                  (None, None)
              };
-@@ -1564,7 +1565,7 @@ fn render_changelog_section(
+@@ -1578,7 +1565,7 @@ fn render_changelog_section(
              .fg(theme.gray_bright)
              .add_modifier(Modifier::DIM),
      );
@@ -1679,7 +1764,7 @@ index 7491581..2d3231c 100644
      buf.set_span(
          centered.x,
          centered.y,
-@@ -1686,7 +1687,7 @@ fn render_welcome_done(
+@@ -1700,7 +1687,7 @@ fn render_welcome_done(
      let cta = p
          .gate
          .and_then(|g| g.label.as_deref())
@@ -1688,7 +1773,26 @@ index 7491581..2d3231c 100644
      let in_vscode_family = welcome_in_vscode_family();
      let (key_g, key_l, key_q) = (
          "ctrl+g",
-@@ -1730,7 +1731,7 @@ fn render_welcome_done(
+@@ -1719,16 +1706,9 @@ fn render_welcome_done(
+     });
+     let has_update_tip = p.pending_update_version.is_some();
+     let has_resume_tip = !has_update_tip && p.foreign_resume_hint.is_some();
+-    // Tip slot precedence: pending update > privacy banner (2 rows) > resume
+-    // hint > random tip. The update outranks the upsell so a ready update is
+-    // never invisible; the banner takes the slot back once it's applied.
+     let tip_height = if !show_picker {
+-        if has_update_tip {
+-            1u16
+-        } else if p.privacy_banner {
+-            2u16
+-        } else if has_resume_tip {
+-            1u16
++        if has_update_tip || has_resume_tip {
++            1u16 // update/resume tips are short, always 1 row
+         } else if let Some(tip_text) = p.tip {
+             let inset = prompt::prompt_inset(welcome_compact);
+             let tip_width = content_area.width.saturating_sub(inset * 2);
+@@ -1751,7 +1731,7 @@ fn render_welcome_done(
      let gate_menu;
      let owned_menu;
      let menu_items: &[(&str, &str)] = if !p.has_access {
@@ -1697,7 +1801,7 @@ index 7491581..2d3231c 100644
          &gate_menu
      } else {
          let (key_w, key_s, key_q, key_i_with_x) = (
-@@ -1748,15 +1749,15 @@ fn render_welcome_done(
+@@ -1769,15 +1749,15 @@ fn render_welcome_done(
              // 3 cells of this row as dismiss instead of open. Keyboard:
              // ctrl-shift-i. The key string is right-aligned by render_menu,
              // so [x] sits at the very end of the row.
@@ -1718,7 +1822,35 @@ index 7491581..2d3231c 100644
          owned_menu = items;
          owned_menu.as_slice()
      };
-@@ -1923,12 +1924,12 @@ fn render_welcome_done(
+@@ -1794,16 +1774,7 @@ fn render_welcome_done(
+         if p.session_picker_loading {
+             1
+         } else {
+-            // Reserve a row for the pinned hidden-external hint when shown.
+-            let hint_row = u16::from(
+-                !p.chat_mode
+-                    && crate::views::session_picker::hidden_external_hint(
+-                        p.session_picker,
+-                        p.session_picker_source_filter,
+-                    )
+-                    .is_some(),
+-            );
+-            (picker_count as u16).min(15) + 3 + hint_row // +3 for title + search + gap
++            (picker_count as u16).min(15) + 3 // +3 for title + search + gap
+         }
+     } else {
+         0
+@@ -1941,9 +1912,6 @@ fn render_welcome_done(
+     // shortcuts are rendered inside the picker content area.
+     let mut refresh_hit_rect: Option<Rect> = None;
+     let mut gate_url_hit_rect: Option<Rect> = None;
+-    let mut privacy_banner_accept_rect: Option<Rect> = None;
+-    let mut privacy_banner_customize_rect: Option<Rect> = None;
+-    let mut privacy_banner_legal_rect: Option<Rect> = None;
+     let (cursor_pos, post_flush_escapes) = if show_picker {
+         (None, None)
+     } else if !p.has_access {
+@@ -1956,12 +1924,12 @@ fn render_welcome_done(
          .flex(Flex::Center)
          .areas(layout.prompt);
          // Show the user's current tier + clickable refresh button above the gate message.
@@ -1734,7 +1866,7 @@ index 7491581..2d3231c 100644
              Span::styled(
                  tier_label,
                  Style::default()
-@@ -1962,7 +1963,7 @@ fn render_welcome_done(
+@@ -1995,7 +1963,7 @@ fn render_welcome_done(
          let gate_text = p
              .gate
              .map(|g| g.message.as_str())
@@ -1743,7 +1875,7 @@ index 7491581..2d3231c 100644
          let msg = Line::from(Span::styled(
              gate_text,
              Style::default().fg(theme.gray_bright),
-@@ -1983,10 +1984,7 @@ fn render_welcome_done(
+@@ -2016,10 +1984,7 @@ fn render_welcome_done(
                  height: 1,
                  ..centered
              };
@@ -1755,7 +1887,100 @@ index 7491581..2d3231c 100644
              let url = Line::from(Span::styled(
                  gate_link,
                  Style::default()
-@@ -2382,7 +2380,7 @@ pub(crate) fn render_session_picker(
+@@ -2053,31 +2018,13 @@ fn render_welcome_done(
+         );
+         (None, None)
+     } else {
+-        // Privacy banner owns the tip slot when visible (above the prompt),
+-        // except a pending-update notification, which outranks it.
+-        if p.privacy_banner && p.pending_update_version.is_none() && layout.tip.height > 0 {
+-            let [_, tip_centered, _] = Layout::horizontal([
+-                Constraint::Min(0),
+-                Constraint::Length(content_area.width),
+-                Constraint::Min(0),
+-            ])
+-            .flex(Flex::Center)
+-            .areas(layout.tip);
+-            let inset = prompt::prompt_inset(p.compact);
+-            let tip_inset = Rect {
+-                x: tip_centered.x + inset,
+-                y: tip_centered.y,
+-                width: tip_centered.width.saturating_sub(inset * 2),
+-                height: tip_centered.height,
+-            };
+-            let rects = crate::views::privacy_banner::render(tip_inset, buf, theme, p.mouse_pos);
+-            privacy_banner_accept_rect = Some(rects.accept);
+-            privacy_banner_customize_rect = Some(rects.customize);
+-            privacy_banner_legal_rect = Some(rects.legal);
+-        } else if let Some(ver) = p.pending_update_version
++        // When a background update is available, show the update
++        // notification in the tip area instead of the random tip.
++
++        // Render the update notification with accent styling when present.
++        if let Some(ver) = p.pending_update_version
+             && layout.tip.height > 0
+         {
+-            // Background update notification in the tip area.
+             let [_, tip_centered, _] = Layout::horizontal([
+                 Constraint::Min(0),
+                 Constraint::Length(content_area.width),
+@@ -2112,8 +2059,7 @@ fn render_welcome_done(
+ 
+         // Recent foreign session: offer a one-click resume in the tip area
+         // (only when no update is pending — the update shares ctrl+u and wins).
+-        if !p.privacy_banner
+-            && p.pending_update_version.is_none()
++        if p.pending_update_version.is_none()
+             && let Some(hint) = p.foreign_resume_hint
+             && layout.tip.height > 0
+         {
+@@ -2174,11 +2120,8 @@ fn render_welcome_done(
+             p.prompt_focus,
+             prompt,
+             &usage_info,
+-            if p.privacy_banner
+-                || p.pending_update_version.is_some()
+-                || p.foreign_resume_hint.is_some()
+-            {
+-                // Banner/update/resume tip already rendered above with custom styling.
++            if p.pending_update_version.is_some() || p.foreign_resume_hint.is_some() {
++                // Update/resume tip already rendered above with custom styling.
+                 None
+             } else {
+                 p.tip
+@@ -2212,9 +2155,6 @@ fn render_welcome_done(
+         announcement_truncated,
+         announcement_rect,
+         upgrade_cta_rect,
+-        privacy_banner_accept_rect,
+-        privacy_banner_customize_rect,
+-        privacy_banner_legal_rect,
+     }
+ }
+ 
+@@ -2237,7 +2177,7 @@ pub(crate) struct SessionPickerRenderCtx<'a> {
+     pub(crate) tick: u64,
+     /// When true, entries are grouped by `repo_name` with non-selectable headers.
+     pub(crate) grouped: bool,
+-    /// Source filter for filtering session entries.
++    /// Source filter (local/remote/all) for filtering session entries.
+     pub(crate) source_filter: crate::views::session_picker::SourceFilter,
+     /// Process-wide `--chat`: hides the source-filter chip and the
+     /// deep-search/filter footer hints (see `WelcomeRenderParams::chat_mode`).
+@@ -2405,12 +2345,6 @@ pub(crate) fn render_session_picker(
+         }));
+     }
+ 
+-    let hidden_hint = if ctx.chat_mode {
+-        None
+-    } else {
+-        crate::views::session_picker::hidden_external_hint(ctx.sessions, ctx.source_filter)
+-    };
+-
+     // Build shortcuts for fullscreen mode. Chat mode drops the worktree /
+     // deep-search / filter hints (local-Build-row actions).
+     let worktree_shortcut: &'static str = "ctrl+w";
+@@ -2446,7 +2380,7 @@ pub(crate) fn render_session_picker(
      }
  
      let config = PickerConfig {
@@ -1764,7 +1989,145 @@ index 7491581..2d3231c 100644
          show_search_hint: true,
          expandable: true,
          esc_clears_query: true,
-@@ -3048,7 +3046,7 @@ mod tests {
+@@ -2460,7 +2394,6 @@ pub(crate) fn render_session_picker(
+         filter_label: (!ctx.chat_mode).then(|| ctx.source_filter.label()),
+         filter_key_hint: (!ctx.chat_mode).then_some("f"),
+         filter_active: !ctx.chat_mode && ctx.source_filter.is_active(),
+-        header_note: hidden_hint.as_deref(),
+         action_keys: &[],
+         disable_search: false,
+         compact_bottom_bar: false,
+@@ -2476,7 +2409,6 @@ pub(crate) fn render_session_picker(
+         &picker_entries,
+         &config,
+         ctx.loading,
+-        ctx.tick,
+     )
+ }
+ 
+@@ -2533,8 +2465,9 @@ fn render_auth_input_box(
+ /// kitty-keyboard banner is prepended ahead of `summarize_warnings()`
+ /// output — see `diagnostics::assemble_startup_warnings`), but only one is
+ /// rendered — the severity-aware pick from `startup::banner_warning`, so a
+-/// runtime-pushed Warning displaces an earlier Info entry. One message line,
+-/// one optional action line, plus a buffer row for spacing.
++/// runtime-pushed Warning displaces an earlier Info entry; all of them point
++/// at `/terminal-setup`, which remains an alias and lists every issue. One
++/// message line, one optional action line, plus a buffer row for spacing.
+ /// Severity controls color (yellow for `Warning`, dim for `Info`).
+ fn render_startup_warnings(
+     area: Rect,
+@@ -2775,7 +2708,7 @@ mod tests {
+             gate: None,
+             subscription_tier: None,
+             session_picker_grouped: false,
+-            session_picker_source_filter: crate::views::session_picker::SourceFilter::default(),
++            session_picker_source_filter: crate::views::session_picker::SourceFilter::All,
+             chat_mode: false,
+             cwd: std::path::Path::new("/repo"),
+             credit_balance: None,
+@@ -2785,7 +2718,6 @@ mod tests {
+             changelog_has_full_notes: false,
+             welcome_announcement_expanded: false,
+             upgrade_cta: None,
+-            privacy_banner: false,
+         }
+     }
+ 
+@@ -2950,7 +2882,7 @@ mod tests {
+                     entries_query,
+                     tick: 0,
+                     grouped: false,
+-                    source_filter: crate::views::session_picker::SourceFilter::default(),
++                    source_filter: crate::views::session_picker::SourceFilter::All,
+                     chat_mode: true,
+                 },
+             );
+@@ -2986,83 +2918,6 @@ mod tests {
+         );
+     }
+ 
+-    /// The hidden-external hint stays pinned on the welcome picker's default
+-    /// Grok view when scanned foreign rows exist — even when the native list
+-    /// overflows the viewport — and never renders under `--chat` (foreign
+-    /// scanning is disabled there, so the hint is dead weight).
+-    #[test]
+-    fn hidden_external_hint_renders_outside_chat_mode() {
+-        use ratatui::buffer::Buffer;
+-        use ratatui::layout::Rect;
+-
+-        let theme = crate::theme::Theme::default();
+-        let area = Rect::new(0, 0, 80, 20);
+-        // More native rows than the viewport fits: a trailing list row would
+-        // scroll out of view, a pinned row must not.
+-        let mut entries: Vec<SessionPickerEntry> = (0..30)
+-            .map(|i| make_entry(&format!("s{i}"), &format!("native session {i}"), "repo"))
+-            .collect();
+-        let mut foreign = make_entry("f1", "Claude work", "repo");
+-        foreign.source = "claude".into();
+-        entries.push(foreign);
+-
+-        let render = |chat_mode: bool| -> String {
+-            let mut buf = Buffer::empty(area);
+-            let mut state = PickerState::default();
+-            render_session_picker(
+-                area,
+-                &mut buf,
+-                &theme,
+-                &mut SessionPickerRenderCtx {
+-                    state: &mut state,
+-                    sessions: Some(&entries),
+-                    cwd: std::path::Path::new("/repo"),
+-                    loading: false,
+-                    pending_hint: None,
+-                    shortcuts_area: None,
+-                    content_results: None,
+-                    content_loading: false,
+-                    entries_query: None,
+-                    tick: 0,
+-                    grouped: false,
+-                    source_filter: crate::views::session_picker::SourceFilter::default(),
+-                    chat_mode,
+-                },
+-            );
+-            (0..area.height)
+-                .map(|y| {
+-                    (0..area.width)
+-                        .map(|x| {
+-                            buf.cell((x, y))
+-                                .map_or(' ', |c| c.symbol().chars().next().unwrap_or(' '))
+-                        })
+-                        .collect::<String>()
+-                })
+-                .collect::<Vec<_>>()
+-                .join("\n")
+-        };
+-
+-        let build_mode = render(false);
+-        assert!(
+-            build_mode.contains("1 external session hidden \u{b7} f to show"),
+-            "default Grok filter must pin the hidden-external hint:\n{build_mode}"
+-        );
+-        assert!(
+-            build_mode.find("external session hidden") < build_mode.find("native session 0"),
+-            "the hint must be pinned above the first list row:\n{build_mode}"
+-        );
+-        assert!(
+-            !build_mode.contains("Claude work"),
+-            "the foreign row itself stays hidden under the default filter:\n{build_mode}"
+-        );
+-
+-        let chat = render(true);
+-        assert!(
+-            !chat.contains("external session"),
+-            "chat mode must not render the hidden-external hint:\n{chat}"
+-        );
+-    }
+-
+     #[test]
+     fn grouped_entries_insert_headers() {
+         let entries = vec![
+@@ -3191,7 +3046,7 @@ mod tests {
  
      fn resume_picker_config() -> crate::views::picker::PickerConfig<'static> {
          crate::views::picker::PickerConfig {
@@ -1773,3 +2136,11 @@ index 7491581..2d3231c 100644
              show_search_hint: true,
              expandable: true,
              esc_clears_query: true,
+@@ -3205,7 +3060,6 @@ mod tests {
+             filter_label: None,
+             filter_key_hint: None,
+             filter_active: false,
+-            header_note: None,
+             action_keys: &[],
+             disable_search: false,
+             compact_bottom_bar: false,
