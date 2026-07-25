@@ -7580,7 +7580,7 @@ index 6f9f05a..ecad81f 100644
          // Set up some state
          let (_, _) = run_command(&mut state, "export SURVIVE_TEST=yes").await;
 diff --git a/crates/codegen/xai-grok-tools/src/computer/local/terminal.rs b/crates/codegen/xai-grok-tools/src/computer/local/terminal.rs
-index e6b950f..f8b875e 100644
+index e6b950f..6e25167 100644
 --- a/crates/codegen/xai-grok-tools/src/computer/local/terminal.rs
 +++ b/crates/codegen/xai-grok-tools/src/computer/local/terminal.rs
 @@ -303,7 +303,6 @@ struct ProcessState {
@@ -8008,6 +8008,15 @@ index e6b950f..f8b875e 100644
              );
              actor.run().await;
          };
+@@ -2888,7 +2834,7 @@ fn login_env_var_excluded(key: &str) -> bool {
+ }
+ 
+ #[cfg(unix)]
+-fn parse_login_env_capture(stdout: &str) -> (Option<String>, HashMap<String, String>) {
++pub(crate) fn parse_login_env_capture(stdout: &str) -> (Option<String>, HashMap<String, String>) {
+     let parts: Vec<&str> = stdout.split('\x01').collect();
+     let login_path = parts
+         .get(1)
 @@ -2975,107 +2921,19 @@ async fn capture_login_env() -> HashMap<String, String> {
      }
  }
