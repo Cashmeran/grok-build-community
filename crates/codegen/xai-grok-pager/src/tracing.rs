@@ -491,7 +491,8 @@ mod tests {
             .with(FilterlessNoOp);
         tracing::subscriber::with_default(subscriber, || {
             tracing::debug!(
-                target : "acp_update_payload", payload = % LazyJson(& probe),
+                target: "acp_update_payload",
+                payload = %LazyJson(&probe),
                 "[acp]",
             );
         });
@@ -514,7 +515,7 @@ mod tests {
     #[test]
     fn lazy_json_display_renders_json() {
         assert_eq!(
-            format!("{}", LazyJson(&serde_json::json!({ "a" : 1 }))),
+            format!("{}", LazyJson(&serde_json::json!({"a": 1}))),
             r#"{"a":1}"#
         );
     }
