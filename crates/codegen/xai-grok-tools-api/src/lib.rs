@@ -22,9 +22,7 @@ pub use pb::{
     AgentCompletionRequirement,
     AgentToolExecConfig,
     AgentToolRetryConfig,
-    // Request/response types
-    CallbackStatus,
-    ClearToolOverrideRequest,
+    // Request/response types    ClearToolOverrideRequest,
     ClearToolOverrideResponse,
     DisableToolRequest,
     DisableToolResponse,
@@ -77,22 +75,16 @@ pub use pb::{
     SetToolOverrideRequest,
     SetToolOverrideResponse,
     SetTruncationConfigRequest,
-    SetTruncationConfigResponse,
-    SpawnSubagentRequest,
-    // Streaming types
+    SetTruncationConfigResponse,    // Streaming types
     StreamDataChunk,
     StreamDataKind,
-    StreamFinalResult,
-    SubagentResultMsg,
-    // Capability/metadata types
+    StreamFinalResult,    // Capability/metadata types
     ToolCapabilities,
     ToolCategory,
     // Per-tool config entry
     ToolConfigEntry,
     ToolError,
-    ToolInfo,
-    ToolNotificationMsg,
-    ToolSource,
+    ToolInfo,    ToolSource,
     ToolStreamChunk,
     ToolSuccess,
     TruncationConfig,

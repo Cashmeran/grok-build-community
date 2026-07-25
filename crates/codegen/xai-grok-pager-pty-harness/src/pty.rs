@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use portable_pty::{CommandBuilder, ExitStatus, PtySize, native_pty_system};
-use xai_grok_test_support::{TestProcessTree, TestSandbox, process_has_exited_without_reap};
+use xai_grok_test_support::{TestProcessTree, TestSandbox}; fn process_has_exited_without_reap(pid: u32, _label: &str) -> std::io::Result<bool> { #[cfg(unix)] { unsafe { Ok(libc::waitpid(pid as i32, std::ptr::null_mut(), libc::WNOHANG) > 0) } } #[cfg(not(unix))] { Ok(false) } }
 
 const PTY_DROP_REAP_TIMEOUT: Duration = Duration::from_millis(250);
 const PTY_REAP_POLL: Duration = Duration::from_millis(10);
