@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/docs/user-guide/24-monitoring-usage.md b/crates/codegen/xai-grok-pager/docs/user-guide/24-monitoring-usage.md	(rejected hunks)
+@@ -16,7 +16,7 @@ These knobs are independent of each other (and of this guide's external OTEL str
+ | Setting | How to set it |
+ |---------|---------------|
+ | Telemetry master switch | `[features] telemetry` / `GROK_TELEMETRY_ENABLED` |
+-| Coding data, retention, and training | Settings — `/privacy` opens the row |
++| `/privacy` | `/privacy opt-in` / `/privacy opt-out`, or Settings |
+ | Trace upload | `[telemetry] trace_upload` / `GROK_TELEMETRY_TRACE_UPLOAD` |
+ | External OpenTelemetry | `GROK_EXTERNAL_OTEL` / `[telemetry] otel_*` (this guide) |
+ 

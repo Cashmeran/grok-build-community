@@ -1,0 +1,19 @@
+diff a/crates/codegen/xai-grok-announcements/src/lib.rs b/crates/codegen/xai-grok-announcements/src/lib.rs	(rejected hunks)
+@@ -303,13 +303,13 @@ mod tests {
+     #[test]
+     fn cta_parses_nested_partial_and_absent() {
+         let full: RemoteAnnouncement = serde_json::from_str(
+-            r#"{"id":"p","severity":"promo","cta":{"label":"Get SuperGrok","url":"https://x.ai/grok","caption":"or use Ctrl+O"}}"#,
++            r#"{"id":"p","severity":"info","cta":{"label":"Learn More","url":"https://example.com/info","caption":"press enter to open"}}"#,
+         )
+         .unwrap();
+         let cta = full.cta.as_ref().expect("cta present");
+-        assert_eq!(cta.label.as_deref(), Some("Get SuperGrok"));
+-        assert_eq!(cta.url.as_deref(), Some("https://x.ai/grok"));
+-        assert_eq!(cta.caption.as_deref(), Some("or use Ctrl+O"));
++        assert_eq!(cta.label.as_deref(), Some("Learn More"));
++        assert_eq!(cta.url.as_deref(), Some("https://example.com/info"));
++        assert_eq!(cta.caption.as_deref(), Some("press enter to open"));
+ 
+         let partial: RemoteAnnouncement =
+             serde_json::from_str(r#"{"cta":{"label":"only label"}}"#).unwrap();

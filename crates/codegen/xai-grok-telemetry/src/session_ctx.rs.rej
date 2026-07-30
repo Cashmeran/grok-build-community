@@ -1,0 +1,121 @@
+diff a/crates/codegen/xai-grok-telemetry/src/session_ctx.rs b/crates/codegen/xai-grok-telemetry/src/session_ctx.rs	(rejected hunks)
+@@ -135,6 +135,7 @@ const _: () = assert!(EmitterOrigin::ALL.len() == <EmitterOrigin as strum::EnumC
+ /// site, two sinks, independent gates"): the external gate is
+ /// `external::is_active()`, independent of `TelemetryMode`.
+ pub fn log_event<T: TelemetryEvent>(data: T) {
++    let _ = data; return; // Community Edition: telemetry disabled
+     crate::external::emit(&data);
+     if !client::is_enabled() {
+         return;
+@@ -155,6 +156,7 @@ pub fn log_event<T: TelemetryEvent>(data: T) {
+ /// `turn.count` exactly-once on every path while never sending an internal
+ /// record under ZDR.
+ pub fn log_event_dual<T: TelemetryEvent>(internal_enabled: bool, data: T) {
++    return; // Community Edition: telemetry disabled
+     if internal_enabled {
+         log_event(data);
+     } else {
+@@ -168,6 +170,7 @@ pub fn log_event_dual<T: TelemetryEvent>(internal_enabled: bool, data: T) {
+ /// Unconditionally fans out to the external OTEL stream first (independent
+ /// gate; see [`log_event`]).
+ pub fn log_session_event<T: TelemetryEvent>(data: T) {
++    let _ = data; return; // Community Edition: telemetry disabled
+     crate::external::emit(&data);
+     if !client::is_session_metrics_enabled() {
+         return;
+@@ -187,6 +190,7 @@ pub fn log_session_event<T: TelemetryEvent>(data: T) {
+ /// `external::tests`). If the external stream ever needs workspace events,
+ /// the hook moves here behind an explicit `origin == Shell` filter.
+ pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, data: T) {
++    return; // Community Edition: telemetry disabled
+     if !client::is_session_metrics_enabled() {
+         return;
+     }
+@@ -194,12 +198,12 @@ pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, d
+ }
+ 
+ /// Emit an event with the default [`EmitterOrigin::Shell`] prefix.
+-pub fn emit_event<T: Serialize + Send + 'static>(event_suffix: impl Into<String>, data: T) {
++pub fn emit_event<T: Serialize>(event_suffix: impl Into<String>, data: T) {
+     emit_event_with_origin(EmitterOrigin::Shell, event_suffix, data);
+ }
+ 
+ /// Emit an event whose analytics name is `{origin prefix}{event_suffix}`.
+-pub fn emit_event_with_origin<T: Serialize + Send + 'static>(
++pub fn emit_event_with_origin<T: Serialize>(
+     origin: EmitterOrigin,
+     event_suffix: impl Into<String>,
+     data: T,
+@@ -209,34 +213,50 @@ pub fn emit_event_with_origin<T: Serialize + Send + 'static>(
+         .try_with(|c| {
+             (
+                 c.session_id.clone(),
+-                c.prompt_index.try_lock().map(|g| *g as u32).ok(),
++                c.prompt_index.try_lock().map(|g| *g as usize).ok(),
+             )
+         })
+         .ok();
++    write_event(&event_name, origin.event_prefix(), &data, ctx_snapshot);
++}
+ 
+-    tokio::spawn(async move {
+-        let user_ctx = UserContext::collect();
+-        let request_id = format!("{}-{}", event_name, uuid::Uuid::new_v4());
+-
+-        let mut metadata = match serde_json::to_value(data) {
+-            Ok(serde_json::Value::Object(map)) => map,
+-            Ok(other) => {
+-                let mut m = Metadata::new();
+-                m.insert("value".into(), other);
+-                m
+-            }
+-            Err(_) => Metadata::new(),
+-        };
+-
+-        if let Some((session_id, turn_number)) = ctx_snapshot {
+-            metadata.insert("session_id".into(), json!(session_id));
+-            if let Some(turn) = turn_number {
+-                metadata.insert("turn_number".into(), json!(turn));
+-            }
++fn write_event<T: Serialize>(
++    event_name: &str,
++    origin: &str,
++    data: &T,
++    ctx_snapshot: Option<(String, Option<usize>)>,
++) {
++    use std::io::Write;
++
++    let mut record = match serde_json::to_value(data) {
++        Ok(serde_json::Value::Object(map)) => map,
++        Ok(other) => {
++            let mut m = serde_json::Map::new();
++            m.insert("value".into(), other);
++            m
+         }
++        Err(_) => serde_json::Map::new(),
++    };
+ 
+-        client::track(&event_name, &request_id, &user_ctx, metadata).await;
+-    });
++    if let Some((session_id, turn_number)) = ctx_snapshot {
++        record.insert("session_id".into(), json!(session_id));
++        if let Some(turn) = turn_number {
++            record.insert("turn_number".into(), json!(turn));
++        }
++    }
++    record.insert("event".into(), json!(event_name));
++    record.insert("origin".into(), json!(origin));
++    record.insert("ts".into(), json!(chrono::Utc::now().to_rfc3339()));
++
++    let log_dir = dirs::home_dir().unwrap_or_default().join(".grok").join("logs");
++    let _ = std::fs::create_dir_all(&log_dir);
++    if let Ok(mut f) = std::fs::OpenOptions::new()
++        .create(true)
++        .append(true)
++        .open(log_dir.join("events.log"))
++    {
++        let _ = writeln!(f, "{}", serde_json::Value::Object(record));
++    }
+ }
+ 
+ #[cfg(test)]

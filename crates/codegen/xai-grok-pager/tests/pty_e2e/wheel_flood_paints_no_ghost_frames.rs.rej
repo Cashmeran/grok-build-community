@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/wheel_flood_paints_no_ghost_frames.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/wheel_flood_paints_no_ghost_frames.rs	(rejected hunks)
+@@ -83,7 +83,7 @@ async fn wheel_flood_paints_no_ghost_frames() {
+     harness.update(Duration::from_millis(600));
+ 
+     assert!(
+-        harness.is_running().expect("poll pager liveness"),
++        harness.is_running(),
+         "pager exited during the wheel flood\nscreen:\n{}",
+         harness.screen_contents()
+     );

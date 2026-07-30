@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build/scheduler/list.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/scheduler/list.rs	(rejected hunks)
+@@ -67,7 +67,7 @@ impl xai_tool_runtime::Tool for SchedulerListTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             "scheduler_list",
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 

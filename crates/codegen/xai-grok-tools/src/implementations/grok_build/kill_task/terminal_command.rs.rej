@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build/kill_task/terminal_command.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/kill_task/terminal_command.rs	(rejected hunks)
+@@ -50,7 +50,7 @@ impl xai_tool_runtime::Tool for KillTerminalCommandTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             "kill_terminal_command",
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 

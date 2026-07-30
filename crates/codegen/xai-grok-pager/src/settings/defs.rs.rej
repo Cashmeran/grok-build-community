@@ -1,0 +1,997 @@
+diff a/crates/codegen/xai-grok-pager/src/settings/defs.rs b/crates/codegen/xai-grok-pager/src/settings/defs.rs	(rejected hunks)
+@@ -14,6 +14,7 @@ use crate::appearance::permission_cursor::DefaultSelectedPermission;
+ use xai_grok_shell::agent::config::UiConfig;
+ use xai_grok_tools::implementations::grok_build::ask_user_question;
+ 
++
+ // ---------------------------------------------------------------------------
+ // Int bounds for `max_thoughts_width`.
+ //
+@@ -38,39 +39,41 @@ pub(crate) const MAX_THOUGHTS_WIDTH_KEY: &str = "max_thoughts_width";
+ // ---------------------------------------------------------------------------
+ 
+ /// Full theme catalog including the "auto" meta-variant. Used by `theme` only.
+-const THEME_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "auto",
+-        display: "Auto",
+-        description: "Follow system dark/light appearance.",
+-    },
+-    EnumChoice {
+-        canonical: "groknight",
+-        display: "Grok Night",
+-        description: "Neutral dark with magenta accent.",
+-    },
+-    EnumChoice {
+-        canonical: "grokday",
+-        display: "Grok Day",
+-        description: "Light theme for bright environments.",
+-    },
+-    EnumChoice {
+-        canonical: "tokyonight",
+-        display: "Tokyo Night",
+-        description: "Dark + blue-tinted; needs truecolor.",
+-    },
+-    // ASCII "Rose Pine Moon" (not "Rosé") for cross-terminal compatibility.
+-    EnumChoice {
+-        canonical: "rosepine-moon",
+-        display: "Rose Pine Moon",
+-        description: "Muted dark with mauve accents; needs truecolor.",
+-    },
+-    EnumChoice {
+-        canonical: "oscura-midnight",
+-        display: "Oscura Midnight",
+-        description: "Deep dark with warm accents; needs truecolor.",
+-    },
+-];
++fn theme_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "auto",
++            display: "Auto",
++            description: "Follow system dark/light appearance.",
++        },
++        EnumChoice {
++            canonical: "groknight",
++            display: "Grok Night",
++            description: "Neutral dark with magenta accent.",
++        },
++        EnumChoice {
++            canonical: "grokday",
++            display: "Grok Day",
++            description: "Light theme for bright environments.",
++        },
++        EnumChoice {
++            canonical: "tokyonight",
++            display: "Tokyo Night",
++            description: "Dark + blue-tinted; needs truecolor.",
++        },
++        // ASCII "Rose Pine Moon" (not "Rosé") for cross-terminal compatibility.
++        EnumChoice {
++            canonical: "rosepine-moon",
++            display: "Rose Pine Moon",
++            description: "Muted dark with mauve accents; needs truecolor.",
++        },
++        EnumChoice {
++            canonical: "oscura-midnight",
++            display: "Oscura Midnight",
++            description: "Deep dark with warm accents; needs truecolor.",
++        },
++    ]))
++}
+ 
+ // ---------------------------------------------------------------------------
+ // Permission-mode catalog.
+@@ -94,30 +97,32 @@ const THEME_CHOICES: &[EnumChoice] = &[
+ // Choice order: safe → classifier → unsafe (Default → Ask → Auto → Always approve).
+ // "Always approve" at the end creates a speed bump against
+ // accidental selection.
+-const PERMISSION_MODE_CHOICES: &[EnumChoice] = &[
+-    // "default" = agent's default behavior. Same as "ask" at runtime;
+-    // distinct on disk and in the modal indicator.
+-    EnumChoice {
+-        canonical: "default",
+-        display: "Default",
+-        description: "Use the agent's default permission behavior (currently equivalent to Ask).",
+-    },
+-    EnumChoice {
+-        canonical: "ask",
+-        display: "Ask",
+-        description: "Prompt for permission before tool actions.",
+-    },
+-    EnumChoice {
+-        canonical: "auto",
+-        display: "Auto",
+-        description: "LLM classifier approves safe tools; dangerous actions may still prompt or deny.",
+-    },
+-    EnumChoice {
+-        canonical: "always-approve",
+-        display: "Always approve",
+-        description: "Auto-approve every tool action. Skips ALL permission prompts.",
+-    },
+-];
++fn permission_mode_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        // "default" = agent's default behavior. Same as "ask" at runtime;
++        // distinct on disk and in the modal indicator.
++        EnumChoice {
++            canonical: "default",
++            display: "Default",
++            description: "Use the agent's default permission behavior (currently equivalent to Ask).",
++        },
++        EnumChoice {
++            canonical: "ask",
++            display: "Ask",
++            description: "Prompt for permission before tool actions.",
++        },
++        EnumChoice {
++            canonical: "auto",
++            display: "Auto",
++            description: "LLM classifier approves safe tools; dangerous actions may still prompt or deny.",
++        },
++        EnumChoice {
++            canonical: "always-approve",
++            display: "Always approve",
++            description: "Auto-approve every tool action. Skips ALL permission prompts.",
++        },
++    ]))
++}
+ 
+ // ---------------------------------------------------------------------------
+ // Coding-data-sharing catalog.
+@@ -130,20 +135,20 @@ const PERMISSION_MODE_CHOICES: &[EnumChoice] = &[
+ // can fail. Commit on Enter only.
+ // ---------------------------------------------------------------------------
+ 
+-// The setting's own description carries the full explanation, so the choices
+-// are bare labels — an empty description collapses each to a single line.
+-const CODING_DATA_SHARING_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "opt-in",
+-        display: "Opt in",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "opt-out",
+-        display: "Opt out",
+-        description: "",
+-    },
+-];
++fn coding_data_sharing_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "opt-in",
++            display: "Opt in",
++            description: "Allow SpaceXAI to retain coding session data for model training and product improvement.",
++        },
++        EnumChoice {
++            canonical: "opt-out",
++            display: "Opt out",
++            description: "Do not retain coding session data for training. Does not disable product analytics.",
++        },
++    ]))
++}
+ 
+ // ---------------------------------------------------------------------------
+ // Plan-mode catalog.
+@@ -181,41 +186,45 @@ const CODING_DATA_SHARING_CHOICES: &[EnumChoice] = &[
+ // Canonicals + display labels come from `DefaultSelectedPermission` (the
+ // single source of truth) so this table can never drift from the parser,
+ // the dispatch toast, or the cursor logic.
+-const DEFAULT_SELECTED_PERMISSION_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: DefaultSelectedPermission::AlwaysAllowAllSessions.as_canonical(),
+-        display: DefaultSelectedPermission::AlwaysAllowAllSessions.display(),
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: DefaultSelectedPermission::AllowCommandAlways.as_canonical(),
+-        display: DefaultSelectedPermission::AllowCommandAlways.display(),
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: DefaultSelectedPermission::AllowOnce.as_canonical(),
+-        display: DefaultSelectedPermission::AllowOnce.display(),
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: DefaultSelectedPermission::Reject.as_canonical(),
+-        display: DefaultSelectedPermission::Reject.display(),
+-        description: "",
+-    },
+-];
++fn default_selected_permission_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: DefaultSelectedPermission::AlwaysAllowAllSessions.as_canonical(),
++            display: DefaultSelectedPermission::AlwaysAllowAllSessions.display(),
++            description: "",
++        },
++        EnumChoice {
++            canonical: DefaultSelectedPermission::AllowCommandAlways.as_canonical(),
++            display: DefaultSelectedPermission::AllowCommandAlways.display(),
++            description: "",
++        },
++        EnumChoice {
++            canonical: DefaultSelectedPermission::AllowOnce.as_canonical(),
++            display: DefaultSelectedPermission::AllowOnce.display(),
++            description: "",
++        },
++        EnumChoice {
++            canonical: DefaultSelectedPermission::Reject.as_canonical(),
++            display: DefaultSelectedPermission::Reject.display(),
++            description: "",
++        },
++    ]))
++}
+ 
+-const PLAN_MODE_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "off",
+-        display: "Off",
+-        description: "Agent runs tools and edits files directly (default).",
+-    },
+-    EnumChoice {
+-        canonical: "on",
+-        display: "On",
+-        description: "Agent summarises a plan and asks for approval before running tools.",
+-    },
+-];
++fn plan_mode_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "off",
++            display: "Off",
++            description: "Agent runs tools and edits files directly (default).",
++        },
++        EnumChoice {
++            canonical: "on",
++            display: "On",
++            description: "Agent summarises a plan and asks for approval before running tools.",
++        },
++    ]))
++}
+ 
+ // ---------------------------------------------------------------------------
+ // Mermaid-rendering catalog.
+@@ -225,113 +234,124 @@ const PLAN_MODE_CHOICES: &[EnumChoice] = &[
+ // render hot path. Canonicals match `RenderMermaid::as_canonical`.
+ // ---------------------------------------------------------------------------
+ 
+-const RENDER_MERMAID_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "auto",
+-        display: "Auto",
+-        description: "Show diagrams with a clickable row to open/copy the rendered image.",
+-    },
+-    EnumChoice {
+-        canonical: "on",
+-        display: "On",
+-        description: "Same as auto: always show the clickable affordance row.",
+-    },
+-    EnumChoice {
+-        canonical: "off",
+-        display: "Off",
+-        description: "Always show the raw Mermaid source as a code block.",
+-    },
+-];
++fn render_mermaid_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "auto",
++            display: "Auto",
++            description: "Show diagrams with a clickable row to open/copy the rendered image.",
++        },
++        EnumChoice {
++            canonical: "on",
++            display: "On",
++            description: "Same as auto: always show the clickable affordance row.",
++        },
++        EnumChoice {
++            canonical: "off",
++            display: "Off",
++            description: "Always show the raw Mermaid source as a code block.",
++        },
++    ]))
++}
+ 
+ // Scroll-input catalog. SHELL-owned, persisted to `[ui].scroll_mode`.
+ // Canonical strings match `ScrollMode::as_canonical` (pinned by test).
+-const SCROLL_MODE_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: ScrollMode::Auto.as_canonical(),
+-        display: "Auto-detect",
+-        description: "Detect wheel vs trackpad per gesture from event timing. Default.",
+-    },
+-    EnumChoice {
+-        canonical: ScrollMode::Wheel.as_canonical(),
+-        display: "Mouse wheel",
+-        description: "Always treat scrolling as wheel notches (fixed lines per tick).",
+-    },
+-    EnumChoice {
+-        canonical: ScrollMode::Trackpad.as_canonical(),
+-        display: "Trackpad",
+-        description: "Always treat scrolling as a trackpad (fractional accumulation).",
+-    },
+-];
++fn scroll_mode_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: ScrollMode::Auto.as_canonical(),
++            display: "Auto-detect",
++            description: "Detect wheel vs trackpad per gesture from event timing. Default.",
++        },
++        EnumChoice {
++            canonical: ScrollMode::Wheel.as_canonical(),
++            display: "Mouse wheel",
++            description: "Always treat scrolling as wheel notches (fixed lines per tick).",
++        },
++        EnumChoice {
++            canonical: ScrollMode::Trackpad.as_canonical(),
++            display: "Trackpad",
++            description: "Always treat scrolling as a trackpad (fractional accumulation).",
++        },
++    ]))
++}
+ 
+-const TEXT_SELECTION_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: TextSelection::Flash.as_canonical(),
+-        display: "Flash after copy",
+-        description: "Brief highlight on mouse-up, then clear. Double-click toggles fold. Default.",
+-    },
+-    EnumChoice {
+-        canonical: TextSelection::Hold.as_canonical(),
+-        display: "Hold until dismissed",
+-        description: "Keep the selection visible until Esc, click, or scroll. Double-click toggles fold.",
+-    },
+-    EnumChoice {
+-        canonical: TextSelection::WordSelect.as_canonical(),
+-        display: "Word select (terminal-like)",
+-        description: "Double-click selects & copies a word, triple-click a line; selection stays until dismissed.",
+-    },
+-];
++fn text_selection_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: TextSelection::Flash.as_canonical(),
++            display: "Flash after copy",
++            description: "Brief highlight on mouse-up, then clear. Double-click toggles fold. Default.",
++        },
++        EnumChoice {
++            canonical: TextSelection::Hold.as_canonical(),
++            display: "Hold until dismissed",
++            description: "Keep the selection visible until Esc, click, or scroll. Double-click toggles fold.",
++        },
++        EnumChoice {
++            canonical: TextSelection::WordSelect.as_canonical(),
++            display: "Word select (terminal-like)",
++            description: "Double-click selects & copies a word, triple-click a line; selection stays until dismissed.",
++        },
++    ]))
++}
+ 
+ // Hunk-tracker-mode catalog. SHELL-owned, persisted to `[ui].hunk_tracker_mode`.
+ // `disabled` is accepted as an alias for `off` at parse time but not surfaced
+ // as a choice.
+-const HUNK_TRACKER_MODE_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "agent_only",
+-        display: "Agent only",
+-        description: "Track only files the agent edits (default).",
+-    },
+-    EnumChoice {
+-        canonical: "all_dirty",
+-        display: "All dirty",
+-        description: "Track every git-dirty file, including external edits.",
+-    },
+-    EnumChoice {
+-        canonical: "off",
+-        display: "Off",
+-        description: "Disable hunk tracking entirely. Also disables LOC tracking.",
+-    },
+-];
++fn hunk_tracker_mode_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "agent_only",
++            display: "Agent only",
++            description: "Track only files the agent edits (default).",
++        },
++        EnumChoice {
++            canonical: "all_dirty",
++            display: "All dirty",
++            description: "Track every git-dirty file, including external edits.",
++        },
++        EnumChoice {
++            canonical: "off",
++            display: "Off",
++            description: "Disable hunk tracking entirely. Also disables LOC tracking.",
++        },
++    ]))
++}
+ 
+-const SCREEN_MODE_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "fullscreen",
+-        display: "Fullscreen",
+-        description: "Open plain grok in the standard fullscreen TUI. Default when unset.",
+-    },
+-    EnumChoice {
+-        canonical: "minimal",
+-        display: "Minimal",
+-        description: "Open plain grok in scrollback-native (minimal) mode.",
+-    },
+-];
++fn screen_mode_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "fullscreen",
++            display: "Fullscreen",
++            description: "Open plain grok in the standard fullscreen TUI. Default when unset.",
++        },
++        EnumChoice {
++            canonical: "minimal",
++            display: "Minimal",
++            description: "Open plain grok in scrollback-native (minimal) mode.",
++        },
++    ]))
++}
+ 
+ // Voice-capture-mode catalog. SHELL-owned, persisted to `[ui].voice_capture_mode`.
+-// `hold` is gated on `kitty_releases_reported`; `effective_enum_choices` hides it
+-// elsewhere, and it falls back to `toggle` at runtime. "Kitty-protocol terminal"
+-// in the copy below is a deliberate user-facing simplification: Alacritty <= 0.14
+-// negotiates the protocol yet never reports releases, so hold stays hidden there.
+-const VOICE_CAPTURE_MODE_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "toggle",
+-        display: "Toggle",
+-        description: "Ctrl+Space / F8 starts dictation; press again (or Esc/Enter) to stop.",
+-    },
+-    EnumChoice {
+-        canonical: "hold",
+-        display: "Hold to talk",
+-        description: "Hold Ctrl+Space / F8 to record, release to stop. Needs a Kitty-protocol terminal.",
+-    },
+-];
++// `hold` is only offered on terminals that report key releases (Kitty keyboard
++// protocol); `effective_enum_choices` hides it elsewhere, and it falls back to
++// `toggle` at runtime.
++fn voice_capture_mode_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "toggle",
++            display: "Toggle",
++            description: "Ctrl+Space / F8 starts dictation; press again (or Esc/Enter) to stop.",
++        },
++        EnumChoice {
++            canonical: "hold",
++            display: "Hold to talk",
++            description: "Hold Ctrl+Space / F8 to record, release to stop. Needs a Kitty-protocol terminal.",
++        },
++    ]))
++}
+ 
+ // Voice STT language choices for the settings modal.
+ //
+@@ -340,169 +360,173 @@ const VOICE_CAPTURE_MODE_CHOICES: &[EnumChoice] = &[
+ // `auto` is client-only; the voice crate resolves it to a concrete code before
+ // the STT handshake. Order: English (default), System, then remaining languages
+ // A–Z by English name. A registry unit test locks this list to the voice crate.
+-const VOICE_STT_LANGUAGE_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "en",
+-        display: "English",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "auto",
+-        display: "System",
+-        description: "Use the system locale when it is a supported STT language; otherwise English.",
+-    },
+-    EnumChoice {
+-        canonical: "ar",
+-        display: "Arabic",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "cs",
+-        display: "Czech",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "da",
+-        display: "Danish",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "nl",
+-        display: "Dutch",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "fil",
+-        display: "Filipino",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "fr",
+-        display: "French",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "de",
+-        display: "German",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "hi",
+-        display: "Hindi",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "id",
+-        display: "Indonesian",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "it",
+-        display: "Italian",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "ja",
+-        display: "Japanese",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "ko",
+-        display: "Korean",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "mk",
+-        display: "Macedonian",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "ms",
+-        display: "Malay",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "fa",
+-        display: "Persian",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "pl",
+-        display: "Polish",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "pt",
+-        display: "Portuguese",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "ro",
+-        display: "Romanian",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "ru",
+-        display: "Russian",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "es",
+-        display: "Spanish",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "sv",
+-        display: "Swedish",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "th",
+-        display: "Thai",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "tr",
+-        display: "Turkish",
+-        description: "",
+-    },
+-    EnumChoice {
+-        canonical: "vi",
+-        display: "Vietnamese",
+-        description: "",
+-    },
+-];
++fn voice_stt_language_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "en",
++            display: "English",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "auto",
++            display: "System",
++            description: "Use the system locale when it is a supported STT language; otherwise English.",
++        },
++        EnumChoice {
++            canonical: "ar",
++            display: "Arabic",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "cs",
++            display: "Czech",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "da",
++            display: "Danish",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "nl",
++            display: "Dutch",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "fil",
++            display: "Filipino",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "fr",
++            display: "French",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "de",
++            display: "German",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "hi",
++            display: "Hindi",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "id",
++            display: "Indonesian",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "it",
++            display: "Italian",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "ja",
++            display: "Japanese",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "ko",
++            display: "Korean",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "mk",
++            display: "Macedonian",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "ms",
++            display: "Malay",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "fa",
++            display: "Persian",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "pl",
++            display: "Polish",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "pt",
++            display: "Portuguese",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "ro",
++            display: "Romanian",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "ru",
++            display: "Russian",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "es",
++            display: "Spanish",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "sv",
++            display: "Swedish",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "th",
++            display: "Thai",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "tr",
++            display: "Turkish",
++            description: "",
++        },
++        EnumChoice {
++            canonical: "vi",
++            display: "Vietnamese",
++            description: "",
++        },
++    ]))
++}
+ 
+ /// Concrete-only theme catalog (excludes "auto"). Used by both
+ /// `auto_dark_theme` and `auto_light_theme`. No dark/light filtering —
+ /// the user can pair any theme with any system-appearance bucket.
+-const CONCRETE_THEME_CHOICES: &[EnumChoice] = &[
+-    EnumChoice {
+-        canonical: "groknight",
+-        display: "Grok Night",
+-        description: "Neutral dark with magenta accent.",
+-    },
+-    EnumChoice {
+-        canonical: "grokday",
+-        display: "Grok Day",
+-        description: "Light theme for bright environments.",
+-    },
+-    EnumChoice {
+-        canonical: "tokyonight",
+-        display: "Tokyo Night",
+-        description: "Dark + blue-tinted; needs truecolor.",
+-    },
+-    EnumChoice {
+-        canonical: "rosepine-moon",
+-        display: "Rose Pine Moon",
+-        description: "Muted dark with mauve accents; needs truecolor.",
+-    },
+-    EnumChoice {
+-        canonical: "oscura-midnight",
+-        display: "Oscura Midnight",
+-        description: "Deep dark with warm accents; needs truecolor.",
+-    },
+-];
++fn concrete_theme_choices() -> &'static [EnumChoice] {
++    &*Box::leak(Box::new([
++        EnumChoice {
++            canonical: "groknight",
++            display: "Grok Night",
++            description: "Neutral dark with magenta accent.",
++        },
++        EnumChoice {
++            canonical: "grokday",
++            display: "Grok Day",
++            description: "Light theme for bright environments.",
++        },
++        EnumChoice {
++            canonical: "tokyonight",
++            display: "Tokyo Night",
++            description: "Dark + blue-tinted; needs truecolor.",
++        },
++        EnumChoice {
++            canonical: "rosepine-moon",
++            display: "Rose Pine Moon",
++            description: "Muted dark with mauve accents; needs truecolor.",
++        },
++        EnumChoice {
++            canonical: "oscura-midnight",
++            display: "Oscura Midnight",
++            description: "Deep dark with warm accents; needs truecolor.",
++        },
++    ]))
++}
+ 
+ /// Child settings shown inside the "Show contextual hints" group sub-sheet.
+ /// Keys match the `[ui.contextual_hints]` serde fields (namespaced so they stay
+@@ -564,7 +588,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: "fullscreen",
+-                choices: SCREEN_MODE_CHOICES,
++                choices: screen_mode_choices(),
+                 supports_preview: false,
+             },
+             restart_required: true,
+@@ -705,7 +729,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             kind: SettingKind::Enum {
+                 // `Option<String>` — `None` resolved to "groknight".
+                 default: "groknight",
+-                choices: THEME_CHOICES,
++                choices: theme_choices(),
+                 supports_preview: true,
+             },
+             restart_required: false,
+@@ -721,7 +745,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             kind: SettingKind::Enum {
+                 // `Option<String>` — `None` falls back to "groknight".
+                 default: "groknight",
+-                choices: CONCRETE_THEME_CHOICES,
++                choices: concrete_theme_choices(),
+                 supports_preview: true,
+             },
+             restart_required: false,
+@@ -737,7 +761,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             kind: SettingKind::Enum {
+                 // `Option<String>` — `None` falls back to "grokday".
+                 default: "grokday",
+-                choices: CONCRETE_THEME_CHOICES,
++                choices: concrete_theme_choices(),
+                 supports_preview: true,
+             },
+             restart_required: false,
+@@ -764,7 +788,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: "auto",
+-                choices: RENDER_MERMAID_CHOICES,
++                choices: render_mermaid_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -796,7 +820,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: "ask",
+-                choices: PERMISSION_MODE_CHOICES,
++                choices: permission_mode_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1061,7 +1085,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+                     .and_then(ScrollMode::from_canonical)
+                     .unwrap_or_default()
+                     .as_canonical(),
+-                choices: SCROLL_MODE_CHOICES,
++                choices: scroll_mode_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1135,7 +1159,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: TextSelection::Flash.as_canonical(),
+-                choices: TEXT_SELECTION_CHOICES,
++                choices: text_selection_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1152,11 +1176,10 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             key: "coding_data_sharing",
+             category: SettingCategory::Privacy,
+             owner: SettingOwner::Shell,
+-            label: "Coding data, retention, and training",
+-            description: "Opt-in to provide SpaceXAI the ability to retain and train on \
+-                          coding data, e.g., prompts, traces, & metrics, for training and \
+-                          debugging purposes. We may still collect simple user metrics, \
+-                          e.g. how many times you use the product or a feature.",
++            label: "Coding data sharing",
++            description: "Controls whether SpaceXAI may retain and train on coding session \
++                          data. Does not affect product analytics; see Configuration and \
++                          Monitoring docs.",
+             keywords: &[
+                 "privacy",
+                 "data",
+@@ -1169,7 +1192,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: "opt-out",
+-                choices: CODING_DATA_SHARING_CHOICES,
++                choices: coding_data_sharing_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1202,7 +1225,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: DefaultSelectedPermission::AlwaysAllowAllSessions.as_canonical(),
+-                choices: DEFAULT_SELECTED_PERMISSION_CHOICES,
++                choices: default_selected_permission_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1251,7 +1274,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: "off",
+-                choices: PLAN_MODE_CHOICES,
++                choices: plan_mode_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1349,42 +1372,12 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: "agent_only",
+-                choices: HUNK_TRACKER_MODE_CHOICES,
++                choices: hunk_tracker_mode_choices(),
+                 supports_preview: false,
+             },
+             restart_required: true,
+             hidden_in_minimal: false,
+         },
+-        // SHELL-owned, persisted to `[ui].voice_keybind_enabled`. Default ON —
+-        // `None` (inherit) reads as `true`. Disables only the Ctrl+Space / F8
+-        // chord; `/voice` (and Esc / the recording-row `[stop]`) keep working.
+-        SettingMeta {
+-            key: "voice_keybind_enabled",
+-            category: SettingCategory::Editor,
+-            owner: SettingOwner::Shell,
+-            label: "Voice shortcut",
+-            description: "Enable the Ctrl+Space / F8 shortcut for voice dictation. \
+-                          When off, the keys are ignored; /voice still starts \
+-                          dictation.",
+-            keywords: &[
+-                "voice",
+-                "dictation",
+-                "mic",
+-                "microphone",
+-                "speech",
+-                "stt",
+-                "keybinding",
+-                "hotkey",
+-                "ctrl+space",
+-                "f8",
+-                "disable",
+-            ],
+-            kind: SettingKind::Bool {
+-                default: ui_default.voice_keybind_enabled.unwrap_or(true),
+-            },
+-            restart_required: false,
+-            hidden_in_minimal: false,
+-        },
+         // SHELL-owned, persisted to `[ui].voice_capture_mode`. The `hold` choice
+         // is hidden on terminals without key-release reporting (see
+         // `effective_enum_choices`) and falls back to `toggle` at runtime.
+@@ -1412,7 +1405,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             ],
+             kind: SettingKind::Enum {
+                 default: "hold",
+-                choices: VOICE_CAPTURE_MODE_CHOICES,
++                choices: voice_capture_mode_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1433,7 +1426,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             keywords: &["voice", "language", "locale", "dictation", "stt", "speech"],
+             kind: SettingKind::Enum {
+                 default: "en",
+-                choices: VOICE_STT_LANGUAGE_CHOICES,
++                choices: voice_stt_language_choices(),
+                 supports_preview: false,
+             },
+             restart_required: false,
+@@ -1548,7 +1541,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
+             category: SettingCategory::Advanced,
+             owner: SettingOwner::Shell,
+             label: "SSH wrap",
+-            description: "Show a `/doctor` tip when an SSH session is not using `grok wrap`.",
++            description: "At session load over SSH, recommend `grok wrap ssh` for \
++                          clipboard forwarding and terminal restore.",
+             keywords: &[
+                 "ssh",
+                 "wrap",

@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-sampler/src/actor/state.rs b/crates/codegen/xai-grok-sampler/src/actor/state.rs	(rejected hunks)
+@@ -90,8 +90,6 @@ mod tests {
+             api_backend: ApiBackend::ChatCompletions,
+             auth_scheme: Default::default(),
+             extra_headers: IndexMap::new(),
+-            query_params: IndexMap::new(),
+-            env_http_headers: IndexMap::new(),
+             context_window: 8192,
+             force_http1: false,
+             max_retries: None,

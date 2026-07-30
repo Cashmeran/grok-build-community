@@ -1,0 +1,233 @@
+diff a/crates/codegen/xai-grok-config-types/src/lib.rs b/crates/codegen/xai-grok-config-types/src/lib.rs	(rejected hunks)
+@@ -36,9 +36,8 @@ pub struct CampaignOverride {
+ #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+ #[serde(default)]
+ pub struct DoomLoopRecoverySettings {
+-    /// Send the `x-grok-doom-loop-check` header, parse the reported
+-    /// triggers, and resample confident loops. `Some(false)` is a
+-    /// kill-switch; absent ⇒ client default (ON).
++    /// Send the `x-grok-doom-loop-check` header and parse the reported
++    /// triggers. `Some(false)` is a kill-switch; absent ⇒ client default (off).
+     #[serde(skip_serializing_if = "Option::is_none")]
+     pub enabled: Option<bool>,
+     /// Highest `tail_repetition` threshold considered confident (clamped to
+@@ -405,7 +404,7 @@ where
+             Ok(s) => Ok(Some(s)),
+             Err(e) => {
+                 tracing::warn!(
+-                    error = %e,
++                    error = % e,
+                     "ignoring malformed remote worktree_auto_gc; falling through to TOML/defaults"
+                 );
+                 Ok(None)
+@@ -413,29 +412,6 @@ where
+         },
+     }
+ }
+-/// Nested `slash_command_tags` map: present-but-malformed → `None` (warn) so one
+-/// bad value cannot fail the whole [`RemoteSettings`] parse.
+-fn deserialize_tolerant_slash_command_tags<'de, D>(
+-    deserializer: D,
+-) -> Result<Option<std::collections::BTreeMap<String, String>>, D::Error>
+-where
+-    D: serde::Deserializer<'de>,
+-{
+-    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+-    match value {
+-        None | Some(serde_json::Value::Null) => Ok(None),
+-        Some(v) => match serde_json::from_value::<std::collections::BTreeMap<String, String>>(v) {
+-            Ok(m) => Ok(Some(m)),
+-            Err(e) => {
+-                tracing::warn!(
+-                    error = %e,
+-                    "ignoring malformed remote slash_command_tags; falling through to local/none"
+-                );
+-                Ok(None)
+-            }
+-        },
+-    }
+-}
+ /// Remote settings fetched from cli-chat-proxy `GET /v1/settings`.
+ ///
+ /// All fields are `Option` with `#[serde(default)]` so that:
+@@ -523,7 +499,7 @@ pub struct RemoteSettings {
+     pub subscription_watch_interval_secs: Option<u64>,
+     #[serde(default)]
+     pub writeback_enabled: Option<bool>,
+-    /// OAuth2 provider issuer URL (e.g., "https://auth.x.ai"). When present
++    /// OAuth2 provider issuer URL (e.g., "https://auth.example.com"). When present
+     /// together with `oauth2_client_id`, the client uses OAuth2 authorization code
+     /// flow. Controlled via remote settings for gradual rollout.
+     #[serde(default)]
+@@ -531,7 +507,7 @@ pub struct RemoteSettings {
+     /// OAuth2 client_id for the CLI. Paired with `oauth2_issuer`.
+     #[serde(default)]
+     pub oauth2_client_id: Option<String>,
+-    /// When `Some(true)`, enable grok's default OAuth2 (xAI auth.x.ai).
++    /// When `Some(true)`, enable default OAuth2.
+     /// Enterprise OIDC (user's own IdP via `oidc` config) always wins.
+     /// Controlled via remote settings; `--oauth` CLI flag overrides.
+     #[serde(default)]
+@@ -698,9 +674,8 @@ pub struct RemoteSettings {
+     pub managed_mcps_enabled: Option<bool>,
+     #[serde(default)]
+     pub managed_mcp_gateway_tools_enabled: Option<bool>,
+-    /// Remote-policy disable lever for the **external OTEL** stream (customer
+-    /// collectors); feeds `ExternalOtelRemotePolicy.force_disable`.
+-    /// Restrictive-only by construction: there is deliberately
++    /// Fleet kill switch for the **external OTEL** stream (customer
++    /// collectors). Restrictive-only by construction: there is deliberately
+     /// no `external_otel_enabled` remote field — remote settings are fetched
+     /// per-run and never persisted, so a remote "enable" could never reach
+     /// init; org-wide enable ships via managed config instead. Applied
+@@ -713,9 +688,6 @@ pub struct RemoteSettings {
+     /// Tighten-only, like `external_otel_disabled`.
+     #[serde(default)]
+     pub external_otel_content_gates_locked: Option<bool>,
+-    /// `Some(false)` disarms managed-config signature verification (remote kill-switch).
+-    #[serde(default)]
+-    pub managed_config_signature_verification: Option<bool>,
+     #[serde(default)]
+     pub telemetry_enabled: Option<bool>,
+     /// Telemetry mode override (string): `"session-metrics"`, `"full"`, `"off"`.
+@@ -743,12 +715,6 @@ pub struct RemoteSettings {
+     /// `None` or `[]` = no tips shown.
+     #[serde(default)]
+     pub tips: Option<Vec<String>>,
+-    /// Free-form per-command tags (e.g. `new`, `beta`) rendered as a bracketed
+-    /// label in the slash dropdown, keyed by canonical command name. Present-but-
+-    /// malformed → `None` (does not fail the whole parse); local
+-    /// `[slash_command_tags]` overrides per key. See `resolve_slash_command_tags`.
+-    #[serde(default, deserialize_with = "deserialize_tolerant_slash_command_tags")]
+-    pub slash_command_tags: Option<std::collections::BTreeMap<String, String>>,
+     /// When present, controls the non-Git-repo warning at session start.
+     /// Controlled via remote settings (`non_git_warning` in `grok_build_settings`).
+     /// Takes precedence over `[features] non_git_warning` in config.toml:
+@@ -815,7 +781,8 @@ pub struct RemoteSettings {
+     /// is set in config.toml. Absent → default (**disabled** — ships dark).
+     #[serde(default)]
+     pub subagent_worktree_snapshot_enabled: Option<bool>,
+-    /// `image_gen` / `/imagine`. `None` → env / `[features]` / default on.
++    /// When `Some(true)`, enable the `image_gen` tool for session-based auth users.
++    /// When `Some(false)` or absent, the tool is hidden regardless of credentials.
+     #[serde(default)]
+     pub image_gen_enabled: Option<bool>,
+     /// remote settings flag: optional Imagine model override for `image_gen`.
+@@ -824,10 +791,8 @@ pub struct RemoteSettings {
+     /// (`grok-imagine-image-quality`). Absent/empty → default model.
+     #[serde(default)]
+     pub image_gen_model_override: Option<String>,
+-    /// Optional Imagine model override for `image_edit`. Absent/empty → default.
+-    #[serde(default)]
+-    pub image_edit_model_override: Option<String>,
+-    /// Video tools / `/imagine-video`. `None` → env / `[features]` / default on.
++    /// When `Some(true)`, enable the `video_gen` tool for session-based auth users.
++    /// When `Some(false)` or absent, the tool is hidden regardless of credentials.
+     #[serde(default)]
+     pub video_gen_enabled: Option<bool>,
+     /// When `Some(true)`, enable the process-wide image normalize cache that
+@@ -888,7 +853,7 @@ pub struct RemoteSettings {
+     pub sharing_enabled: Option<bool>,
+     /// Voice mode (STT dictation). Client default is **on** when absent.
+     /// `Some(false)` is a remote kill switch; `Some(true)` forces on.
+-    /// Overridable locally via `GROK_VOICE_MODE`. Free-tier SuperGrok upsell
++    /// Overridable locally via `GROK_VOICE_MODE`. Feature-gating upsell
+     /// is a separate client tier gate.
+     #[serde(default)]
+     pub voice_mode_enabled: Option<bool>,
+@@ -896,17 +861,6 @@ pub struct RemoteSettings {
+     /// Controlled via remote settings. Default `false` (blocked) during beta.
+     #[serde(default)]
+     pub zdr_access_enabled: Option<bool>,
+-    /// When `Some(true)`, the client may show the coding-data sharing upsell
+-    /// banner. Controlled via remote settings (`privacy_notice_rollout`).
+-    /// Absent/`None` means off so older servers and missing flags keep the
+-    /// banner hidden.
+-    #[serde(default)]
+-    pub privacy_notice_rollout: Option<bool>,
+-    /// Days after a privacy-banner dismiss before it may re-show for users who
+-    /// remain coding-data opted-out. From `grok_build_settings`.
+-    /// `None` / `0` = never re-show after dismiss.
+-    #[serde(default)]
+-    pub privacy_banner_reshow_days: Option<u64>,
+     /// remote settings tier of the `remember_tool_approvals` gate (whether per-tool
+     /// "Always allow …" prompt options are shown). Lowest precedence; typically
+     /// targeted per-org. Default `false`.
+@@ -955,7 +909,7 @@ pub struct RemoteSettings {
+     #[serde(default)]
+     pub permission_mode: Option<String>,
+     /// User's subscription tier from remote settings `grok_build_access_gate`.
+-    /// E.g. "free", "premium", "supergrok", "supergrok_heavy".
++    /// E.g. "free", "premium".
+     /// Stamped on analytics events + user profile for filtering.
+     #[serde(default)]
+     pub subscription_tier: Option<String>,
+@@ -975,7 +929,7 @@ pub struct RemoteSettings {
+     #[serde(default)]
+     pub allow_access: Option<bool>,
+     /// User-friendly display name for the current subscription tier
+-    /// (e.g. "SuperGrok", "X Premium+", "Free", "API Key"). Set by CCP
++    /// (e.g. "Pro", "Free", "API Key"). Set by CCP
+     /// from the JWT tier claim (OAuth) or credential kind (API key).
+     /// Free/Invalid OAuth → `"Free"`; API keys → `"API Key"` (Mixpanel
+     /// `api_key`, never free).
+@@ -1004,9 +958,6 @@ pub struct RemoteSettings {
+     /// further override per the resolver chain.
+     #[serde(default)]
+     pub auto_compact_threshold_percent: Option<u8>,
+-    /// Max subagent nesting depth (`grok_build_settings.subagents_max_depth`).
+-    #[serde(default)]
+-    pub subagents_max_depth: Option<u32>,
+     /// Global system-prompt identity label. Per-model override wins; see
+     /// `resolve_system_prompt_label`.
+     #[serde(default)]
+@@ -1112,7 +1063,7 @@ where
+                     Ok(a) => out.push(a),
+                     Err(e) => {
+                         tracing::warn!(
+-                            error = %e,
++                            error = % e,
+                             "remote settings announcements: dropped malformed item"
+                         );
+                     }
+@@ -1133,8 +1084,7 @@ fn parse_goal_role_model_tolerant(value: serde_json::Value) -> Option<GoalRoleMo
+         Ok(model) => Some(model),
+         Err(e) => {
+             tracing::warn!(
+-                error = %e,
+-                "remote settings goal role model: dropped malformed value"
++                error = % e, "remote settings goal role model: dropped malformed value"
+             );
+             None
+         }
+@@ -1910,30 +1860,6 @@ mod tests {
+         );
+     }
+     #[test]
+-    fn remote_settings_privacy_notice_rollout_absent_null_true_false() {
+-        assert_eq!(parse_remote("{}").privacy_notice_rollout, None);
+-        assert_eq!(
+-            parse_remote(r#"{"privacy_notice_rollout": null}"#).privacy_notice_rollout,
+-            None
+-        );
+-        let on = parse_remote(r#"{"privacy_notice_rollout": true}"#);
+-        assert_eq!(on.privacy_notice_rollout, Some(true));
+-        assert_eq!(round_trip_remote(&on).privacy_notice_rollout, Some(true));
+-        let off = parse_remote(r#"{"privacy_notice_rollout": false}"#);
+-        assert_eq!(off.privacy_notice_rollout, Some(false));
+-        assert_eq!(round_trip_remote(&off).privacy_notice_rollout, Some(false));
+-    }
+-    #[test]
+-    fn remote_settings_privacy_banner_reshow_days() {
+-        assert_eq!(parse_remote("{}").privacy_banner_reshow_days, None);
+-        assert_eq!(
+-            parse_remote(r#"{"privacy_banner_reshow_days": 30}"#).privacy_banner_reshow_days,
+-            Some(30)
+-        );
+-        let s = parse_remote(r#"{"privacy_banner_reshow_days": 7}"#);
+-        assert_eq!(round_trip_remote(&s).privacy_banner_reshow_days, Some(7));
+-    }
+-    #[test]
+     fn remote_settings_jemalloc_heap_profile_fields_absent_and_null() {
+         assert_eq!(jemalloc_fields(&parse_remote("{}")), (None, None, None));
+         assert_eq!(

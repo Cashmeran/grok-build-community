@@ -1,0 +1,15 @@
+diff a/crates/codegen/xai-grok-shell/src/agent/mvp_agent/code_nav.rs b/crates/codegen/xai-grok-shell/src/agent/mvp_agent/code_nav.rs	(rejected hunks)
+@@ -34,11 +34,9 @@ impl MvpAgent {
+         // Pin the index to the requesting session so the Weak in
+         // CodebaseIndexManager doesn't orphan it immediately.
+         if let Some(sid) = session_id {
+-            self.resident_resources
++            self.session_index_claims
+                 .borrow_mut()
+-                .entry(sid.clone())
+-                .or_default()
+-                .codebase_index = Some(std::sync::Arc::clone(&handle));
++                .insert(sid.clone(), std::sync::Arc::clone(&handle));
+         }
+         Some((handle, was_newly_started))
+     }

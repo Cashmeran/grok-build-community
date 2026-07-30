@@ -1,0 +1,15 @@
+diff a/crates/codegen/xai-grok-pager/src/app/dispatch/tests/cta_e2e.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/tests/cta_e2e.rs	(rejected hunks)
+@@ -218,9 +218,10 @@ fn plugin_cta_catalog_load_recomputes_match_for_typed_draft() {
+         &mut app,
+     );
+     assert!(matches!(
+-        &app.agents[&id].plugin_cta.phase,
+-        CtaPhase::Matched { name, .. } if name == "zzctaplugin"
+-    ));
++            &app.agents[&id].plugin_cta.phase,
++            CtaPhase::Matched { name, .. }
++    if name == "zzctaplugin"
++        ));
+ }
+ 
+ #[test]

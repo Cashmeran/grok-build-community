@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-workspace/src/session/jj.rs b/crates/codegen/xai-grok-workspace/src/session/jj.rs	(rejected hunks)
+@@ -166,8 +166,6 @@ pub async fn commit(cwd: &Path, message: &str) -> Result<CommitResult> {
+             output: Some("Commit described and new change started".to_string()),
+         },
+         warning: None,
+-        // The structured outcome is a git-backend concept.
+-        outcome: None,
+     })
+ }
+ 

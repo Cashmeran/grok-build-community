@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-models/src/lib.rs b/crates/codegen/xai-grok-models/src/lib.rs	(rejected hunks)
+@@ -9,7 +9,7 @@ use std::sync::LazyLock;
+ /// The raw JSON, embedded at compile time. Re-exported through the
+ /// `xai_grok_shell::models` facade and consumed by `agent::config`, so it must
+ /// be `pub` (was `pub(crate)` when this lived inside the shell crate).
+-pub const DEFAULT_MODELS_JSON: &str = include_str!("../default_models.json");
++pub const DEFAULT_MODELS_JSON: &str = include_s"../default_models.json";
+ 
+ #[derive(serde::Deserialize)]
+ struct DefaultModels {

@@ -1,0 +1,36 @@
+diff a/crates/codegen/xai-grok-pager/src/docs.rs b/crates/codegen/xai-grok-pager/src/docs.rs	(rejected hunks)
+@@ -154,17 +154,7 @@ pub static USER_GUIDE: &[Doc] = &[
+     guide!(
+         "22-permissions-and-safety.md",
+         "Permissions and Safety",
+-        "Modes, authorization order, allow/ask/deny rules, matching, and hooks"
+-    ),
+-    guide!(
+-        "23-dashboard.md",
+-        "Agent Dashboard",
+-        "Live multi-session roster: peek, dispatch, pin, stop, and search"
+-    ),
+-    guide!(
+-        "24-monitoring-usage.md",
+-        "Monitoring Usage (External OpenTelemetry)",
+-        "Export usage metrics to a customer OpenTelemetry collector"
++        "Tool approval, sandbox, security"
+     ),
+ ];
+ 
+@@ -177,13 +167,13 @@ static REFERENCE_DOCS: &[Doc] = &[
+         filename: "hooks-and-plugins.md",
+         title: "Hooks & Plugins Guide",
+         description: "Using hooks, plugins, and marketplace",
+-        content: include_str!("../docs/hooks-and-plugins.md"),
++        content: include_s"../docs/hooks-and-plugins.md",
+     },
+     Doc {
+         filename: "custom-hooks.md",
+         title: "Creating Custom Hooks",
+         description: "Writing your own hooks and matchers",
+-        content: include_str!("../docs/custom-hooks.md"),
++        content: include_s"../docs/custom-hooks.md",
+     },
+ ];
+ 

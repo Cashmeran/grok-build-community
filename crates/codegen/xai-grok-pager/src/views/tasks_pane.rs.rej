@@ -1,0 +1,17 @@
+diff a/crates/codegen/xai-grok-pager/src/views/tasks_pane.rs b/crates/codegen/xai-grok-pager/src/views/tasks_pane.rs	(rejected hunks)
+@@ -3486,7 +3486,6 @@ mod tests {
+                 model: None,
+                 state: "running".into(),
+                 tokens_used: 0,
+-                duration_ms: 0,
+             },
+             crate::views::workflows::WorkflowAgentRowView {
+                 agent_id: "a2".into(),
+@@ -3495,7 +3494,6 @@ mod tests {
+                 model: None,
+                 state: "done".into(),
+                 tokens_used: 0,
+-                duration_ms: 0,
+             },
+         ];
+         let entry = TaskEntry::from_workflow_run(&run);

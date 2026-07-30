@@ -1,0 +1,11 @@
+diff a/crates/codegen/xai-grok-sandbox/src/paths.rs b/crates/codegen/xai-grok-sandbox/src/paths.rs	(rejected hunks)
+@@ -1,6 +1,8 @@
+ //! Filesystem path tables for sandbox profiles.
+ //!
+-//! Collects device files, temp directories, and essential writable paths.
++//! Collects device files, temp directories, sensitive deny-paths, and
++//! ecosystem (package-manager / toolchain) writable paths into helpers
++//! consumed by [`super::profiles`].
+ 
+ use std::path::{Path, PathBuf};
+ 

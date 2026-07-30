@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/opencode/grep/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/opencode/grep/mod.rs	(rejected hunks)
+@@ -124,7 +124,7 @@ impl xai_tool_runtime::Tool for GrepTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             "grep",
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 

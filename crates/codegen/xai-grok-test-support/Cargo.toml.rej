@@ -1,0 +1,19 @@
+diff a/crates/codegen/xai-grok-test-support/Cargo.toml b/crates/codegen/xai-grok-test-support/Cargo.toml	(rejected hunks)
+@@ -13,7 +13,6 @@ async-trait = { workspace = true }
+ axum = { workspace = true }
+ clap = { workspace = true }
+ futures-util = { workspace = true }
+-portable-pty = { workspace = true }
+ serde = { workspace = true }
+ serde_json = { workspace = true }
+ tempfile = { workspace = true }
+@@ -22,9 +21,7 @@ tokio-tungstenite = { workspace = true }
+ tokio-util = { workspace = true, features = ["compat"] }
+ tracing = { workspace = true }
+ tracing-subscriber = { workspace = true, features = ["fmt"] }
+-url = { workspace = true }
+ xai-acp-lib = { workspace = true }
+-xai-tty-utils = { workspace = true }
+ 
+ [dev-dependencies]
+ reqwest = { workspace = true }

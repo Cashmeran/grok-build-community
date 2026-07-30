@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/memory/search_tool.rs b/crates/codegen/xai-grok-tools/src/implementations/memory/search_tool.rs	(rejected hunks)
+@@ -45,7 +45,7 @@ impl xai_tool_runtime::Tool for MemorySearchImpl {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             "memory_search",
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 

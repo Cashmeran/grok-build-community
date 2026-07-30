@@ -1,0 +1,28 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build/image_edit/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/image_edit/mod.rs	(rejected hunks)
+@@ -26,7 +26,7 @@ use crate::types::resources::SessionFolder;
+ use crate::types::tool::{ToolKind, ToolNamespace};
+ use crate::util::image_compress::{FilterType, ReEncodeParams, re_encode_under_limit};
+ 
+-pub(crate) const XAI_IMAGINE_EDIT_MODEL: &str = "grok-imagine-image-quality";
++const XAI_IMAGINE_MODEL: &str = "grok-imagine-image-quality";
+ 
+ /// Size/dimension limits for reference images sent to the Imagine API.
+ /// Tighter than the vision path; the backend returns 400 when exceeded.
+@@ -287,7 +287,7 @@ impl xai_tool_runtime::Tool for ImageEditTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             "image_edit",
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 
+@@ -353,7 +353,7 @@ impl xai_tool_runtime::Tool for ImageEditTool {
+         let url = format!("{base}/images/edits");
+ 
+         let mut payload = serde_json::json!({
+-            "model": client.edit_model(),
++            "model": XAI_IMAGINE_MODEL,
+             "prompt": input.prompt,
+             "n": 1,
+             "resolution": "1k",

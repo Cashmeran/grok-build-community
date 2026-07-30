@@ -1,0 +1,20 @@
+diff a/crates/codegen/xai-grok-pager/src/app/acp_handler/interactions.rs b/crates/codegen/xai-grok-pager/src/app/acp_handler/interactions.rs	(rejected hunks)
+@@ -84,15 +84,10 @@ pub(crate) fn handle_ask_user_question(
+                 LocalQuestionKind::FreeUsageUpsell { .. } => "SuperGrok upsell",
+                 LocalQuestionKind::AgentTypeMismatch { .. } => "model switch",
+                 LocalQuestionKind::ProjectSelect { .. } => "project select",
+-                LocalQuestionKind::DoctorFix { .. } => "/doctor fix",
+-                LocalQuestionKind::DeleteCurrentSession => "/delete",
+             };
+-            let message = if matches!(kind, LocalQuestionKind::DoctorFix { .. }) {
+-                "/doctor fix was cancelled because another question opened.".to_owned()
+-            } else {
+-                format!("{cmd} cancelled because another question opened.")
+-            };
+-            agent.scrollback.push_block(RenderBlock::system(message));
++            agent.scrollback.push_block(RenderBlock::system(format!(
++                "{cmd} cancelled by model question"
++            )));
+         }
+     }
+ 

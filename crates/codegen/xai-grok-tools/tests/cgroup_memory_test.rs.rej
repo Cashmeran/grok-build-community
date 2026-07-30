@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-tools/tests/cgroup_memory_test.rs b/crates/codegen/xai-grok-tools/tests/cgroup_memory_test.rs	(rejected hunks)
+@@ -66,7 +66,6 @@ fn make_request(command: &str, timeout_secs: u64) -> TerminalRunRequest {
+         foreground_block_budget: None,
+         kind: Default::default(),
+         owner_session_id: None,
+-        description: None,
+     }
+ }
+ 

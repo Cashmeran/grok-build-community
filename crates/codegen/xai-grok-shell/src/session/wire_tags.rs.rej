@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-shell/src/session/wire_tags.rs b/crates/codegen/xai-grok-shell/src/session/wire_tags.rs	(rejected hunks)
+@@ -81,8 +81,6 @@ pub(crate) static TASK_COMPLETED: LazyLock<String> = LazyLock::new(|| {
+             block_waited: false,
+             explicitly_killed: false,
+             owner_session_id: None,
+-            description: None,
+-            is_backgrounded: false,
+         },
+         will_wake: false,
+     })

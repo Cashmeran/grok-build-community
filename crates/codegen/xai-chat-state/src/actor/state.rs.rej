@@ -1,0 +1,18 @@
+diff a/crates/codegen/xai-chat-state/src/actor/state.rs b/crates/codegen/xai-chat-state/src/actor/state.rs	(rejected hunks)
+@@ -75,6 +75,7 @@ pub fn estimate_item_tokens(item: &ConversationItem) -> u64 {
+             let enc_bytes = r.encrypted_content.as_deref().map(str::len).unwrap_or(0);
+             ((text_bytes + enc_bytes) as u64) / xai_token_estimation::BYTES_PER_TOKEN
+         }
++        ConversationItem::Unknown => 0,
+     }
+ }
+ 
+@@ -273,8 +274,6 @@ mod tests {
+             top_p: None,
+             api_backend: Default::default(),
+             extra_headers: Default::default(),
+-            query_params: Default::default(),
+-            env_http_headers: Default::default(),
+             context_window: std::num::NonZeroU64::new(128_000).unwrap(),
+             reasoning_effort: None,
+             stream_tool_calls: None,

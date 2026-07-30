@@ -1,0 +1,12 @@
+diff a/crates/codegen/xai-grok-pager-pty-harness/Cargo.toml b/crates/codegen/xai-grok-pager-pty-harness/Cargo.toml	(rejected hunks)
+@@ -59,10 +59,6 @@ reqwest = { workspace = true }
+ tracing-subscriber = { workspace = true }
+ tracing = { workspace = true }
+ 
+-[[test]]
+-name = "env_op_compile"
+-path = "tests/env_op_compile.rs"
+-
+ [[bin]]
+ name = "pty-scenario"
+ path = "src/bin/pty_scenario.rs"

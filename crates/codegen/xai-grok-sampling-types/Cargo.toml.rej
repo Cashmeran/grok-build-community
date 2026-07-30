@@ -1,0 +1,12 @@
+diff a/crates/codegen/xai-grok-sampling-types/Cargo.toml b/crates/codegen/xai-grok-sampling-types/Cargo.toml	(rejected hunks)
+@@ -7,10 +7,8 @@ description = "Pure data types for the xAI sampling / chat-completion API layer"
+ 
+ [dependencies]
+ async-openai = { workspace = true }
+-chrono = { workspace = true }
+ indexmap = { workspace = true, features = ["serde"] }
+ reqwest = { workspace = true }
+-schemars = { workspace = true }
+ serde = { workspace = true, features = ["derive"] }
+ serde_json = { workspace = true, features = ["preserve_order"] }
+ thiserror = { workspace = true }

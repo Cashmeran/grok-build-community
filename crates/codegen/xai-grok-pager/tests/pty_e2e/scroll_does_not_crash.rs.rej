@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/scroll_does_not_crash.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/scroll_does_not_crash.rs	(rejected hunks)
+@@ -37,7 +37,7 @@ async fn scroll_does_not_crash() {
+     harness.update(Duration::from_millis(250));
+ 
+     assert!(
+-        harness.is_running().expect("poll pager liveness"),
++        harness.is_running(),
+         "pager exited during scroll\nscreen:\n{}",
+         harness.screen_contents()
+     );

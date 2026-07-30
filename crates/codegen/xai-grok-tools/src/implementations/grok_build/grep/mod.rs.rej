@@ -1,0 +1,163 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build/grep/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/grep/mod.rs	(rejected hunks)
+@@ -93,13 +93,16 @@ pub struct GrepSearchInput {
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     pub context: Option<usize>,
+ 
+-    #[schemars(rename = "-i", description = "Case insensitive search (rg -i).")]
++    #[schemars(
++        rename = "-i",
++        description = "Case insensitive search (rg -i). Defaults to false."
++    )]
+     #[serde(
+         rename = "-i",
+         default,
+-        deserialize_with = "crate::types::schema::deserialize_lenient_bool"
++        deserialize_with = "crate::types::schema::deserialize_lenient_option_bool"
+     )]
+-    pub case_insensitive: bool,
++    pub case_insensitive: Option<bool>,
+ 
+     #[schemars(
+         description = "File type to search (rg --type). Common types: js, py, rust, go, java, etc. More efficient than glob for standard file types."
+@@ -114,13 +117,14 @@ pub struct GrepSearchInput {
+     pub head_limit: Option<usize>,
+ 
+     #[schemars(
+-        description = "Enable multiline mode where . matches newlines and patterns can span lines (rg -U --multiline-dotall)."
++        description = "Enable multiline mode where . matches newlines and patterns can span lines (rg -U --multiline-dotall). Default: false."
+     )]
+     #[serde(
+         default,
+-        deserialize_with = "crate::types::schema::deserialize_lenient_bool"
++        deserialize_with = "crate::types::schema::deserialize_lenient_option_bool",
++        skip_serializing_if = "Option::is_none"
+     )]
+-    pub multiline: bool,
++    pub multiline: Option<bool>,
+ }
+ 
+ // ───────────────────────────────────────────────────────────────────────────
+@@ -266,7 +270,7 @@ impl xai_tool_runtime::Tool for GrepTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             "grep",
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 
+@@ -762,7 +766,7 @@ async fn prepare_grep(
+         .arg("1000")
+         .arg("--max-columns-preview");
+ 
+-    if input.case_insensitive {
++    if input.case_insensitive.unwrap_or(false) {
+         cmd.arg("--ignore-case");
+     }
+ 
+@@ -788,7 +792,7 @@ async fn prepare_grep(
+         cmd.arg("--type").arg(t);
+     }
+ 
+-    if input.multiline {
++    if input.multiline.unwrap_or(false) {
+         cmd.arg("-U").arg("--multiline-dotall");
+     }
+ 
+@@ -1479,55 +1483,13 @@ mod tests {
+             before_context: None,
+             after_context: None,
+             context: None,
+-            case_insensitive: false,
++            case_insensitive: None,
+             r#type: None,
+             head_limit: None,
+-            multiline: false,
++            multiline: None,
+         }
+     }
+ 
+-    /// Boolean flags must be non-optional in the model-facing schema so the
+-    /// default is unambiguous (`false`, not `null` + "Default: false" prose).
+-    #[test]
+-    fn grep_bool_flags_schema_is_plain_boolean_with_default_false() {
+-        let schema = serde_json::to_value(schemars::schema_for!(GrepSearchInput)).unwrap();
+-        let props = &schema["properties"];
+-
+-        // Field is renamed to "-i" for the model-facing name.
+-        let case = &props["-i"];
+-        assert_eq!(case["type"], "boolean", "case_insensitive schema: {case}");
+-        assert_eq!(case["default"], false, "case_insensitive schema: {case}");
+-        assert!(
+-            case.get("anyOf").is_none(),
+-            "must not use nullable anyOf: {case}"
+-        );
+-
+-        let multi = &props["multiline"];
+-        assert_eq!(multi["type"], "boolean", "multiline schema: {multi}");
+-        assert_eq!(multi["default"], false, "multiline schema: {multi}");
+-        assert!(
+-            multi.get("anyOf").is_none(),
+-            "must not use nullable anyOf: {multi}"
+-        );
+-    }
+-
+-    #[test]
+-    fn grep_bool_flags_deserialize_missing_and_null_as_false() {
+-        let missing: GrepSearchInput = serde_json::from_str(r#"{"pattern":"foo"}"#).unwrap();
+-        assert!(!missing.case_insensitive);
+-        assert!(!missing.multiline);
+-
+-        let nulls: GrepSearchInput =
+-            serde_json::from_str(r#"{"pattern":"foo","-i":null,"multiline":null}"#).unwrap();
+-        assert!(!nulls.case_insensitive);
+-        assert!(!nulls.multiline);
+-
+-        let truths: GrepSearchInput =
+-            serde_json::from_str(r#"{"pattern":"foo","-i":"yes","multiline":1}"#).unwrap();
+-        assert!(truths.case_insensitive);
+-        assert!(truths.multiline);
+-    }
+-
+     #[test]
+     fn grep_timeout_secs_platform_defaults() {
+         assert_eq!(grep_timeout_secs(false), 20);
+@@ -2087,10 +2049,10 @@ mod tests {
+                     before_context: None,
+                     after_context: None,
+                     context: None,
+-                    case_insensitive: false,
++                    case_insensitive: None,
+                     r#type: None,
+                     head_limit: None,
+-                    multiline: false,
++                    multiline: None,
+                 }
+             },
+         )
+@@ -2125,10 +2087,10 @@ mod tests {
+                     before_context: None,
+                     after_context: None,
+                     context: None,
+-                    case_insensitive: false,
++                    case_insensitive: None,
+                     r#type: None,
+                     head_limit: None,
+-                    multiline: false,
++                    multiline: None,
+                 }
+             },
+         )
+@@ -2161,10 +2123,10 @@ mod tests {
+                 before_context: None,
+                 after_context: None,
+                 context: None,
+-                case_insensitive: false,
++                case_insensitive: None,
+                 r#type: None,
+                 head_limit: None,
+-                multiline: false,
++                multiline: None,
+             },
+         )
+         .await

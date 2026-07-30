@@ -1,0 +1,41 @@
+diff a/crates/codegen/xai-grok-tools/src/notification/types.rs b/crates/codegen/xai-grok-tools/src/notification/types.rs	(rejected hunks)
+@@ -368,21 +368,6 @@ pub struct MonitorEvent {
+     pub owner_session_id: Option<String>,
+ }
+ 
+-/// A background subagent reached a terminal state while the parent held a handle.
+-#[derive(Debug, Clone, PartialEq, Eq, schemars::JsonSchema)]
+-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+-pub struct SubagentCompleted {
+-    pub subagent_id: String,
+-    pub subagent_type: String,
+-    pub description: String,
+-    pub status: String,
+-    #[cfg_attr(feature = "serde", serde(default))]
+-    pub error: Option<String>,
+-    pub duration_ms: u64,
+-    #[cfg_attr(feature = "serde", serde(default))]
+-    pub owner_session_id: Option<String>,
+-}
+-
+ /// A notification emitted by a tool during or after execution.
+ /// These are sent to external consumers (TUI, logging, etc.) to provide
+ /// real-time visibility into tool execution.
+@@ -413,9 +398,6 @@ pub enum ToolNotification {
+     /// about the task being finished status
+     TaskCompleted(TaskSnapshot),
+ 
+-    /// A background subagent reached a terminal state.
+-    SubagentCompleted(SubagentCompleted),
+-
+     /// The agent requested to enter plan mode.
+     /// Consumers (gateway, TUI) use this to transition the client into
+     /// plan-mode UI state (e.g., enforce read-only, inject plan-mode
+@@ -498,7 +480,6 @@ notification_variants! {
+     BashExecutionFailed => BashExecutionFailed,
+     FileWritten => FileWritten,
+     TaskCompleted => TaskSnapshot,
+-    SubagentCompleted => SubagentCompleted,
+     PlanModeEntered => PlanModeEntered,
+     PlanModeExited => PlanModeExited,
+     UserQuestionAsked => UserQuestionAsked,

@@ -1,0 +1,17 @@
+diff a/crates/codegen/xai-chat-state/src/actor/mutations.rs b/crates/codegen/xai-chat-state/src/actor/mutations.rs	(rejected hunks)
+@@ -20,6 +20,7 @@ fn item_kind_str(item: &ConversationItem) -> &'static str {
+         ConversationItem::ToolResult(_) => "tool_result",
+         ConversationItem::BackendToolCall(_) => "backend_tool_call",
+         ConversationItem::Reasoning(_) => "reasoning",
++        ConversationItem::Unknown => "unknown",
+     }
+ }
+ 
+@@ -333,6 +334,7 @@ impl ChatStateActor {
+                     xai_grok_sampling_types::reasoning_item_text(r).len()
+                         + r.encrypted_content.as_deref().map(str::len).unwrap_or(0)
+                 }
++                ConversationItem::Unknown => 0,
+             })
+             .sum()
+     }

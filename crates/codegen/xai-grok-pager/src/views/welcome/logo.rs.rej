@@ -1,0 +1,12 @@
+diff a/crates/codegen/xai-grok-pager/src/views/welcome/logo.rs b/crates/codegen/xai-grok-pager/src/views/welcome/logo.rs	(rejected hunks)
+@@ -12,8 +12,8 @@ use ratatui::widgets::{Paragraph, Widget};
+ use crate::render::color::blend_color;
+ use crate::theme::Theme;
+ 
+-const LOGO: &str = include_str!("../../../assets/logo/logo07.txt");
+-const LOGO_SMALL: &str = include_str!("../../../assets/logo/logo05.txt");
++const LOGO: &str = include_s"../../../assets/logo/logo07.txt";
++const LOGO_SMALL: &str = include_s"../../../assets/logo/logo05.txt";
+ 
+ /// Height at or above which the small logo is shown (below it, no logo).
+ const SMALL_LOGO_MIN_HEIGHT: u16 = 22;

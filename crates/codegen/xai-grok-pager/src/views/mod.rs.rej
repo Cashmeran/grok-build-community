@@ -1,0 +1,16 @@
+diff a/crates/codegen/xai-grok-pager/src/views/mod.rs b/crates/codegen/xai-grok-pager/src/views/mod.rs	(rejected hunks)
+@@ -29,7 +29,6 @@ pub mod permission_view;
+ pub mod persona_detail;
+ pub mod picker;
+ pub mod plan_approval_view;
+-pub mod privacy_banner;
+ pub mod progress_bar;
+ pub mod prompt_suggestion;
+ pub mod prompt_widget;
+@@ -50,6 +49,5 @@ pub mod tasks_pane;
+ pub mod timeline;
+ pub mod todo_pane;
+ pub mod turn_status;
+-pub mod tutorial;
+ pub mod welcome;
+ pub mod workflows;

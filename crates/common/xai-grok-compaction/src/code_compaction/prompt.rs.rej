@@ -1,0 +1,10 @@
+diff a/crates/common/xai-grok-compaction/src/code_compaction/prompt.rs b/crates/common/xai-grok-compaction/src/code_compaction/prompt.rs	(rejected hunks)
+@@ -21,7 +21,7 @@ pub fn build_summary_prompt(user_context: Option<&str>) -> String {
+         None => String::new(),
+     };
+ 
+-    include_str!("templates/full_replace_summary_prompt.txt")
++    include_s"templates/full_replace_summary_prompt.txt"
+         .replace("{user_context_section}", &user_context_section)
+ }
+ 

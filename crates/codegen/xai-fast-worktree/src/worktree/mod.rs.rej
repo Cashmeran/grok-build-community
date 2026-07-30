@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-fast-worktree/src/worktree/mod.rs b/crates/codegen/xai-fast-worktree/src/worktree/mod.rs	(rejected hunks)
+@@ -37,7 +37,6 @@ pub(crate) fn execute_plan(plan: WorktreePlan) -> Result<CreateWorktreeResult> {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::*;
+     use crate::{IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder};
+     use tempfile::TempDir;
+     use xai_test_utils::git::{git_commit_all, init_git_repo};

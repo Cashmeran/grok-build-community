@@ -1,0 +1,12 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/forced_wheel_mode_env_scrolls_exact_rows.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/forced_wheel_mode_env_scrolls_exact_rows.rs	(rejected hunks)
+@@ -63,9 +63,8 @@ async fn forced_wheel_mode_env_scrolls_exact_rows() {
+     // Outlasts the 80ms stream gap + finalize cadence with CI slack.
+     harness.update(std::time::Duration::from_millis(600));
+ 
+-    let running = harness.is_running().expect("poll pager liveness");
+     assert!(
+-        running && !harness.contains_text("panicked"),
++        harness.is_running() && !harness.contains_text("panicked"),
+         "pager broke during the forced-wheel burst\nscreen:\n{}",
+         harness.screen_contents()
+     );

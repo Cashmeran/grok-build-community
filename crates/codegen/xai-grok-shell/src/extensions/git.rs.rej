@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-shell/src/extensions/git.rs b/crates/codegen/xai-grok-shell/src/extensions/git.rs	(rejected hunks)
+@@ -539,7 +539,6 @@ pub async fn handle(
+                 signoff: req.signoff,
+                 push: req.push,
+                 sync: req.sync,
+-                ..Default::default()
+             };
+             let commit_result = ops
+                 .dispatch(&op, None)

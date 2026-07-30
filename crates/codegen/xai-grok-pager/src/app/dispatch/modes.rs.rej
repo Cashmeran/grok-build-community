@@ -1,0 +1,13 @@
+diff a/crates/codegen/xai-grok-pager/src/app/dispatch/modes.rs b/crates/codegen/xai-grok-pager/src/app/dispatch/modes.rs	(rejected hunks)
+@@ -327,7 +327,10 @@ pub(super) fn set_yolo_mode_inner(app: &mut AppView, new: bool) {
+                     .ok();
+             }
+         }
+-        super::permissions::restore_permission_stashes(agent);
++        // Restore stashed prompt since queue is now empty.
++        if let Some(stashed) = agent.permission_stashed_prompt.take() {
++            agent.prompt.restore(stashed);
++        }
+     }
+ 
+     // Telemetry + tracing guarded on real state change only.

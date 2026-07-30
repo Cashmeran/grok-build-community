@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/src/obf.rs b/crates/codegen/xai-grok-pager/src/obf.rs	(rejected hunks)
+@@ -12,7 +12,7 @@ pub mod auth {
+     /// The internal `cached_token` auth method ID used for reconnection.
+     macro_rules! CACHED_TOKEN {
+         () => {
+-            obfstr::obfstr!("cached_token")
++            obfstr::obfs"cached_token"
+         };
+     }
+     pub(crate) use CACHED_TOKEN;

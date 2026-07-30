@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-shell/src/session/acp_session_tests/client_hooks_tests.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_tests/client_hooks_tests.rs	(rejected hunks)
+@@ -711,7 +711,6 @@ fn file_registry_with_stop_spec(
+         timeout_ms: 5000,
+         source_dir: std::path::PathBuf::from("/tmp"),
+         extra_env: std::collections::HashMap::new(),
+-        layer: xai_grok_hooks::config::HookProvenance::File,
+     }]);
+     registry
+ }

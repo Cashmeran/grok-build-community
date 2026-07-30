@@ -1,0 +1,12 @@
+diff a/crates/codegen/xai-grok-shell-session-support/src/managed_mcp.rs b/crates/codegen/xai-grok-shell-session-support/src/managed_mcp.rs	(rejected hunks)
+@@ -451,9 +451,7 @@ pub async fn fetch_managed_configs(
+     Ok(response.mcp_servers)
+ }
+ 
+-// Above the server-side tool-call budget so the client is not the first
+-// hop to abort a slow tool call.
+-const GATEWAY_TOOL_CALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(75);
++const GATEWAY_TOOL_CALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+ 
+ pub async fn call_gateway_tool(
+     proxy_base_url: &str,

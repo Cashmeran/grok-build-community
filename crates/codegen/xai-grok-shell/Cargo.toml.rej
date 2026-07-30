@@ -1,0 +1,62 @@
+diff a/crates/codegen/xai-grok-shell/Cargo.toml b/crates/codegen/xai-grok-shell/Cargo.toml	(rejected hunks)
+@@ -1,18 +1,14 @@
+ [package]
+ license = "Apache-2.0"
+ name = "xai-grok-shell"
+-version = "0.2.114"
++version = "0.2.109"
+ edition.workspace = true
+ 
+ [features]
+ default = []
+ unstable = []
+ dhat-heap = ["dep:dhat"]
+-# Session synthesis + in-process e2e harness (`session::testkit`) for soak,
+-# load, and bench tests. Off by default; the tests/benches that use it declare
+-# it via `required-features`.
+-test-support = []
+-default-bazel = ["test-support"]
++default-bazel = []
+ 
+ [dependencies]
+ dunce = { workspace = true }
+@@ -189,7 +185,6 @@ windows = { workspace = true }
+ [dev-dependencies]
+ criterion = { workspace = true }
+ filetime = { workspace = true }
+-pretty_assertions = { workspace = true }
+ tempfile = { workspace = true }
+ xai-grok-memory = { workspace = true, features = ["test-support"] }
+ xai-grok-workspace = { workspace = true, features = ["test-support"] }
+@@ -217,31 +212,6 @@ workspace = true
+ name = "session_list"
+ harness = false
+ 
+-[[bench]]
+-name = "fork_copy"
+-harness = false
+-required-features = ["test-support"]
+-
+-[[test]]
+-name = "test_leader_soak"
+-required-features = ["test-support"]
+-
+-[[test]]
+-name = "test_session_load_memory"
+-required-features = ["test-support"]
+-
+-[[test]]
+-name = "session_fork_replay_memory"
+-required-features = ["test-support"]
+-
+-[[test]]
+-name = "session_load_perf"
+-required-features = ["test-support"]
+-
+-[[test]]
+-name = "testkit_synth_roundtrip"
+-required-features = ["test-support"]
+-
+ [lints]
+ workspace = true
+ [build-dependencies]

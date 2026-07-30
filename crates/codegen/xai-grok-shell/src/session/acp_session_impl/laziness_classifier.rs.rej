@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-shell/src/session/acp_session_impl/laziness_classifier.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_impl/laziness_classifier.rs	(rejected hunks)
+@@ -399,6 +399,7 @@ pub(crate) fn flatten_transcript_for_classifier(
+                     }
+                 }
+             }
++            ConversationItem::Unknown => {}
+         }
+     }
+     out

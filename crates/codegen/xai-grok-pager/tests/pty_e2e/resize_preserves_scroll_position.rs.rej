@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/resize_preserves_scroll_position.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/resize_preserves_scroll_position.rs	(rejected hunks)
+@@ -252,7 +252,7 @@ async fn resize_preserves_scroll_position() {
+     let screen_after = harness.screen_contents();
+ 
+     assert!(
+-        harness.is_running().expect("poll pager liveness"),
++        harness.is_running(),
+         "pager exited during resize\nscreen:\n{screen_after}"
+     );
+     assert!(

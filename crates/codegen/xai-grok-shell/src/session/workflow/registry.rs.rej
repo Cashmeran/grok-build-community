@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-shell/src/session/workflow/registry.rs b/crates/codegen/xai-grok-shell/src/session/workflow/registry.rs	(rejected hunks)
+@@ -14,7 +14,7 @@ pub(crate) struct BuiltinWorkflow {
+ 
+ pub(crate) const BUILTIN_WORKFLOWS: &[BuiltinWorkflow] = &[BuiltinWorkflow {
+     name: "deep-research",
+-    script: include_str!("../workflows/deep_research.rhai"),
++    script: include_s"../workflows/deep_research.rhai",
+ }];
+ 
+ pub(crate) struct ResolvedWorkflow {

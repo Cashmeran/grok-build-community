@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/wheel_scrolls_viewport_during_streaming_turn.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/wheel_scrolls_viewport_during_streaming_turn.rs	(rejected hunks)
+@@ -74,7 +74,7 @@ async fn wheel_scrolls_viewport_during_streaming_turn() {
+     harness.update(Duration::from_millis(600));
+ 
+     assert!(
+-        harness.is_running().expect("poll pager liveness"),
++        harness.is_running(),
+         "pager exited during the mid-stream wheel burst\nscreen:\n{}",
+         harness.screen_contents()
+     );

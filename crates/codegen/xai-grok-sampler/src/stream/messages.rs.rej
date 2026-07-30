@@ -1,0 +1,14 @@
+diff a/crates/codegen/xai-grok-sampler/src/stream/messages.rs b/crates/codegen/xai-grok-sampler/src/stream/messages.rs	(rejected hunks)
+@@ -205,7 +205,11 @@ pub fn stream_messages<'a>(
+                             };
+                         }
+                     }
+-                    ContentBlock::ToolUse { id, name, .. } => {
++                    ContentBlock::ToolUse {
++                        id,
++                        name,
++                        input: _,
++                    } => {
+                         let tool_index = next_tool_index;
+                         next_tool_index += 1;
+                         block_to_tool_index.insert(index, tool_index);

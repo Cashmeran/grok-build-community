@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/zero_turn_model_switch_no_modal.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/zero_turn_model_switch_no_modal.rs	(rejected hunks)
+@@ -48,7 +48,7 @@ async fn zero_turn_model_switch_no_modal() {
+         harness.screen_contents()
+     );
+     assert!(
+-        harness.is_running().expect("poll pager liveness"),
++        harness.is_running(),
+         "pager exited\nscreen:\n{}",
+         harness.screen_contents()
+     );

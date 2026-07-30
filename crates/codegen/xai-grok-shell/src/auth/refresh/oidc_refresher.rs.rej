@@ -1,0 +1,34 @@
+diff a/crates/codegen/xai-grok-shell/src/auth/refresh/oidc_refresher.rs b/crates/codegen/xai-grok-shell/src/auth/refresh/oidc_refresher.rs	(rejected hunks)
+@@ -13,9 +13,8 @@ use crate::auth::manager::AuthManager;
+ /// Escalate to `PermanentFailure` after this many consecutive transient
+ /// failures (then `PERMANENT_FAILURE_TTL` allows recovery). OIDC tolerates more
+ /// blips than `ExternalBinaryRefresher` (1) since network refreshes flake more
+-/// than a local binary. Kept above `try_recover_unauthorized`'s per-recovery
+-/// attempt budget so one 401 recovery cannot alone escalate.
+-const MAX_CONSECUTIVE_TRANSIENT_FAILURES: u32 = 5;
++/// than a local binary.
++const MAX_CONSECUTIVE_TRANSIENT_FAILURES: u32 = 3;
+ 
+ /// Consecutive transient-failure budget, scoped to the credential it accrued
+ /// against. Held under one lock so the credential check, reset, and increment
+@@ -147,7 +146,10 @@ impl OidcRefresher {
+                     None,
+                     Some(serde_json::json!({ "reason": format!("{reason:?}") })),
+                 );
+-                Some(RefreshOutcome::permanent_for(reason, &disk_now))
++                Some(RefreshOutcome::permanent(
++                    reason,
++                    Some(disk_now.key.clone()),
++                ))
+             }
+             OidcRefreshResult::Failed => {
+                 Some(RefreshOutcome::transient("OIDC disk-retry refresh failed"))
+@@ -242,7 +244,7 @@ impl TokenRefresher for OidcRefresher {
+                         &self.upload_in_flight,
+                     );
+                 }
+-                RefreshOutcome::permanent_for(reason, &auth)
++                RefreshOutcome::permanent(reason, Some(auth.key.clone()))
+             }
+             OidcRefreshResult::Failed => {
+                 tracing::warn!(

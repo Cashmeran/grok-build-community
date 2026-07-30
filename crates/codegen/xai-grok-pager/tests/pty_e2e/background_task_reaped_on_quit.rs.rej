@@ -1,0 +1,17 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/background_task_reaped_on_quit.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/background_task_reaped_on_quit.rs	(rejected hunks)
+@@ -103,13 +103,8 @@ async fn background_task_reaped_on_quit() {
+     // Both the graceful-quit teardown and the hard-exit tail reap spawned
+     // children via the process-global ProcessScope, so the orphan dies either way.
+     harness.send_signal(libc::SIGINT).expect("send SIGINT");
+-    let exit = harness
+-        .wait_exit_code(Duration::from_secs(15))
+-        .expect("wait after SIGINT");
+-    assert!(
+-        matches!(exit, PtyExitPoll::Exited(_) | PtyExitPoll::PendingStatus),
+-        "pager did not exit after SIGINT: {exit:?}"
+-    );
++    let code = harness.wait_exit_code(Duration::from_secs(15));
++    assert!(code.is_some(), "pager did not exit after SIGINT");
+ 
+     // The fix: no orphaned background process survives the quit. Without it the
+     // setsid-detached sleep reparents to init and keeps running -> this times out.

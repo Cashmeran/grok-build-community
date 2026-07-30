@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-pager/src/app/acp_handler/workflow_ingest.rs b/crates/codegen/xai-grok-pager/src/app/acp_handler/workflow_ingest.rs	(rejected hunks)
+@@ -158,7 +158,6 @@ pub(super) fn ingest_workflow_update(agent: &mut AgentView, update: XaiSessionUp
+                     model: a.model.clone(),
+                     state: a.state.clone(),
+                     tokens_used: a.tokens_used,
+-                    duration_ms: a.duration_ms,
+                 })
+                 .collect(),
+             agent_budget,

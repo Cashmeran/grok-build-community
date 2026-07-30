@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/reverse_agent_type_mismatch_cursor_to_default.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/reverse_agent_type_mismatch_cursor_to_default.rs	(rejected hunks)
+@@ -53,7 +53,7 @@ async fn reverse_agent_type_mismatch_cursor_to_default() {
+         .expect("agent type mismatch modal should appear for reverse direction");
+ 
+     assert!(
+-        harness.is_running().expect("poll pager liveness"),
++        harness.is_running(),
+         "pager exited\nscreen:\n{}",
+         harness.screen_contents()
+     );

@@ -1,0 +1,19 @@
+diff a/crates/codegen/xai-grok-shell/changelogs/0.2.109.json b/crates/codegen/xai-grok-shell/changelogs/0.2.109.json	(rejected hunks)
+@@ -11,7 +11,7 @@
+   },
+   {
+     "category": "features",
+-    "description": "**grok doctor fix ssh-wrap** can set up `grok wrap ssh` automatically for Bash, zsh, and fish.",
++    "description": "**grok doctor fix terminal.ssh-wrap** can install the recommended SSH wrapper alias.",
+     "breaking_change": false
+   },
+   {
+@@ -46,7 +46,7 @@
+   },
+   {
+     "category": "features",
+-    "description": "**/doctor** is now the main in-app command for checking terminal, tmux, clipboard, and keyboard setup.",
++    "description": "**/doctor** is now the main slash command for terminal, tmux, clipboard and keyboard diagnostics.",
+     "breaking_change": false
+   },
+   {

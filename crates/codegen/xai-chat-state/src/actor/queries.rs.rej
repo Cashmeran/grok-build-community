@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-chat-state/src/actor/queries.rs b/crates/codegen/xai-chat-state/src/actor/queries.rs	(rejected hunks)
+@@ -242,6 +242,7 @@ impl ChatStateActor {
+                 xai_grok_sampling_types::ConversationItem::System(_) => {}
+                 xai_grok_sampling_types::ConversationItem::BackendToolCall(_) => {}
+                 xai_grok_sampling_types::ConversationItem::Reasoning(_) => {}
++                xai_grok_sampling_types::ConversationItem::Unknown => {}
+             }
+         }
+         counts

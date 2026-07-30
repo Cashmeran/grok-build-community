@@ -1,0 +1,74 @@
+diff a/crates/codegen/xai-grok-sampling-types/src/messages.rs b/crates/codegen/xai-grok-sampling-types/src/messages.rs	(rejected hunks)
+@@ -17,7 +17,7 @@ pub struct MessagesRequest {
+     #[serde(skip_serializing_if = "Option::is_none")]
+     pub system: Option<SystemParam>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+-    pub tools: Option<Vec<ToolParam>>,
++    pub tools: Option<Vec<MessagesTool>>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+     pub tool_choice: Option<ToolChoiceParam>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+@@ -94,14 +94,6 @@ pub struct CacheControl {
+     pub r#type: String, // "ephemeral"
+ }
+ 
+-impl CacheControl {
+-    pub fn ephemeral() -> Self {
+-        Self {
+-            r#type: "ephemeral".to_owned(),
+-        }
+-    }
+-}
+-
+ /// Content blocks used in both requests and responses
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+ #[serde(tag = "type", rename_all = "snake_case")]
+@@ -113,15 +105,11 @@ pub enum ContentBlock {
+     },
+     Image {
+         source: ImageSource,
+-        #[serde(skip_serializing_if = "Option::is_none")]
+-        cache_control: Option<CacheControl>,
+     },
+     ToolUse {
+         id: String,
+         name: String,
+         input: serde_json::Value,
+-        #[serde(skip_serializing_if = "Option::is_none")]
+-        cache_control: Option<CacheControl>,
+     },
+     ToolResult {
+         tool_use_id: String,
+@@ -149,6 +137,32 @@ pub enum ToolResultContent {
+     Blocks(Vec<ContentBlock>),
+ }
+ 
++/// Anthropic built-in web search tool.
++/// Serializes as `{"type": "web_search_20250305", "name": "web_search"}`.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++pub struct WebSearchTool {
++    #[serde(rename = "type")]
++    pub tool_type: String,
++    pub name: String,
++}
++
++impl Default for WebSearchTool {
++    fn default() -> Self {
++        Self {
++            tool_type: "web_search_20250305".to_string(),
++            name: "web_search".to_string(),
++        }
++    }
++}
++
++/// A tool in the Messages API — either a function tool or a built-in.
++#[derive(Debug, Clone, Serialize, Deserialize)]
++#[serde(untagged)]
++pub enum MessagesTool {
++    WebSearch(WebSearchTool),
++    Function(ToolParam),
++}
++
+ /// Tool definition (Anthropic Messages API format)
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+ pub struct ToolParam {

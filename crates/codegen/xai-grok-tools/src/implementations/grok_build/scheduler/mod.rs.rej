@@ -1,0 +1,7 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build/scheduler/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/scheduler/mod.rs	(rejected hunks)
+@@ -3,5 +3,4 @@ pub mod create;
+ pub mod delete;
+ pub mod interval;
+ pub mod list;
+-pub(crate) mod occurrence_journal;
+ pub mod types;

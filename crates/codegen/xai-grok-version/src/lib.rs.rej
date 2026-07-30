@@ -1,0 +1,55 @@
+diff a/crates/codegen/xai-grok-version/src/lib.rs b/crates/codegen/xai-grok-version/src/lib.rs	(rejected hunks)
+@@ -1,16 +1,21 @@
+-//! Installed grok CLI version, lockstepped with shipping binaries.
++//! Installed CLI version — Community Edition.
+ 
+ use semver::Version;
+ 
+ pub const TEST_VERSION_ENV: &str = "GROK_TEST_VERSION";
+ 
++/// Community Edition brand suffix appended to all version output.
++pub const COMMUNITY_SUFFIX: &str = " [Community Edition]";
++
++/// Community Edition: always true. Used to disable auto-update and other
++/// vendor-controlled features.
++pub const IS_COMMUNITY_EDITION: bool = true;
++
+ pub const VERSION: &str = match option_env!("GROK_VERSION") {
+     Some(v) => v,
+     None => env!("CARGO_PKG_VERSION"),
+ };
+ 
+-/// [`TEST_VERSION_ENV`] override first, then [`VERSION`]. Trimmed so
+-/// non-semver-aware callers can pass the result straight into parsing.
+ pub fn installed() -> String {
+     std::env::var(TEST_VERSION_ENV)
+         .map(|v| v.trim().to_string())
+@@ -21,23 +26,15 @@ pub fn installed_semver() -> Result<Version, semver::Error> {
+     Version::parse(&installed())
+ }
+ 
+-/// Format the compiled version with a channel label for user-facing display.
+-///
+-/// `channel_label` is a pre-formatted suffix such as `" [alpha]"`, `" [stable]"`,
+-/// or `""` (empty when no cached pointer is available). Obtain it from
+-/// `xai_grok_update::channel_label()`.
+-///
+-/// Example: `"0.2.5 [stable]"` or `"0.2.5 [alpha]"`.
+ pub fn display_version(channel_label: &str) -> String {
+-    format!("{}{}", VERSION, channel_label)
++    format!("{}{}{}", VERSION, channel_label, COMMUNITY_SUFFIX)
+ }
+ 
+-/// Format a version-with-commit string with a channel label.
+-///
+-/// Same semantics as [`display_version`] but for the full
+-/// `"0.2.5 (abc1234)"` string.
+ pub fn display_version_with_commit(version_with_commit: &str, channel_label: &str) -> String {
+-    format!("{}{}", version_with_commit, channel_label)
++    format!(
++        "{}{}{}",
++        version_with_commit, channel_label, COMMUNITY_SUFFIX
++    )
+ }
+ 
+ #[cfg(test)]

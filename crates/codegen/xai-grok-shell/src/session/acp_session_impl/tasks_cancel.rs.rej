@@ -1,0 +1,31 @@
+diff a/crates/codegen/xai-grok-shell/src/session/acp_session_impl/tasks_cancel.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_impl/tasks_cancel.rs	(rejected hunks)
+@@ -195,7 +195,6 @@ impl SessionActor {
+                 SubagentCancelRequest, SubagentCancelTarget, SubagentEvent,
+             };
+             let _ = event_tx.send(SubagentEvent::Cancel(SubagentCancelRequest {
+-                parent_session_id: Some(self.session_id_string()),
+                 target: SubagentCancelTarget::ParentPromptId(parent_prompt_id.to_string()),
+                 respond_to: tokio::sync::oneshot::channel().0,
+             }));
+@@ -612,7 +611,6 @@ impl SessionActor {
+                 completion_kind: PromptCompletionKind::Rewound,
+                 structured_output: None,
+                 usage: None,
+-                tool_overrides: self.effective_tool_overrides(),
+             }));
+             return;
+         }
+@@ -657,13 +655,6 @@ impl SessionActor {
+                     } else {
+                         None
+                     },
+-                    // Only the running turn (idx 0) ran, so only it echoes a bound; a queued prompt
+-                    // that never promoted attests nothing (like respond_removed_prompt).
+-                    tool_overrides: if is_running_turn {
+-                        self.effective_tool_overrides()
+-                    } else {
+-                        None
+-                    },
+                 }))
+                 .ok();
+         }

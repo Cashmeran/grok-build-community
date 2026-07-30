@@ -1,0 +1,17 @@
+diff a/crates/codegen/xai-grok-hooks/src/dispatcher.rs b/crates/codegen/xai-grok-hooks/src/dispatcher.rs	(rejected hunks)
+@@ -526,7 +526,6 @@ mod tests {
+         RunContext {
+             session_id: "test-session",
+             workspace_root: "/tmp",
+-            process_scope: None,
+         }
+     }
+ 
+@@ -552,7 +551,6 @@ mod tests {
+             timeout_ms: 5000,
+             source_dir: PathBuf::from("/tmp"),
+             extra_env: HashMap::new(),
+-            layer: crate::config::HookProvenance::File,
+         }
+     }
+ 

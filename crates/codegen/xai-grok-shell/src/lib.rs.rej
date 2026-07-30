@@ -1,0 +1,7 @@
+diff a/crates/codegen/xai-grok-shell/src/lib.rs b/crates/codegen/xai-grok-shell/src/lib.rs	(rejected hunks)
+@@ -1,4 +1,5 @@
+ #![allow(
++    clippy::possible_missing_else,
+     unused_imports,
+     unused_variables,
+     unused_mut,

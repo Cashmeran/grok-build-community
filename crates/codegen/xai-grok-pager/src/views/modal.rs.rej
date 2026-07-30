@@ -1,0 +1,172 @@
+diff a/crates/codegen/xai-grok-pager/src/views/modal.rs b/crates/codegen/xai-grok-pager/src/views/modal.rs	(rejected hunks)
+@@ -373,7 +373,6 @@ pub(crate) fn default_palette_entries(
+     screen_mode: crate::app::ScreenMode,
+ ) -> Vec<PaletteEntry> {
+     let mut entries = vec![
+-        // ── Session ──
+         PaletteEntry {
+             label: "Session".into(),
+             shortcut: String::new(),
+@@ -399,11 +398,6 @@ pub(crate) fn default_palette_entries(
+             shortcut: "/home".into(),
+             command: PaletteCommand::Home,
+         },
+-        PaletteEntry {
+-            label: "Delete This Session".into(),
+-            shortcut: "/delete".into(),
+-            command: PaletteCommand::SlashCommand("/delete".into()),
+-        },
+         PaletteEntry {
+             label: "Resume Session".into(),
+             shortcut: "/resume".into(),
+@@ -429,7 +423,6 @@ pub(crate) fn default_palette_entries(
+             shortcut: "/feedback".into(),
+             command: PaletteCommand::SlashCommand("/feedback ".into()),
+         },
+-        // ── Context ──
+         PaletteEntry {
+             label: "Context".into(),
+             shortcut: String::new(),
+@@ -455,7 +448,6 @@ pub(crate) fn default_palette_entries(
+             shortcut: "/memory".into(),
+             command: PaletteCommand::Memory,
+         },
+-        // ── Model & Input ──
+         PaletteEntry {
+             label: "Model & Input".into(),
+             shortcut: String::new(),
+@@ -481,7 +473,6 @@ pub(crate) fn default_palette_entries(
+             shortcut: "Ctrl+G".into(),
+             command: PaletteCommand::EditPromptExternal,
+         },
+-        // ── Tools ──
+         PaletteEntry {
+             label: "Tools".into(),
+             shortcut: String::new(),
+@@ -527,7 +518,6 @@ pub(crate) fn default_palette_entries(
+             shortcut: "/config-agents".into(),
+             command: PaletteCommand::OpenAgentsModal,
+         },
+-        // ── Other ──
+         PaletteEntry {
+             label: "Other".into(),
+             shortcut: String::new(),
+@@ -557,11 +547,6 @@ pub(crate) fn default_palette_entries(
+             shortcut: "/docs".into(),
+             command: PaletteCommand::HowTo,
+         },
+-        PaletteEntry {
+-            label: "Tutorial".into(),
+-            shortcut: "/tutorial".into(),
+-            command: PaletteCommand::SlashCommand("/tutorial".into()),
+-        },
+         PaletteEntry {
+             label: "Quit".into(),
+             shortcut: "Ctrl+Q".into(),
+@@ -570,7 +555,10 @@ pub(crate) fn default_palette_entries(
+     ];
+     entries.retain(|entry| {
+         if !sharing_enabled
+-            && matches!(&entry.command, PaletteCommand::SlashCommand(s) if s.trim() == "/share")
++            && matches!(
++                & entry.command, PaletteCommand::SlashCommand(s) if s.trim() ==
++                "/share"
++            )
+         {
+             return false;
+         }
+@@ -1170,7 +1158,8 @@ pub fn render_doc_viewer_overlay(
+     compact: bool,
+     theme: &Theme,
+ ) {
+-    let doc_shortcuts = [
++    use ratatui::widgets::{Paragraph, Widget, Wrap};
++    let doc_shortcuts = vec![
+         super::modal_window::Shortcut {
+             label: "\u{2191}/\u{2193} scroll",
+             clickable: false,
+@@ -1182,39 +1171,10 @@ pub fn render_doc_viewer_overlay(
+             id: 0,
+         },
+     ];
+-    render_doc_viewer_overlay_with_shortcuts(
+-        buf,
+-        area,
+-        window,
+-        title,
+-        content,
+-        scroll,
+-        cached_lines,
+-        compact,
+-        theme,
+-        &doc_shortcuts,
+-    );
+-}
+-/// [`render_doc_viewer_overlay`] with caller-supplied footer shortcuts (the
+-/// tutorial adds a next-topic hint).
+-#[allow(clippy::too_many_arguments)]
+-pub fn render_doc_viewer_overlay_with_shortcuts(
+-    buf: &mut ratatui::buffer::Buffer,
+-    area: Rect,
+-    window: &mut super::modal_window::ModalWindowState,
+-    title: &str,
+-    content: &str,
+-    scroll: &mut u16,
+-    cached_lines: &mut Option<(u16, Vec<ratatui::text::Line<'static>>)>,
+-    compact: bool,
+-    theme: &Theme,
+-    shortcuts: &[super::modal_window::Shortcut<'_>],
+-) {
+-    use ratatui::widgets::{Paragraph, Widget, Wrap};
+     let modal_config = super::modal_window::ModalWindowConfig {
+         title,
+         tabs: None,
+-        shortcuts,
++        shortcuts: &doc_shortcuts,
+         sizing: super::modal_window::ModalSizing {
+             width_pct: 0.80,
+             max_width: 120,
+@@ -1301,9 +1261,11 @@ mod doc_viewer_scroll_tests {
+ mod palette_sharing_tests {
+     use super::*;
+     fn has_share(entries: &[PaletteEntry]) -> bool {
+-        entries
+-            .iter()
+-            .any(|e| matches!(&e.command, PaletteCommand::SlashCommand(s) if s.trim() == "/share"))
++        entries.iter().any(|e| {
++            matches!(
++                & e.command, PaletteCommand::SlashCommand(s) if s.trim() == "/share"
++            )
++        })
+     }
+     #[test]
+     fn default_palette_includes_share_when_enabled() {
+@@ -1316,9 +1278,12 @@ mod palette_sharing_tests {
+     #[test]
+     fn default_palette_includes_dashboard() {
+         let entries = default_palette_entries(true, crate::app::ScreenMode::Fullscreen);
+-        let has_dashboard = entries.iter().any(
+-            |e| matches!(&e.command, PaletteCommand::SlashCommand(s) if s.trim() == "/dashboard"),
+-        );
++        let has_dashboard = entries.iter().any(|e| {
++            matches!(
++                & e.command, PaletteCommand::SlashCommand(s) if s.trim() ==
++                "/dashboard"
++            )
++        });
+         assert!(
+             has_dashboard,
+             "/dashboard entry must be present in the palette so users can switch between agents"
+@@ -1389,10 +1354,8 @@ mod palette_sharing_tests {
+                 .find(|e| e.label == label)
+                 .unwrap_or_else(|| panic!("Tools entry {label:?} missing from palette"));
+             assert!(
+-                matches!(
+-                    &entry.command,
+-                    PaletteCommand::OpenExtensionsTab(t) if *t == expected,
+-                ),
++                matches!(& entry.command, PaletteCommand::OpenExtensionsTab(t) if * t ==
++                expected,),
+                 "Tools entry {label:?} dispatches to the wrong tab",
+             );
+         }

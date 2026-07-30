@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build_hashline/benchmark.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build_hashline/benchmark.rs	(rejected hunks)
+@@ -10,7 +10,7 @@
+ //!
+ //! let corpus = vec![
+ //!     ("small.rs", "fn main() {}\n"),
+-//!     ("medium.rs", include_str!("fixtures/medium.rs.txt")),
++//!     ("medium.rs", include_s"fixtures/medium.rs.txt"),
+ //! ];
+ //! let report = run_benchmark(&corpus, &BenchmarkConfig::default());
+ //! println!("{report}");

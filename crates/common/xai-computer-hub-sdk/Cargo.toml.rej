@@ -1,0 +1,18 @@
+diff a/crates/common/xai-computer-hub-sdk/Cargo.toml b/crates/common/xai-computer-hub-sdk/Cargo.toml	(rejected hunks)
+@@ -6,7 +6,7 @@ edition.workspace = true
+ description = "SDK for the xAI Computer Hub: connection pool, transparent reconnect, tool harness, and tool-server runtime."
+ 
+ [features]
+-metrics = ["dep:prometheus", "dep:prometheus-parse"]
++metrics = ["dep:prometheus"]
+ 
+ [dependencies]
+ tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
+@@ -25,7 +25,6 @@ tracing-subscriber = { workspace = true }
+ url = { workspace = true }
+ http = { workspace = true }
+ prometheus = { workspace = true, optional = true }
+-prometheus-parse = { version = "0.2.5", optional = true }
+ reqwest = { workspace = true }
+ chrono = { workspace = true }
+ parking_lot = { workspace = true }

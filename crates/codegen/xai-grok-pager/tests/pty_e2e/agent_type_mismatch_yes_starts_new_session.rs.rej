@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/pty_e2e/agent_type_mismatch_yes_starts_new_session.rs b/crates/codegen/xai-grok-pager/tests/pty_e2e/agent_type_mismatch_yes_starts_new_session.rs	(rejected hunks)
+@@ -49,7 +49,7 @@ async fn agent_type_mismatch_yes_starts_new_session() {
+         .expect("new session created");
+ 
+     assert!(
+-        harness.is_running().expect("poll pager liveness"),
++        harness.is_running(),
+         "pager exited after starting new session\nscreen:\n{}",
+         harness.screen_contents()
+     );

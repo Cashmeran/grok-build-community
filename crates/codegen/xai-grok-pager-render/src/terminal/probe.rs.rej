@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-pager-render/src/terminal/probe.rs b/crates/codegen/xai-grok-pager-render/src/terminal/probe.rs	(rejected hunks)
+@@ -10,7 +10,6 @@
+ //!   portable re-injection exists (TIOCSTI is blocked); accepted loss.
+ 
+ use std::io::Write;
+-use std::time::Duration;
+ 
+ /// Bounds the reply buffer against terminals that stream without a terminator.
+ #[cfg(unix)]

@@ -1,0 +1,124 @@
+diff a/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs b/crates/codegen/xai-grok-pager/src/slash/commands/mod.rs	(rejected hunks)
+@@ -15,7 +15,6 @@ pub mod context;
+ pub mod copy;
+ pub mod dashboard;
+ pub mod debug;
+-pub mod delete;
+ pub mod docs;
+ pub mod doctor;
+ pub mod edit_prompt;
+@@ -35,6 +34,7 @@ pub mod imagine;
+ pub mod imagine_video;
+ pub mod import_claude;
+ pub mod jump;
++pub mod lang;
+ pub mod login;
+ pub mod logout;
+ pub mod loop_cmd;
+@@ -64,7 +64,6 @@ pub mod timeline;
+ pub mod timestamps;
+ pub mod toggle_mouse_reporting;
+ pub mod transcript;
+-pub mod tutorial;
+ pub mod usage;
+ pub mod view_plan;
+ pub mod vim_mode;
+@@ -82,7 +81,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(help::HelpCommand),
+         Arc::new(docs::DocsCommand),
+         Arc::new(home::HomeCommand),
+-        Arc::new(delete::DeleteCommand),
+         Arc::new(new::NewCommand),
+         Arc::new(fork::ForkCommand),
+         Arc::new(compact::CompactCommand),
+@@ -94,7 +92,6 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(edit_prompt::EditPromptCommand),
+         Arc::new(expand::ExpandCommand),
+         Arc::new(context::ContextCommand),
+-        // Screen-mode switchers: visible only in the opposite mode.
+         Arc::new(screen_mode_switch::ScreenModeSwitchCommand::minimal()),
+         Arc::new(screen_mode_switch::ScreenModeSwitchCommand::fullscreen()),
+         Arc::new(model::ModelCommand),
+@@ -139,18 +136,15 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
+         Arc::new(login::LoginCommand),
+         Arc::new(logout::LogoutCommand),
+         Arc::new(import_claude::ImportClaudeCommand),
++        Arc::new(lang::LangCommand),
+         Arc::new(usage::UsageCommand),
+         Arc::new(queue::QueueCommand),
+         Arc::new(tasks::TasksCommand),
+         Arc::new(release_notes::ReleaseNotesCommand),
+-        Arc::new(tutorial::TutorialCommand),
+         Arc::new(config_agents::ConfigAgentsCommand),
+         Arc::new(personas::PersonasCommand),
+-        // Hidden easter egg: never listed, runs on bare `/gboom`.
+         Arc::new(gboom::GboomCommand),
+-        // Hidden diagnostic: never listed, toggles the scroll-debug HUD.
+         Arc::new(scroll_debug::ScrollDebugCommand),
+-        // Debug toggles: always registered, listed only on debug binaries.
+         Arc::new(debug::DebugCommand),
+     ]
+ }
+@@ -265,7 +259,6 @@ mod tests {
+             "cost",
+             "dashboard",
+             "debug",
+-            "delete",
+             "docs",
+             "doctor",
+             "edit-prompt",
+@@ -289,6 +282,7 @@ mod tests {
+             "imagine-video",
+             "import-claude",
+             "jump",
++            "lang",
+             "login",
+             "logout",
+             "log",
+@@ -301,7 +295,6 @@ mod tests {
+             "model",
+             "multiline",
+             "new",
+-            "onboarding",
+             "personas",
+             "plan",
+             "plan-view",
+@@ -334,9 +327,7 @@ mod tests {
+             "timestamps",
+             "title",
+             "toggle-mouse-reporting",
+-            "tour",
+             "transcript",
+-            "tutorial",
+             "t",
+             "usage",
+             "view-plan",
+@@ -369,7 +360,7 @@ mod tests {
+         let quit_cmd = reg.get("quit").unwrap();
+         assert_eq!(exit_cmd.name(), quit_cmd.name());
+         let doctor = reg.get("doctor").unwrap();
+-        assert_eq!(doctor.usage(), "/doctor [fix [FIX]]");
++        assert_eq!(doctor.usage(), "/doctor");
+         for alias in ["terminal-setup", "terminal-check", "terminal-info"] {
+             assert_eq!(reg.get(alias).unwrap().name(), doctor.name());
+             assert_eq!(reg.get(alias).unwrap().usage(), doctor.usage());
+@@ -400,19 +391,6 @@ mod tests {
+         assert!(matches!(result, CommandResult::Action(Action::ExitSession)));
+     }
+     #[test]
+-    fn delete_requires_session_and_dispatches() {
+-        let models = ModelState::default();
+-        let cmd = delete::DeleteCommand;
+-        let mut ctx = make_ctx(&models);
+-        assert!(matches!(cmd.run(&mut ctx, ""), CommandResult::Error(_)));
+-        let session_id = acp::SessionId::new("sess-delete");
+-        ctx.session_id = Some(&session_id);
+-        assert!(matches!(
+-            cmd.run(&mut ctx, ""),
+-            CommandResult::Action(Action::DeleteCurrentSession)
+-        ));
+-    }
+-    #[test]
+     fn view_plan_returns_show_plan_action() {
+         let models = ModelState::default();
+         let mut ctx = make_ctx(&models);

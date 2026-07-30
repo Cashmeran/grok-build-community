@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build_concise/read_file.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build_concise/read_file.rs	(rejected hunks)
+@@ -52,7 +52,7 @@ impl xai_tool_runtime::Tool for ReadFileConciseTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             "read_file",
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 

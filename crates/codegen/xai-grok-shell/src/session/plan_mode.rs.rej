@@ -1,0 +1,15 @@
+diff a/crates/codegen/xai-grok-shell/src/session/plan_mode.rs b/crates/codegen/xai-grok-shell/src/session/plan_mode.rs	(rejected hunks)
+@@ -690,10 +690,9 @@ mod tests {
+         plan_path: &str,
+         plan_has_content: bool,
+     ) -> String {
+-        let extra = serde_json::json!({
+-            "plan_path": plan_path,
+-            "plan_has_content": plan_has_content,
+-        });
++        let extra = serde_json::json!(
++            { "plan_path" : plan_path, "plan_has_content" : plan_has_content, }
++        );
+         renderer.render_with_extra(template, &extra).unwrap()
+     }
+     #[test]

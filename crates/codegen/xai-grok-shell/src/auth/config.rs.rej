@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-shell/src/auth/config.rs b/crates/codegen/xai-grok-shell/src/auth/config.rs	(rejected hunks)
+@@ -276,7 +276,7 @@ impl Default for GrokComConfig {
+             Some(
+                 OAuth2ProviderConfig::from_env().unwrap_or_else(|| OAuth2ProviderConfig {
+                     issuer: xai_oauth2_issuer().to_owned(),
+-                    client_id: obfstr::obfstr!("b1a00492-073a-47ea-816f-4c329264a828").to_owned(),
++                    client_id: obfstr::obfs"b1a00492-073a-47ea-816f-4c329264a828".to_owned(),
+                     scopes: default_oauth2_scopes(),
+                     principal_type: None,
+                     principal_id: None,

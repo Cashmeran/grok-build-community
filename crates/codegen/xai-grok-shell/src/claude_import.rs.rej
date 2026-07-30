@@ -1,0 +1,38 @@
+diff a/crates/codegen/xai-grok-shell/src/claude_import.rs b/crates/codegen/xai-grok-shell/src/claude_import.rs	(rejected hunks)
+@@ -561,6 +561,28 @@ pub(crate) fn reset_marker_cache_for_test() {
+     *MARKER_CACHE.write().expect("MARKER_CACHE poisoned") = None;
+ }
+ 
++/// Expand a leading bare `~` or `~/` to the home directory. Returns the path
++/// unchanged if home cannot be resolved or the input has no leading tilde.
++///
++/// `~user/` (other-user home) is **not** supported — this is a config field,
++/// not a shell input, so the surface is intentionally narrow.
++///
++/// Shared by `extensions/skills.rs` (skills paths from `[paths] extra_skill_dirs`)
++/// and `inspect.rs` (rules paths from `[paths] extra_rule_dirs`) so both call
++/// sites apply identical normalisation.
++pub fn expand_home(s: &str) -> std::path::PathBuf {
++    if let Some(stripped) = s.strip_prefix("~/") {
++        if let Some(home) = dirs::home_dir() {
++            return home.join(stripped);
++        }
++    } else if s == "~"
++        && let Some(home) = dirs::home_dir()
++    {
++        return home;
++    }
++    std::path::PathBuf::from(s)
++}
++
+ /// Like [`is_claude_import_marked`], but logs a one-time `info!` line on the
+ /// first true result per process so users can see the runtime cutoff is active.
+ ///
+@@ -2124,7 +2183,6 @@ extra_rule_dirs = ["/c/rules"]
+         let resolved =
+             xai_grok_workspace::permission::resolution::resolve_permissions_with_provenance(
+                 dir.path(),
+-                true,
+             )
+             .await;
+         if let Some(r) = resolved {

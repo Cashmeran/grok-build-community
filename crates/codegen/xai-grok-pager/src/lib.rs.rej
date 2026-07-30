@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-pager/src/lib.rs b/crates/codegen/xai-grok-pager/src/lib.rs	(rejected hunks)
+@@ -52,7 +52,6 @@ pub mod share_cmd;
+ pub mod slash;
+ pub mod startup;
+ pub mod tips;
+-pub mod tutorial_docs;
+ pub mod wrap_clipboard_image;
+ pub mod wrap_cmd;
+ pub(crate) mod wrap_filter;

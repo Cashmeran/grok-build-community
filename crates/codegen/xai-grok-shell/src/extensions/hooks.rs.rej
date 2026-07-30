@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-shell/src/extensions/hooks.rs b/crates/codegen/xai-grok-shell/src/extensions/hooks.rs	(rejected hunks)
+@@ -303,7 +303,6 @@ mod tests {
+             timeout_ms: 5000,
+             source_dir: PathBuf::from("/tmp"),
+             extra_env: HashMap::new(),
+-            layer: xai_grok_hooks::config::HookProvenance::File,
+         }
+     }
+ 

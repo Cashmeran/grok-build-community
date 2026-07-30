@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-workspace-types/src/rpc/mod.rs b/crates/codegen/xai-grok-workspace-types/src/rpc/mod.rs	(rejected hunks)
+@@ -13,7 +13,6 @@ pub mod agents_md;
+ pub mod code_nav;
+ pub mod deploy;
+ pub mod envelope;
+-pub mod export_github;
+ pub mod fs;
+ pub mod git;
+ pub mod hooks;

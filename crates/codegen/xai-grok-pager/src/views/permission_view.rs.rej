@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-pager/src/views/permission_view.rs b/crates/codegen/xai-grok-pager/src/views/permission_view.rs	(rejected hunks)
+@@ -33,6 +33,7 @@ use unicode_width::UnicodeWidthStr;
+ 
+ use crate::theme::Theme;
+ 
++
+ // ── Enums ──────────────────────────────────────────────────────────────
+ 
+ /// Interaction mode for the permission overlay.

@@ -1,0 +1,10 @@
+[package]
+name = "grok-build-ce-tools"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Grok Build CE - tool source reference (safe from upstream overwrites)"
+
+# Source files kept here as reference. Patches place them into the
+# upstream crate for compilation. Future: standalone crate via
+# xai-grok-tools extension points.

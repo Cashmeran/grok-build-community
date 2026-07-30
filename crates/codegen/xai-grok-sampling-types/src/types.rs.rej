@@ -1,0 +1,59 @@
+diff a/crates/codegen/xai-grok-sampling-types/src/types.rs b/crates/codegen/xai-grok-sampling-types/src/types.rs	(rejected hunks)
+@@ -83,6 +83,9 @@ pub struct ChatCompletionRequest {
+     pub tool_choice: Option<ToolChoice>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+     pub search_parameters: Option<SearchParameters>,
++    /// OpenAI Chat Completions web_search_options. Set when hosted WebSearch tool is present.
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub web_search_options: Option<serde_json::Value>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+     pub response_format: Option<crate::rs::ResponseFormat>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+@@ -125,6 +128,7 @@ impl ChatCompletionRequest {
+             tools: None,
+             tool_choice: None,
+             search_parameters: None,
++            web_search_options: None,
+             response_format: None,
+             reasoning_effort: None,
+             x_grok_conv_id: None,
+@@ -151,6 +155,7 @@ impl ChatCompletionRequest {
+             tools: None,
+             tool_choice: None,
+             search_parameters: None,
++            web_search_options: None,
+             response_format: None,
+             reasoning_effort: None,
+             x_grok_conv_id: None,
+@@ -1043,13 +1048,6 @@ pub struct SamplingConfig {
+     /// Extra headers to send with requests (e.g., for BYOK scenarios).
+     #[serde(default, skip_serializing_if = "indexmap::IndexMap::is_empty")]
+     pub extra_headers: indexmap::IndexMap<String, String>,
+-    /// Query parameters folded into every request URL (percent-encoded).
+-    #[serde(default, skip_serializing_if = "indexmap::IndexMap::is_empty")]
+-    pub query_params: indexmap::IndexMap<String, String>,
+-    /// Header name to environment variable; only the mapping persists, not the
+-    /// resolved secret.
+-    #[serde(default, skip_serializing_if = "indexmap::IndexMap::is_empty")]
+-    pub env_http_headers: indexmap::IndexMap<String, String>,
+     /// Total context window size in tokens. Used for auto-compact thresholds.
+     pub context_window: NonZeroU64,
+     /// Reasoning effort level for reasoning models.
+@@ -1089,7 +1087,7 @@ pub struct CreateResponseWrapper {
+     /// xAI-specific tool definitions that can't be expressed via
+     /// `async_openai`'s `rs::Tool` enum (e.g., `x_search`). Injected
+     /// as raw JSON into the serialized request body's `tools` array.
+-    pub extra_tool_entries: Vec<serde_json::Value>,
++    pub extra_raw_tools: Vec<serde_json::Value>,
+ }
+ 
+ impl CreateResponseWrapper {
+@@ -1105,7 +1103,7 @@ impl CreateResponseWrapper {
+             x_grok_deployment_id: None,
+             x_grok_user_id: None,
+             trace: None,
+-            extra_tool_entries: vec![],
++            extra_raw_tools: vec![],
+         }
+     }
+ 

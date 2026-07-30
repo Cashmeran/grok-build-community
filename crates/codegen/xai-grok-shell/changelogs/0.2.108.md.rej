@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-shell/changelogs/0.2.108.md b/crates/codegen/xai-grok-shell/changelogs/0.2.108.md	(rejected hunks)
+@@ -4,7 +4,7 @@
+ 
+ - **Sessions** can now be resumed after moving the working directory or switching machines.
+ - **Ctrl+G** in minimal mode opens the current prompt draft in an external editor without sending it; fullscreen keeps the tasks pane.
+-- **grok doctor** checks terminal, tmux, clipboard, and keyboard setup without opening the TUI.
++- **grok doctor** now shows standalone terminal, tmux, clipboard, and keyboard diagnostics without starting the TUI.
+ 
+ ## Bug Fixes
+ 

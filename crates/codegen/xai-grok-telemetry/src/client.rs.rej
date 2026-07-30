@@ -1,0 +1,57 @@
+diff a/crates/codegen/xai-grok-telemetry/src/client.rs b/crates/codegen/xai-grok-telemetry/src/client.rs	(rejected hunks)
+@@ -143,19 +143,15 @@ static TELEMETRY_CLIENT: OnceLock<Mutex<Option<TelemetryClient>>> = OnceLock::ne
+ /// Returns `true` when telemetry mode is `Enabled`.
+ /// Used by `log_event` — product analytics events only fire in `Enabled` mode.
+ pub fn is_enabled() -> bool {
+-    TELEMETRY_CLIENT
+-        .get()
+-        .and_then(|m| m.lock().ok())
+-        .is_some_and(|g| g.as_ref().is_some_and(|c| c.mode.is_enabled()))
++    false // Community Edition: telemetry disabled
++
+ }
+ 
+ /// Returns `true` when telemetry mode is `Enabled` or `SessionMetrics`.
+ /// Used by `session_metrics` — lifecycle events fire in both modes.
+ pub fn is_session_metrics_enabled() -> bool {
+-    TELEMETRY_CLIENT
+-        .get()
+-        .and_then(|m| m.lock().ok())
+-        .is_some_and(|g| g.as_ref().is_some_and(|c| c.mode.session_metrics_enabled()))
++    false // Community Edition: telemetry disabled
++
+ }
+ 
+ pub struct UserContext {
+@@ -181,6 +177,7 @@ impl UserContext {
+ 
+ /// Core telemetry emitter. Routes to product events + Mixpanel.
+ pub async fn track(event_name: &str, request_id: &str, ctx: &UserContext, mut metadata: Metadata) {
++    return; // Community Edition: telemetry disabled
+     let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
+     let client = {
+         let guard = lock.lock().unwrap_or_else(|err| err.into_inner());
+@@ -271,6 +268,7 @@ pub async fn track(event_name: &str, request_id: &str, ctx: &UserContext, mut me
+ /// lifecycle events via [`track`], but must not write Mixpanel people
+ /// profiles (`engage`).
+ pub fn sync_profile() {
++    return; // Community Edition: telemetry disabled
+     let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
+     let client = {
+         let guard = lock.lock().unwrap_or_else(|err| err.into_inner());
+@@ -339,6 +337,7 @@ pub fn init(
+     subscription_tier: Option<String>,
+     http_client: reqwest::Client,
+ ) {
++    return; // Community Edition: telemetry disabled
+     let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
+     let mut guard = lock.lock().unwrap_or_else(|err| err.into_inner());
+     *guard = if mode.is_disabled() {
+@@ -374,6 +373,7 @@ pub fn init_if_needed(
+     subscription_tier: Option<String>,
+     http_client: reqwest::Client,
+ ) {
++    return; // Community Edition: telemetry disabled
+     if mode.is_disabled() {
+         return;
+     }

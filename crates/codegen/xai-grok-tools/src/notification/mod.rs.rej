@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-tools/src/notification/mod.rs b/crates/codegen/xai-grok-tools/src/notification/mod.rs	(rejected hunks)
+@@ -2,7 +2,6 @@ pub mod handle;
+ pub mod types;
+ 
+ pub use handle::AcknowledgedToolNotification;
+-pub use handle::CappedToolNotificationReceiver;
+ pub use handle::DurableNotificationTargets;
+ pub use handle::NotificationAcknowledgementBatch;
+ pub use handle::NotificationAcknowledgementError;

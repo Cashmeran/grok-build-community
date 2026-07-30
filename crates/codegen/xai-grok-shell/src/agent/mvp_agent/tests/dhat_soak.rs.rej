@@ -1,0 +1,25 @@
+diff a/crates/codegen/xai-grok-shell/src/agent/mvp_agent/tests/dhat_soak.rs b/crates/codegen/xai-grok-shell/src/agent/mvp_agent/tests/dhat_soak.rs	(rejected hunks)
+@@ -38,16 +38,18 @@ fn populate_and_evict(agent: &MvpAgent, i: usize) {
+ 
+     let (_ptx, prx) = tokio::sync::mpsc::unbounded_channel::<PermissionEvent>();
+     agent
+-        .retained_resources
++        .permission_event_receivers
+         .borrow_mut()
+-        .entry(sid.clone())
+-        .or_default()
+-        .permission_event_receiver = Some(prx);
+-    agent.set_turn_number(&sid, i as u64);
++        .insert(sid.clone(), prx);
++    agent
++        .session_turn_numbers
++        .borrow_mut()
++        .insert(sid.clone(), i as u64);
+     agent.model_unavailable_sessions.borrow_mut().insert(
+         sid.0.to_string(),
+         acp::ModelId::new(std::sync::Arc::from("gone-model")),
+     );
++
+     agent.remove_session(&sid);
+ }
+ 

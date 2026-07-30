@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-chat-state/src/compaction_transcript.rs b/crates/codegen/xai-chat-state/src/compaction_transcript.rs	(rejected hunks)
+@@ -69,6 +69,7 @@ fn role_label(item: &ConversationItem) -> &'static str {
+         ConversationItem::ToolResult(_) => "Function",
+         ConversationItem::BackendToolCall(_) => "Assistant",
+         ConversationItem::Reasoning(_) => "Assistant",
++        ConversationItem::Unknown => "Assistant",
+     }
+ }
+ 

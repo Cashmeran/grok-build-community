@@ -1,0 +1,16 @@
+diff a/crates/codegen/xai-grok-plugin-marketplace/Cargo.toml b/crates/codegen/xai-grok-plugin-marketplace/Cargo.toml	(rejected hunks)
+@@ -8,13 +8,13 @@ edition.workspace = true
+ dirs = { workspace = true }
+ dunce = { workspace = true }
+ fs2 = { workspace = true }
++git2 = { version = "0.20", default-features = false, features = ["vendored-libgit2"] }
+ serde = { workspace = true }
+ serde_json = { workspace = true }
+ thiserror = { workspace = true }
+ toml = { workspace = true }
+ tracing = { workspace = true }
+ chrono = { workspace = true }
+-wait-timeout = { workspace = true }
+ xai-tty-utils = { workspace = true }
+ xai-grok-agent = { workspace = true }
+ xai-grok-config = { workspace = true }

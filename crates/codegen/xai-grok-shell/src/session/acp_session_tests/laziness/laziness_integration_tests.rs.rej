@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-shell/src/session/acp_session_tests/laziness/laziness_integration_tests.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_tests/laziness/laziness_integration_tests.rs	(rejected hunks)
+@@ -338,7 +338,6 @@ async fn idle_recheck_after_sleep_short_circuits_silently() {
+                         json_schema: None,
+                         origin: crate::session::PromptOrigin::User,
+                         task_wake_fallback: None,
+-                        tool_overrides_update: None,
+                         respond_to,
+                         persist_ack: None,
+                         parsed_prompt_tx: None,

@@ -1,0 +1,19 @@
+diff a/crates/codegen/xai-grok-shell/src/tools/config.rs b/crates/codegen/xai-grok-shell/src/tools/config.rs	(rejected hunks)
+@@ -220,8 +220,6 @@ impl ShellToolsetConfig {
+             api_backend: Default::default(),
+             auth_scheme: Default::default(),
+             extra_headers: indexmap::IndexMap::new(),
+-            query_params: indexmap::IndexMap::new(),
+-            env_http_headers: indexmap::IndexMap::new(),
+             context_window: 256_000,
+             client_version: None,
+             reasoning_effort: None,
+@@ -243,7 +241,7 @@ impl ShellToolsetConfig {
+             // agent/config.rs and acp_session.rs.
+             attribution_callback: None,
+             bearer_resolver: None,
+-            supports_backend_search: false,
++            supports_backend_search: true,
+             compactions_remaining: None,
+             compaction_at_tokens: None,
+             doom_loop_recovery: None,

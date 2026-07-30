@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-config/src/managed_text/source.rs b/crates/codegen/xai-grok-config/src/managed_text/source.rs	(rejected hunks)
+@@ -125,6 +125,7 @@ impl ParentPlan {
+ }
+ 
+ #[derive(Debug)]
++#[allow(dead_code)]
+ pub(super) struct ParentAnchor {
+     path: PathBuf,
+     identity: FileIdentity,

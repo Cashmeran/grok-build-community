@@ -1,0 +1,31 @@
+diff a/crates/codegen/xai-grok-pager/src/views/settings_modal/input.rs b/crates/codegen/xai-grok-pager/src/views/settings_modal/input.rs	(rejected hunks)
+@@ -179,12 +179,8 @@ fn handle_picking_enum(state: &mut SettingsModalState, key: &KeyEvent) -> Settin
+             SettingsKeyOutcome::Changed
+         }
+         // `d` reset: close picker, revert preview if applicable,
+-        // then open the reset-confirm overlay. Consent choosers opt out of
+-        // this entirely (no footer hint, no hidden shortcut) — reset stays
+-        // reachable from the browse row.
+-        KeyCode::Char('d')
+-            if key.modifiers.is_empty() && !crate::settings::is_consent_chooser(setting_key) =>
+-        {
++        // then open the reset-confirm overlay.
++        KeyCode::Char('d') if key.modifiers.is_empty() => {
+             state.transition_to_browse();
+             if supports_preview
+                 && let SettingValue::Enum(orig) = &original_value
+@@ -736,14 +732,6 @@ fn handle_browse(state: &mut SettingsModalState, key: &KeyEvent) -> SettingsKeyO
+                 Some((_, meta)) if matches!(meta.kind, SettingKind::Group { .. }) => {
+                     SettingsKeyOutcome::Unchanged
+                 }
+-                // A locked row isn't the user's to change, by `d` any more
+-                // than by Enter (which `try_enter_picking_enum` refuses).
+-                // The dispatch-time guard would catch it either way, but
+-                // only after walking the user through a confirm dialog for
+-                // a change that cannot happen.
+-                Some((key, _meta)) if state.row_lock(key).is_some() => {
+-                    SettingsKeyOutcome::Unchanged
+-                }
+                 Some((key, _meta)) => SettingsKeyOutcome::Action(Action::OpenResetConfirm { key }),
+                 // Focused row is a header (or out-of-bounds) — `d`
+                 // has nothing to reset. Unchanged so the user can

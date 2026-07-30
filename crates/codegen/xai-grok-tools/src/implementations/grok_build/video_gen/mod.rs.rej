@@ -1,0 +1,46 @@
+diff a/crates/codegen/xai-grok-tools/src/implementations/grok_build/video_gen/mod.rs b/crates/codegen/xai-grok-tools/src/implementations/grok_build/video_gen/mod.rs	(rejected hunks)
+@@ -691,23 +691,12 @@ impl VideoGenConfig {
+     pub fn is_enabled(&self) -> bool {
+         matches!(self, Self::Enabled { .. })
+     }
+-
+-    /// Stamp [`super::image_gen::SESSION_ID_HEADER`] onto `extra_headers`.
+-    /// A caller-provided value is never overwritten. No-op when `Disabled`.
+-    pub fn stamp_session_id_header(&mut self, session_id: &str) {
+-        if let Self::Enabled { extra_headers, .. } = self {
+-            extra_headers
+-                .entry(super::image_gen::SESSION_ID_HEADER.to_string())
+-                .or_insert_with(|| session_id.to_string());
+-        }
+-    }
+ }
+ 
+ /// Prose returned to the model (as a normal, successful tool result) when a
+-/// free / X Basic user calls a video tool. The model relays it to the user;
+-/// the deliberate `/imagine-video` slash command shows the SuperGrok upsell
+-/// modal instead.
+-pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is a SuperGrok feature and isn't available on the free or X Basic tier. Let the user know they can unlock image and video generation by upgrading to SuperGrok: https://grok.com/supergrok?referrer=grok-build. Do not retry this tool.";
++/// free / X Basic user calls a video tool. The model relays it to the user.
++/// Community Edition: generic message; no provider-specific upsell.
++pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is not available with your current API configuration. Check your API provider's capabilities or use a provider that supports video generation. Do not retry this tool.";
+ 
+ fn default_resolution_name() -> String {
+     DEFAULT_RESOLUTION.to_owned()
+@@ -1011,7 +1000,7 @@ impl xai_tool_runtime::Tool for ImageToVideoTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             IMAGE_TO_VIDEO_TOOL_NAME,
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 
+@@ -1107,7 +1096,7 @@ impl xai_tool_runtime::Tool for ReferenceToVideoTool {
+     ) -> xai_tool_types::ToolDescription {
+         xai_tool_types::ToolDescription::new(
+             REFERENCE_TO_VIDEO_TOOL_NAME,
+-            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
++            crate::types::tool_metadata::ToolMetadata::description_template(self),
+         )
+     }
+ 

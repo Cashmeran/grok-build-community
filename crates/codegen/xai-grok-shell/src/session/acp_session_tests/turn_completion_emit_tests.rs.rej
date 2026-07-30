@@ -1,0 +1,33 @@
+diff a/crates/codegen/xai-grok-shell/src/session/acp_session_tests/turn_completion_emit_tests.rs b/crates/codegen/xai-grok-shell/src/session/acp_session_tests/turn_completion_emit_tests.rs	(rejected hunks)
+@@ -71,7 +71,6 @@ fn pending_input(prompt_id: &str) -> (InputItem, oneshot::Receiver<PromptTurnRes
+         json_schema: None,
+         origin: crate::session::PromptOrigin::User,
+         task_wake_fallback: None,
+-        tool_overrides_update: None,
+         respond_to,
+         persist_ack: None,
+         parsed_prompt_tx: None,
+@@ -156,7 +155,6 @@ async fn normal_completion_persists_turn_completed_after_buffered_delta_flush()
+                         completion_kind: PromptCompletionKind::Completed,
+                         structured_output: None,
+                         usage: None,
+-                        tool_overrides: None,
+                     }),
+                 )
+                 .await;
+@@ -503,7 +501,6 @@ async fn removed_from_queue_completion_emits_no_turn_completed() {
+                         completion_kind: PromptCompletionKind::RemovedFromQueue,
+                         structured_output: None,
+                         usage: None,
+-                        tool_overrides: None,
+                     }),
+                 )
+                 .await;
+@@ -547,7 +544,6 @@ async fn unknown_prompt_completion_emits_no_turn_completed() {
+                         completion_kind: PromptCompletionKind::Completed,
+                         structured_output: None,
+                         usage: None,
+-                        tool_overrides: None,
+                     }),
+                 )
+                 .await;

@@ -1,0 +1,21 @@
+diff a/crates/codegen/xai-grok-shell/src/agent/chat_modes.rs b/crates/codegen/xai-grok-shell/src/agent/chat_modes.rs	(rejected hunks)
+@@ -107,7 +107,9 @@ impl ChatModesManager {
+             }
+             Ok(_) => empty_state(),
+             Err(err) => {
+-                tracing::warn!(error = %err, "chat modes fetch failed; serving cache/empty");
++                tracing::warn!(
++                    error = % err, "chat modes fetch failed; serving cache/empty"
++                );
+                 let guard = self.inner.cache.read();
+                 match guard.as_ref() {
+                     Some(c) if c.user_id == user_id => modes_to_model_state(&c.response),
+@@ -230,7 +232,7 @@ mod tests {
+         Mode {
+             id: id.to_owned(),
+             availability: ModeAvailability {
+-                requires_upgrade: Some(serde_json::json!({ "message": "Upgrade" })),
++                requires_upgrade: Some(serde_json::json!({ "message" : "Upgrade" })),
+                 ..Default::default()
+             },
+             ..Default::default()

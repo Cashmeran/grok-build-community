@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-shell/src/agent/mod.rs b/crates/codegen/xai-grok-shell/src/agent/mod.rs	(rejected hunks)
+@@ -12,7 +12,6 @@ pub mod init;
+ pub mod model_providers;
+ pub mod models;
+ pub mod mvp_agent;
+-pub(crate) mod otel_gate;
+ pub(crate) mod proxy;
+ pub mod relay;
+ pub(crate) mod restore_code;

@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/benches/render.rs b/crates/codegen/xai-grok-pager/benches/render.rs	(rejected hunks)
+@@ -21,7 +21,7 @@ use xai_grok_pager::scrollback::{
+ };
+ use xai_grok_pager::theme::Theme;
+ 
+-static BENCH_MD: &str = include_str!("bench.md");
++static BENCH_MD: &str = include_s"bench.md";
+ 
+ /// Viewport dimensions for the benchmark.
+ const VIEWPORT_WIDTH: u16 = 120;

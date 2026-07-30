@@ -1,0 +1,13 @@
+diff a/crates/codegen/xai-grok-pager/src/views/question_view.rs b/crates/codegen/xai-grok-pager/src/views/question_view.rs	(rejected hunks)
+@@ -127,11 +127,6 @@ pub enum LocalQuestionKind {
+         model_id: agent_client_protocol::ModelId,
+         effort: Option<xai_grok_shell::sampling::types::ReasoningEffort>,
+     },
+-    DoctorFix {
+-        target: crate::app::actions::DoctorFixTarget,
+-        plan: Box<crate::diagnostics::FixPlan>,
+-    },
+-    DeleteCurrentSession,
+ }
+ 
+ // ── State ──────────────────────────────────────────────────────────────

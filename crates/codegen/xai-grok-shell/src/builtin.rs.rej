@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-shell/src/builtin.rs b/crates/codegen/xai-grok-shell/src/builtin.rs	(rejected hunks)
+@@ -1,6 +1,6 @@
+ //! Built-in files extracted to `~/.grok/` on startup.
+ 
+-const BUILTIN_FILES: &[(&str, &str)] = &[("README.md", include_str!("../README.md"))];
++const BUILTIN_FILES: &[(&str, &str)] = &[("README.md", include_s"../README.md")];
+ 
+ /// Extract built-in metadata files to `~/.grok/` on startup.
+ ///

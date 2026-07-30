@@ -1,0 +1,10 @@
+diff a/crates/codegen/xai-grok-pager/tests/leader_pty_e2e/leader_n_clients_shared_session.rs b/crates/codegen/xai-grok-pager/tests/leader_pty_e2e/leader_n_clients_shared_session.rs	(rejected hunks)
+@@ -87,7 +87,7 @@ async fn leader_n_clients_shared_session() {
+     for (i, v) in viewers.iter_mut().enumerate() {
+         v.update(Duration::from_secs(3));
+         assert!(
+-            v.is_running().expect("poll pager liveness"),
++            v.is_running(),
+             "viewer {i} exited after the driver quit\nscreen:\n{}",
+             v.screen_contents()
+         );

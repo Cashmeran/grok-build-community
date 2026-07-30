@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-hooks/Cargo.toml b/crates/codegen/xai-grok-hooks/Cargo.toml	(rejected hunks)
+@@ -14,7 +14,6 @@ serde_json = { workspace = true }
+ shellexpand = "3.1"
+ thiserror = { workspace = true }
+ tokio = { workspace = true, features = ["process", "rt", "macros", "time"] }
+-toml = { workspace = true }
+ tracing = { workspace = true }
+ url = { workspace = true }
+ xai-grok-config = { workspace = true }

@@ -1,0 +1,20 @@
+diff a/crates/codegen/xai-grok-sampling-types/src/lib.rs b/crates/codegen/xai-grok-sampling-types/src/lib.rs	(rejected hunks)
+@@ -11,7 +11,6 @@ pub mod doom_loop;
+ pub mod error;
+ pub mod messages;
+ pub mod serde_helpers;
+-pub mod tool_overrides;
+ pub mod types;
+ 
+ pub use self::conversation::*;
+@@ -23,10 +22,6 @@ pub use self::error::{
+     EmptyReason, EmptyResponseContext, ResponseModelMetadata, Result, SamplingError,
+     is_context_length_error, status_user_message, user_facing_api_error_message,
+ };
+-pub use self::tool_overrides::{
+-    ClearableField, SearchDateBound, SearchDateBoundError, ToolOverrides, ToolOverridesUpdate,
+-    WebSearchOptions, XSearchOptions,
+-};
+ pub use self::types::*;
+ 
+ // Re-export async-openai crate Responses API types under `rs` namespace

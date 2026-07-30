@@ -1,0 +1,19 @@
+diff a/crates/codegen/xai-chat-state/src/types.rs b/crates/codegen/xai-chat-state/src/types.rs	(rejected hunks)
+@@ -181,8 +181,6 @@ mod tests {
+                 top_p: None,
+                 api_backend: Default::default(),
+                 extra_headers: Default::default(),
+-                query_params: Default::default(),
+-                env_http_headers: Default::default(),
+                 context_window: NonZeroU64::new(128_000).unwrap(),
+                 reasoning_effort: None,
+                 stream_tool_calls: None,
+@@ -226,8 +224,6 @@ mod tests {
+                 top_p: None,
+                 api_backend: Default::default(),
+                 extra_headers: Default::default(),
+-                query_params: Default::default(),
+-                env_http_headers: Default::default(),
+                 context_window: NonZeroU64::new(128_000).unwrap(),
+                 reasoning_effort: None,
+                 stream_tool_calls: None,

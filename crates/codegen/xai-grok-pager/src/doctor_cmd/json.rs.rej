@@ -1,0 +1,9 @@
+diff a/crates/codegen/xai-grok-pager/src/doctor_cmd/json.rs b/crates/codegen/xai-grok-pager/src/doctor_cmd/json.rs	(rejected hunks)
+@@ -379,7 +379,6 @@ pub(super) fn multiplexer(kind: MultiplexerKind) -> &'static str {
+         MultiplexerKind::Screen => "screen",
+         MultiplexerKind::Zellij => "zellij",
+         MultiplexerKind::Cmux => "cmux",
+-        MultiplexerKind::Herdr => "herdr",
+         MultiplexerKind::Undetected => "undetected",
+     }
+ }
