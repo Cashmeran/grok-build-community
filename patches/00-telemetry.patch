@@ -1,174 +1,108 @@
 diff --git a/crates/codegen/xai-grok-telemetry/src/client.rs b/crates/codegen/xai-grok-telemetry/src/client.rs
-index e84bc51..1a1be4a 100644
+index e84bc51..4a7473c 100644
 --- a/crates/codegen/xai-grok-telemetry/src/client.rs
 +++ b/crates/codegen/xai-grok-telemetry/src/client.rs
 @@ -143,19 +143,15 @@ static TELEMETRY_CLIENT: OnceLock<Mutex<Option<TelemetryClient>>> = OnceLock::ne
  /// Returns `true` when telemetry mode is `Enabled`.
- /// Used by `log_event` 鈥?product analytics events only fire in `Enabled` mode.
+ /// Used by `log_event` — product analytics events only fire in `Enabled` mode.
  pub fn is_enabled() -> bool {
 -    TELEMETRY_CLIENT
 -        .get()
 -        .and_then(|m| m.lock().ok())
 -        .is_some_and(|g| g.as_ref().is_some_and(|c| c.mode.is_enabled()))
-+    false // Community Edition: telemetry disabled
++    false
 +
  }
  
  /// Returns `true` when telemetry mode is `Enabled` or `SessionMetrics`.
- /// Used by `session_metrics` 鈥?lifecycle events fire in both modes.
+ /// Used by `session_metrics` — lifecycle events fire in both modes.
  pub fn is_session_metrics_enabled() -> bool {
 -    TELEMETRY_CLIENT
 -        .get()
 -        .and_then(|m| m.lock().ok())
 -        .is_some_and(|g| g.as_ref().is_some_and(|c| c.mode.session_metrics_enabled()))
-+    false // Community Edition: telemetry disabled
++    false
 +
  }
  
  pub struct UserContext {
-@@ -181,6 +177,7 @@ impl UserContext {
+@@ -181,6 +177,8 @@ impl UserContext {
  
  /// Core telemetry emitter. Routes to product events + Mixpanel.
  pub async fn track(event_name: &str, request_id: &str, ctx: &UserContext, mut metadata: Metadata) {
++    return;
 +    return; // Community Edition: telemetry disabled
      let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
      let client = {
          let guard = lock.lock().unwrap_or_else(|err| err.into_inner());
-@@ -271,6 +268,7 @@ pub async fn track(event_name: &str, request_id: &str, ctx: &UserContext, mut me
+@@ -271,6 +269,8 @@ pub async fn track(event_name: &str, request_id: &str, ctx: &UserContext, mut me
  /// lifecycle events via [`track`], but must not write Mixpanel people
  /// profiles (`engage`).
  pub fn sync_profile() {
++    return;
 +    return; // Community Edition: telemetry disabled
      let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
      let client = {
          let guard = lock.lock().unwrap_or_else(|err| err.into_inner());
-@@ -339,6 +337,7 @@ pub fn init(
+@@ -339,6 +339,8 @@ pub fn init(
      subscription_tier: Option<String>,
      http_client: reqwest::Client,
  ) {
++    return;
 +    return; // Community Edition: telemetry disabled
      let lock = TELEMETRY_CLIENT.get_or_init(|| Mutex::new(None));
      let mut guard = lock.lock().unwrap_or_else(|err| err.into_inner());
      *guard = if mode.is_disabled() {
-@@ -374,6 +373,7 @@ pub fn init_if_needed(
+@@ -374,6 +376,8 @@ pub fn init_if_needed(
      subscription_tier: Option<String>,
      http_client: reqwest::Client,
  ) {
++    return;
 +    return; // Community Edition: telemetry disabled
      if mode.is_disabled() {
          return;
      }
-diff --git a/crates/codegen/xai-grok-telemetry/src/compat.rs b/crates/codegen/xai-grok-telemetry/src/compat.rs
-new file mode 100644
-index 0000000..fe7bf1d
---- /dev/null
-+++ b/crates/codegen/xai-grok-telemetry/src/compat.rs
-@@ -0,0 +1,68 @@
-+//! Stubs for deleted modules 鈥?Community Edition.
-+//! External code that directly called these APIs now gets no-op implementations.
-+
-+// 鈹€鈹€ client stubs 鈹€鈹€
-+
-+/// No-op 鈥?upload client is deleted. Matches original 9-arg signature.
-+pub fn init(
-+    _cfg: crate::config::TelemetryConfig,
-+    _mode: crate::config::TelemetryMode,
-+    _user_id: Option<String>,
-+    _team_id: Option<String>,
-+    _deployment_key: Option<String>,
-+    _origin_client: Option<impl std::any::Any + Send>,
-+    _version: String,
-+    _subscription_tier: Option<String>,
-+    _client: reqwest::Client,
-+) {
-+}
-+/// No-op.
-+pub fn init_if_needed(
-+    _cfg: crate::config::TelemetryConfig,
-+    _mode: crate::config::TelemetryMode,
-+    _user_id: Option<String>,
-+    _team_id: Option<String>,
-+    _deployment_key: Option<String>,
-+    _origin_client: Option<impl std::any::Any + Send>,
-+    _version: String,
-+    _subscription_tier: Option<String>,
-+    _client: reqwest::Client,
-+) {
-+}
-+/// Always false 鈥?no upload, so never "enabled".
-+pub fn is_enabled() -> bool {
-+    false
-+}
-+/// Always false.
-+pub fn is_session_metrics_enabled() -> bool {
-+    false
-+}
-+
-+// 鈹€鈹€ sentry stubs 鈹€鈹€
-+
-+pub struct SentryConfig {
-+    pub client: &'static str,
-+    pub client_version: &'static str,
-+    pub release: &'static str,
-+    pub disabled: bool,
-+}
-+/// No-op 鈥?sentry crash reporting is deleted.
-+pub fn sentry_init(_config: SentryConfig) -> SentryGuard {
-+    SentryGuard
-+}
-+pub struct SentryGuard;
-+impl Drop for SentryGuard {
-+    fn drop(&mut self) {}
-+}
-+/// No-op.
-+pub fn flush_on_shutdown() {}
-+
-+// 鈹€鈹€ hooks_log stubs 鈹€鈹€
-+
-+/// No-op layer 鈥?no hook events are logged.
-+pub fn hooks_log_layer<S>() -> Box<dyn tracing_subscriber::layer::Layer<S> + Send + Sync>
-+where
-+    S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
-+{
-+    Box::new(tracing_subscriber::layer::Identity::new())
-+}
 diff --git a/crates/codegen/xai-grok-telemetry/src/session_ctx.rs b/crates/codegen/xai-grok-telemetry/src/session_ctx.rs
-index e1659c3..a5e2c2c 100644
+index e1659c3..b89332d 100644
 --- a/crates/codegen/xai-grok-telemetry/src/session_ctx.rs
 +++ b/crates/codegen/xai-grok-telemetry/src/session_ctx.rs
-@@ -135,6 +135,7 @@ const _: () = assert!(EmitterOrigin::ALL.len() == <EmitterOrigin as strum::EnumC
+@@ -135,6 +135,8 @@ const _: () = assert!(EmitterOrigin::ALL.len() == <EmitterOrigin as strum::EnumC
  /// site, two sinks, independent gates"): the external gate is
  /// `external::is_active()`, independent of `TelemetryMode`.
  pub fn log_event<T: TelemetryEvent>(data: T) {
++    let _ = data; return;
 +    let _ = data; return; // Community Edition: telemetry disabled
      crate::external::emit(&data);
      if !client::is_enabled() {
          return;
-@@ -155,6 +156,7 @@ pub fn log_event<T: TelemetryEvent>(data: T) {
+@@ -155,6 +157,8 @@ pub fn log_event<T: TelemetryEvent>(data: T) {
  /// `turn.count` exactly-once on every path while never sending an internal
  /// record under ZDR.
  pub fn log_event_dual<T: TelemetryEvent>(internal_enabled: bool, data: T) {
++    return;
 +    return; // Community Edition: telemetry disabled
      if internal_enabled {
          log_event(data);
      } else {
-@@ -168,6 +170,7 @@ pub fn log_event_dual<T: TelemetryEvent>(internal_enabled: bool, data: T) {
+@@ -168,6 +172,8 @@ pub fn log_event_dual<T: TelemetryEvent>(internal_enabled: bool, data: T) {
  /// Unconditionally fans out to the external OTEL stream first (independent
  /// gate; see [`log_event`]).
  pub fn log_session_event<T: TelemetryEvent>(data: T) {
++    let _ = data; return;
 +    let _ = data; return; // Community Edition: telemetry disabled
      crate::external::emit(&data);
      if !client::is_session_metrics_enabled() {
          return;
-@@ -187,6 +190,7 @@ pub fn log_session_event<T: TelemetryEvent>(data: T) {
+@@ -187,6 +193,8 @@ pub fn log_session_event<T: TelemetryEvent>(data: T) {
  /// `external::tests`). If the external stream ever needs workspace events,
  /// the hook moves here behind an explicit `origin == Shell` filter.
  pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, data: T) {
++    return;
 +    return; // Community Edition: telemetry disabled
      if !client::is_session_metrics_enabled() {
          return;
      }
-@@ -194,12 +198,12 @@ pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, d
+@@ -194,12 +202,12 @@ pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, d
  }
  
  /// Emit an event with the default [`EmitterOrigin::Shell`] prefix.
@@ -183,7 +117,7 @@ index e1659c3..a5e2c2c 100644
      origin: EmitterOrigin,
      event_suffix: impl Into<String>,
      data: T,
-@@ -209,34 +213,50 @@ pub fn emit_event_with_origin<T: Serialize + Send + 'static>(
+@@ -209,34 +217,50 @@ pub fn emit_event_with_origin<T: Serialize + Send + 'static>(
          .try_with(|c| {
              (
                  c.session_id.clone(),

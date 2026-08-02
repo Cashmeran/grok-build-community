@@ -18,11 +18,11 @@ An independent, community-maintained fork of [SpaceXAI Grok Build](https://githu
 
 | Official | Community Edition |
 |----------|-------------------|
-| Mixpanel user analytics | ✅ Removed |
-| Sentry crash reporting | ✅ Removed |
-| GCS session upload | ✅ Removed |
-| OpenTelemetry data export | ✅ Stubbed (local-only) |
-| Hook event logging | ✅ Removed |
+| Mixpanel user analytics | 鉁?Removed |
+| Sentry crash reporting | 鉁?Removed |
+| GCS session upload | 鉁?Removed |
+| OpenTelemetry data export | 鉁?Stubbed (local-only) |
+| Hook event logging | 鉁?Removed |
 
 All telemetry data is now **written to local files** (`~/.grok/logs/events.log`).
 
@@ -30,8 +30,8 @@ All telemetry data is now **written to local files** (`~/.grok/logs/events.log`)
 
 | Official | Community Edition |
 |----------|-------------------|
-| Grok-only Responses API search | ✅ 4 backends with auto-routing |
-| No search for other models | ✅ DuckDuckGo free fallback |
+| Grok-only Responses API search | 鉁?4 backends with auto-routing |
+| No search for other models | 鉁?DuckDuckGo free fallback |
 
 Search backends:
 
@@ -42,7 +42,7 @@ Search backends:
 | Chat Completions (new) | OpenAI search models | web_search_options |
 | DuckDuckGo (new) | All models | Free, zero-config fallback |
 
-Backend is **auto-selected** based on the model's `api_backend` — no manual config needed.
+Backend is **auto-selected** based on the model's `api_backend` 鈥?no manual config needed.
 
 #### New Tools
 
@@ -57,18 +57,18 @@ Backend is **auto-selected** based on the model's `api_backend` — no manual co
 
 #### Prompt Optimizations
 
-The system prompt has been improved with additional guidance for communication style, accuracy, and execution discipline — reducing AI clichés and hallucinations.
+The system prompt has been improved with additional guidance for communication style, accuracy, and execution discipline 鈥?reducing AI clich茅s and hallucinations.
 
 #### Multi-Language Support (new)
 
 | Language | Code |
 |----------|------|
 | English | `en` |
-| 中文 (Simplified) | `zh-CN` |
-| 日本語 | `ja` |
-| 한국어 | `ko` |
-| Русский | `ru` |
-| Français | `fr` |
+| 涓枃 (Simplified) | `zh-CN` |
+| 鏃ユ湰瑾?| `ja` |
+| 頃滉淡鞏?| `ko` |
+| 袪褍褋褋泻懈泄 | `ru` |
+| Fran莽ais | `fr` |
 
 - **Auto-detect**: Matches system language on first startup
 - **Real-time switch**: `/lang zh-CN` takes effect immediately, no restart needed
@@ -88,7 +88,7 @@ The system prompt has been improved with additional guidance for communication s
 
 #### Session Forward Compatibility
 
-- Added `ConversationItem::Unknown` variant — old sessions won't fail after version upgrades
+- Added `ConversationItem::Unknown` variant 鈥?old sessions won't fail after version upgrades
 - Unknown message types are silently skipped instead of crashing
 
 ### Planned

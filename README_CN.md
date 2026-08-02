@@ -1,66 +1,53 @@
-<!-- 语言切换 -->
+<!-- 璇█鍒囨崲 -->
 <div align="right">
-  <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
+  <a href="README.md">English</a> | <a href="README_CN.md">涓枃</a>
 </div>
 
-# Grok Build 社区版
-
+# Grok Build 绀惧尯鐗?
 [![CI](https://github.com/Cashmeran/grok-build-community/actions/workflows/ci.yml/badge.svg)](https://github.com/Cashmeran/grok-build-community/actions/workflows/ci.yml)
 
-基于 [SpaceXAI Grok Build](https://github.com/xai-org/grok-build) 的独立社区维护分支。
-
-**定位**：Grok Build 社区版 之于 官方 Grok Build，如同 [VSCodium](https://github.com/VSCodium/vscodium) 之于 VS Code。
-
+鍩轰簬 [SpaceXAI Grok Build](https://github.com/xai-org/grok-build) 鐨勭嫭绔嬬ぞ鍖虹淮鎶ゅ垎鏀€?
+**瀹氫綅**锛欸rok Build 绀惧尯鐗?涔嬩簬 瀹樻柟 Grok Build锛屽鍚?[VSCodium](https://github.com/VSCodium/vscodium) 涔嬩簬 VS Code銆?
 ---
 
-## 做了什么
+## 鍋氫簡浠€涔?
+### 闅愮
+- 鍒犻櫎 Mixpanel 鐢ㄦ埛琛屼负鍒嗘瀽
+- 鍒犻櫎 Sentry 宕╂簝涓婃姤
+- 鍒犻櫎 Google Cloud 浼氳瘽涓婁紶
+- 鍒犻櫎 OpenTelemetry 鏁版嵁瀵煎嚭
+- 閬ユ祴鏁版嵁鏀逛负 **鏈湴瀛樺偍**锛坄~/.grok/logs/`锛?- **闃绘**鑷姩鏇存柊
 
-### 隐私
-- 删除 Mixpanel 用户行为分析
-- 删除 Sentry 崩溃上报
-- 删除 Google Cloud 会话上传
-- 删除 OpenTelemetry 数据导出
-- 遥测数据改为 **本地存储**（`~/.grok/logs/`）
-- **阻止**自动更新
-
-### 搜索 — 4 种后端
-根据模型自动适配：
-
-| 后端 | 适用模型 |
+### 鎼滅储 鈥?4 绉嶅悗绔?鏍规嵁妯″瀷鑷姩閫傞厤锛?
+| 鍚庣 | 閫傜敤妯″瀷 |
 |------|---------|
-| Responses API | Grok、GPT-4 |
-| Messages API | DeepSeek、Claude |
-| Chat Completions | OpenAI 搜索模型 |
-| DuckDuckGo | 所有模型（免费回退） |
+| Responses API | Grok銆丟PT-4 |
+| Messages API | DeepSeek銆丆laude |
+| Chat Completions | OpenAI 鎼滅储妯″瀷 |
+| DuckDuckGo | 鎵€鏈夋ā鍨嬶紙鍏嶈垂鍥為€€锛?|
 
-### 新增工具
-| 工具 | 说明 |
+### 鏂板宸ュ叿
+| 宸ュ叿 | 璇存槑 |
 |------|------|
-| `glob` | 文件模式匹配（`*`、`**`、`?`） |
-| `calculator` | 数学表达式 + 统计函数 |
-| `json_query` | JSON 查询/过滤/聚合 |
-| `csv_ops` | CSV 查询/排序/分组 |
-| `text` | 正则提取/替换/统计 |
-| `codec` | 编解码 + 哈希 |
+| `glob` | 鏂囦欢妯″紡鍖归厤锛坄*`銆乣**`銆乣?`锛?|
+| `calculator` | 鏁板琛ㄨ揪寮?+ 缁熻鍑芥暟 |
+| `json_query` | JSON 鏌ヨ/杩囨护/鑱氬悎 |
+| `csv_ops` | CSV 鏌ヨ/鎺掑簭/鍒嗙粍 |
+| `text` | 姝ｅ垯鎻愬彇/鏇挎崲/缁熻 |
+| `codec` | 缂栬В鐮?+ 鍝堝笇 |
 
-### 提示词优化
-优化的系统提示词，减少 AI 腔调，降低幻觉。
+### 鎻愮ず璇嶄紭鍖?浼樺寲鐨勭郴缁熸彁绀鸿瘝锛屽噺灏?AI 鑵旇皟锛岄檷浣庡够瑙夈€?
+### 澶氳瑷€锛坴0.2.109+锛?鏀寔 6 绉嶈瑷€锛岃嚜鍔ㄦ娴嬬郴缁熻瑷€锛宍/lang` 瀹炴椂鍒囨崲锛?
+| `/lang en` | English | `/lang zh-CN` | 涓枃 |
+| `/lang ja` | 鏃ユ湰瑾?| `/lang ko` | 頃滉淡鞏?|
+| `/lang ru` | 袪褍褋褋泻懈泄 | `/lang fr` | Fran莽ais |
 
-### 多语言（v0.2.109+）
-支持 6 种语言，自动检测系统语言，`/lang` 实时切换：
-
-| `/lang en` | English | `/lang zh-CN` | 中文 |
-| `/lang ja` | 日本語 | `/lang ko` | 한국어 |
-| `/lang ru` | Русский | `/lang fr` | Français |
-
-278 条翻译覆盖全部用户界面。
-
+278 鏉＄炕璇戣鐩栧叏閮ㄧ敤鎴风晫闈€?
 ---
 
-## 安装
+## 瀹夎
 
-### 一条命令安装
-
+### 涓€鏉″懡浠ゅ畨瑁?
 **Windows (PowerShell):**
 ```powershell
 irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.ps1 | iex
@@ -71,19 +58,17 @@ irm https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/instal
 curl -fsSL https://raw.githubusercontent.com/Cashmeran/grok-build-community/main/install.sh | bash
 ```
 
-安装后运行：
+瀹夎鍚庤繍琛岋細
 ```
 grokce
 ```
 
-预编译二进制也发布在 [Releases](https://github.com/Cashmeran/grok-build-community/releases) 页面。
-
-### 从源码构建
-```bash
+棰勭紪璇戜簩杩涘埗涔熷彂甯冨湪 [Releases](https://github.com/Cashmeran/grok-build-community/releases) 椤甸潰銆?
+### 浠庢簮鐮佹瀯寤?```bash
 cargo build -p xai-grok-pager-bin --release
 ```
 
-多模型配置：
+澶氭ā鍨嬮厤缃細
 
 ```toml
 # ~/.grok/config.toml
@@ -99,26 +84,23 @@ context_window = 1000000
 
 ---
 
-## 文档
+## 鏂囨。
 
-| 文档 | 内容 |
+| 鏂囨。 | 鍐呭 |
 |------|------|
-| [CHANGELOG](docs/CHANGELOG.md) | 版本历史 |
-| [更新日志](docs/CHANGELOG_CN.md) | 中文更新日志 |
-| [Maintenance Guide](docs/MAINTENANCE.md) | 开发与上游同步 |
-| [维护指南](docs/MAINTENANCE_CN.md) | 中文维护指南 |
-| [Patches](patches/README.md) | 补丁说明 |
+| [CHANGELOG](docs/CHANGELOG.md) | 鐗堟湰鍘嗗彶 |
+| [鏇存柊鏃ュ織](docs/CHANGELOG_CN.md) | 涓枃鏇存柊鏃ュ織 |
+| [Maintenance Guide](docs/MAINTENANCE.md) | 寮€鍙戜笌涓婃父鍚屾 |
+| [缁存姢鎸囧崡](docs/MAINTENANCE_CN.md) | 涓枃缁存姢鎸囧崡 |
+| [Patches](patches/README.md) | 琛ヤ竵璇存槑 |
 
 ---
 
-## 参与贡献
+## 鍙備笌璐＄尞
 
-欢迎提交 PR。详见 [docs/MAINTENANCE_CN.md](docs/MAINTENANCE_CN.md)。
+娆㈣繋鎻愪氦 PR銆傝瑙?[docs/MAINTENANCE_CN.md](docs/MAINTENANCE_CN.md)銆?
+## 璁稿彲璇?
+Apache 2.0锛屼笌涓婃父涓€鑷淬€?
+## 鍏嶈矗澹版槑
 
-## 许可证
-
-Apache 2.0，与上游一致。
-
-## 免责声明
-
-与 SpaceXAI / xAI 无关。使用你自己的 API 密钥。
+涓?SpaceXAI / xAI 鏃犲叧銆備娇鐢ㄤ綘鑷繁鐨?API 瀵嗛挜銆?
